@@ -1,0 +1,59 @@
+package com.example.posko24.data.repository
+
+import com.example.posko24.data.model.Wilayah
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+
+class AddressRepositoryImpl @Inject constructor(
+    private val firestore: FirebaseFirestore
+) : AddressRepository {
+
+    override fun getProvinces(): Flow<Result<List<Wilayah>>> = flow {
+        val snapshot = firestore.collection("provinces").orderBy("name").get().await()
+        val provinces = snapshot.documents.mapNotNull { doc ->
+            Wilayah(
+                docId = doc.id,
+                id = doc.getString("id") ?: "",
+                name = doc.getString("name") ?: ""
+            )
+        }
+        emit(Result.success(provinces))
+    }.catch {
+        emit(Result.failure(it))
+    }
+
+    override fun getCities(provinceDocId: String): Flow<Result<List<Wilayah>>> = flow {
+        val snapshot = firestore.collection("provinces").document(provinceDocId)
+            .collection("cities").orderBy("name").get().await()
+        val cities = snapshot.documents.mapNotNull { doc ->
+            Wilayah(
+                docId = doc.id,
+                id = doc.getString("id") ?: "",
+                name = doc.getString("name") ?: ""
+            )
+        }
+        emit(Result.success(cities))
+    }.catch {
+        emit(Result.failure(it))
+    }
+
+    override fun getDistricts(provinceDocId: String, cityDocId: String): Flow<Result<List<Wilayah>>> = flow {
+        val snapshot = firestore.collection("provinces").document(provinceDocId)
+            .collection("cities").document(cityDocId)
+            .collection("districts").orderBy("name").get().await()
+        val districts = snapshot.documents.mapNotNull { doc ->
+            Wilayah(
+                docId = doc.id,
+                id = doc.getString("id") ?: "",
+                name = doc.getString("name") ?: ""
+            )
+        }
+        emit(Result.success(districts))
+    }.catch {
+        emit(Result.failure(it))
+    }
+}

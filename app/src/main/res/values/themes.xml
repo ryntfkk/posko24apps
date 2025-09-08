@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.Posko24" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.MidtransCompat" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Opsional: samakan warna dengan app-mu -->
+        <item name="colorPrimary">@color/brand_primary</item>
+        <item name="colorPrimaryDark">@color/brand_primary_dark</item>
+        <item name="colorAccent">@color/brand_accent</item>
+    </style>
+</resources>

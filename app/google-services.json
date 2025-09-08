@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "846396752050",
+    "project_id": "posko24-80fa4",
+    "storage_bucket": "posko24-80fa4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:846396752050:android:33b203f3c04b7cf45c09ab",
+        "android_client_info": {
+          "package_name": "com.example.posko24"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAhtmgvhnp9ukCKkR-jC9AZVVJPyk4_85M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

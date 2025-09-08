@@ -1,0 +1,105 @@
+package com.example.posko24.ui.main
+
+import android.annotation.SuppressLint
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.posko24.navigation.BottomNavItem
+import com.example.posko24.ui.chat.ChatListScreen
+import com.example.posko24.ui.home.HomeScreen
+import com.example.posko24.ui.orders.MyOrdersScreen
+import com.example.posko24.ui.profile.ProfileScreen
+
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+@Composable
+fun MainScreen(
+    mainViewModel: MainViewModel,
+    mainNavController: NavHostController,
+    onCategoryClick: (String) -> Unit,
+    onNavigateToConversation: (String) -> Unit,
+    onOrderClick: (String) -> Unit,
+    onNavigateToTransactions: (Float) -> Unit
+) {
+    val bottomNavController = rememberNavController()
+    val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val userState by mainViewModel.userState.collectAsState()
+
+    // Efek untuk navigasi otomatis setelah login berhasil
+    LaunchedEffect(userState) {
+        if (userState is UserState.Authenticated && mainViewModel.intendedRoute.value != null) {
+            val route = mainViewModel.intendedRoute.value
+            if (route != null) {
+                bottomNavController.navigate(route) {
+                    popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                }
+            }
+            mainViewModel.intendedRoute.value = null // Reset rute tujuan
+        }
+    }
+
+    val navigationItems = listOf(
+        BottomNavItem.Home,
+        BottomNavItem.MyOrders,
+        BottomNavItem.Chats,
+        BottomNavItem.Profile
+    )
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                navigationItems.forEach { item ->
+                    val isProtected = item.route in listOf("my_orders", "chats", "profile")
+                    NavigationBarItem(
+                        selected = currentRoute == item.route,
+                        onClick = {
+                            if (isProtected && userState !is UserState.Authenticated) {
+                                // Jika rute dilindungi dan belum login, simpan tujuan dan arahkan ke login
+                                mainViewModel.intendedRoute.value = item.route
+                                mainNavController.navigate("login_screen")
+                            } else {
+                                // Jika tidak, navigasi seperti biasa
+                                bottomNavController.navigate(item.route) {
+                                    popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        },
+                        icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
+                        label = { Text(text = item.title) }
+                    )
+                }
+            }
+        }
+    ) { paddingValues ->
+        NavHost(
+            navController = bottomNavController,
+            startDestination = BottomNavItem.Home.route,
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            composable(BottomNavItem.Home.route) {
+                HomeScreen(
+                    mainViewModel = mainViewModel,
+                    onCategoryClick = onCategoryClick,
+                    onOrderClick = onOrderClick
+                )
+            }
+            composable(BottomNavItem.MyOrders.route) { MyOrdersScreen(onOrderClick = onOrderClick) }
+            composable(BottomNavItem.Chats.route) { ChatListScreen(onNavigateToConversation = onNavigateToConversation) }
+            composable(BottomNavItem.Profile.route) { ProfileScreen(onNavigateToTransactions = onNavigateToTransactions) }
+        }
+    }
+}
