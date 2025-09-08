@@ -39,7 +39,7 @@ fun ProviderDashboardScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp) // Memberi jarak antar item
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
                 Text(
@@ -63,8 +63,6 @@ fun ProviderDashboardScreen(
                     }
                 }
                 is ProviderDashboardState.Success -> {
-                    // --- PERBAIKAN DI SINI ---
-                    // Mengganti pendingOrders menjadi incomingOrders
                     if (currentState.incomingOrders.isEmpty()) {
                         item {
                             Box(

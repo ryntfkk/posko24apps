@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 sealed class OrderCreationState {
@@ -47,7 +48,8 @@ data class BasicOrderUiState(
     ),
     val orderCreationState: OrderCreationState = OrderCreationState.Idle,
     val currentUser: User? = null,
-    val orderId: String? = null
+    val orderId: String? = null,
+    val paymentStatus: String = "pending"
 )
 
 @HiltViewModel
@@ -63,6 +65,7 @@ class BasicOrderViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(BasicOrderUiState())
     val uiState = _uiState.asStateFlow()
     private val categoryId: String = savedStateHandle.get<String>("categoryId") ?: ""
+    private var orderListenerJob: Job? = null
 
     init {
         if (categoryId.isNotEmpty()) loadCategoryDetails()
@@ -126,6 +129,7 @@ class BasicOrderViewModel @Inject constructor(
                 result.onSuccess { orderId ->
                     Log.d("BasicOrderVM", "✅ Order created with ID: $orderId")
                     _uiState.update { it.copy(orderId = orderId) }
+                    observeOrder(orderId)
                     requestPaymentToken(orderId, currentUser)
                 }.onFailure { throwable ->
                     Log.e("BasicOrderVM", "❌ Failed to create order: ${throwable.message}", throwable)
@@ -141,22 +145,8 @@ class BasicOrderViewModel @Inject constructor(
             orderRepository.createPaymentRequest(orderId, user).collect { result ->
                 result.onSuccess { token ->
                     Log.d("BasicOrderVM", "✅ Payment token received: $token")
-                    orderRepository.updateOrderStatusAndPayment(
-                        orderId,
-                        "searching_provider",
-                        "paid"
-                    ).collect { updateResult ->
-                        updateResult.onSuccess {
-                            _uiState.update {
-                                it.copy(orderCreationState = OrderCreationState.PaymentTokenReceived(token))
-                            }
-                        }.onFailure { updateError ->
-                            Log.e(
-                                "BasicOrderVM",
-                                "❌ Failed to update order status: ${updateError.message}",
-                                updateError
-                            )
-                        }
+                    _uiState.update {
+                        it.copy(orderCreationState = OrderCreationState.PaymentTokenReceived(token))
                     }
                 }.onFailure { throwable ->
                     Log.e("BasicOrderVM", "❌ Failed to request payment token", throwable)
@@ -172,7 +162,18 @@ class BasicOrderViewModel @Inject constructor(
             }
         }
     }
-
+    private fun observeOrder(orderId: String) {
+        orderListenerJob?.cancel()
+        orderListenerJob = viewModelScope.launch {
+            orderRepository.getOrderDetails(orderId).collect { result ->
+                result.onSuccess { order ->
+                    order?.let {
+                        _uiState.update { state -> state.copy(paymentStatus = it.paymentStatus) }
+                    }
+                }
+            }
+        }
+    }
     // Sisa fungsi ViewModel tidak berubah
     private fun loadCategoryDetails() {
         viewModelScope.launch {

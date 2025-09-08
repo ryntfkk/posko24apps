@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 // Menggunakan state class yang sama seperti BasicOrderViewModel untuk konsistensi
@@ -29,6 +30,8 @@ data class DirectOrderUiState(
     val paymentToken: String? = null,
     val currentUser: User? = null, // <-- State untuk pengguna
     val orderId: String? = null,
+    val paymentStatus: String = "pending",
+
 
     // State untuk Alamat
     val provinces: List<Wilayah> = emptyList(),
@@ -55,6 +58,7 @@ class DirectOrderViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(DirectOrderUiState())
     val uiState = _uiState.asStateFlow()
+    private var orderListenerJob: Job? = null
 
     init {
         loadInitialData()
@@ -178,6 +182,7 @@ class DirectOrderViewModel @Inject constructor(
             orderRepository.createDirectOrder(order).collect { result ->
                 result.onSuccess { orderId ->
                     _uiState.update { it.copy(orderId = orderId) }
+                    observeOrder(orderId)
                     requestPaymentToken(orderId, currentUser) // Kirim user ke fungsi selanjutnya
                 }.onFailure { e ->
                     _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
@@ -190,26 +195,25 @@ class DirectOrderViewModel @Inject constructor(
         viewModelScope.launch {
             orderRepository.createPaymentRequest(orderId, user).collect { result ->
                 result.onSuccess { token ->
-                    orderRepository.updateOrderStatusAndPayment(
-                        orderId,
-                        "awaiting_provider_confirmation",
-                        "paid"
-                    ).collect { updateResult ->
-                        updateResult.onSuccess {
-                            _uiState.update { it.copy(isLoading = false, paymentToken = token) }
-                        }.onFailure { updateError ->
-                            _uiState.update {
-                                it.copy(isLoading = false, errorMessage = updateError.message)
-                            }
-                        }
-                    }
+                    _uiState.update { it.copy(isLoading = false, paymentToken = token) }
                 }.onFailure { e ->
                     _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
                 }
             }
         }
     }
-
+    private fun observeOrder(orderId: String) {
+        orderListenerJob?.cancel()
+        orderListenerJob = viewModelScope.launch {
+            orderRepository.getOrderDetails(orderId).collect { result ->
+                result.onSuccess { order ->
+                    order?.let {
+                        _uiState.update { state -> state.copy(paymentStatus = it.paymentStatus) }
+                    }
+                }
+            }
+        }
+    }
     fun resetStateAfterPayment() {
         // Mengembalikan state ke tampilan ringkasan order, tapi membersihkan token
         val originalProvider = _uiState.value.provider
