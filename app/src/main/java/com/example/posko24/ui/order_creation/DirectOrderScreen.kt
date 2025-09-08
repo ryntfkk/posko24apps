@@ -20,7 +20,7 @@ import com.example.posko24.data.model.Wilayah
 import com.midtrans.sdk.uikit.external.UiKitApi
 import com.midtrans.sdk.uikit.api.callback.Callback
 import com.midtrans.sdk.uikit.api.exception.SnapError
-import com.midtrans.sdk.corekit.api.model.TransactionResult
+import com.midtrans.sdk.uikit.api.model.TransactionResult
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)

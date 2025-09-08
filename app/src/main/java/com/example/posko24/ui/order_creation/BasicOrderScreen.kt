@@ -30,9 +30,10 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import com.midtrans.sdk.uikit.external.UiKitApi
 import com.midtrans.sdk.uikit.api.callback.Callback
 import com.midtrans.sdk.uikit.api.exception.SnapError
-import com.midtrans.sdk.corekit.api.model.TransactionResult
+import com.midtrans.sdk.uikit.api.model.TransactionResult
 import java.text.NumberFormat
 import java.util.Locale
+
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
