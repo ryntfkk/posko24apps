@@ -61,11 +61,11 @@ fun BasicOrderScreen(
                             when (result.status) {
                                 "success" -> {
                                     Toast.makeText(context, "Pembayaran berhasil", Toast.LENGTH_LONG).show()
-                                    onOrderSuccess(uiState.orderId ?: "")
+                                    uiState.orderId?.takeIf { it.isNotBlank() }?.let(onOrderSuccess)
                                 }
                                 "pending" -> {
                                     Toast.makeText(context, "Pembayaran pending", Toast.LENGTH_LONG).show()
-                                    onOrderSuccess(uiState.orderId ?: "")
+                                    uiState.orderId?.takeIf { it.isNotBlank() }?.let(onOrderSuccess)
 
                                 }
                                 else -> {
@@ -90,7 +90,7 @@ fun BasicOrderScreen(
     }
     LaunchedEffect(uiState.paymentStatus) {
         when (uiState.paymentStatus.lowercase(Locale.ROOT)) {
-            "paid", "pending" -> onOrderSuccess(uiState.orderId ?: "")
+            "paid", "pending" -> uiState.orderId?.takeIf { it.isNotBlank() }?.let(onOrderSuccess)
             "failed", "expire" -> {
                 Toast.makeText(
                     context,

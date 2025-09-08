@@ -107,10 +107,13 @@ class MainActivity : ComponentActivity() {
                         ) {
                             BasicOrderScreen(
                                 onOrderSuccess = { orderId ->
-                                    navController.navigate("order_detail_screen/$orderId")
+                                    if (orderId.isNotBlank()) {
+                                        navController.navigate("order_detail_screen/$orderId")
                                     }
-                                    )
+
                                 }
+                            )
+                        }
                         composable(
                             route = "direct_order_screen/{providerId}/{serviceId}",
                             arguments = listOf(
