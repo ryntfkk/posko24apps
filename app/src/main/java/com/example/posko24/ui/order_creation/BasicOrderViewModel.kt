@@ -46,7 +46,8 @@ data class BasicOrderUiState(
         LatLng(-6.9926, 110.4283), 12f
     ),
     val orderCreationState: OrderCreationState = OrderCreationState.Idle,
-    val currentUser: User? = null
+    val currentUser: User? = null,
+    val orderId: String? = null
 )
 
 @HiltViewModel
@@ -124,6 +125,7 @@ class BasicOrderViewModel @Inject constructor(
             orderRepository.createBasicOrder(order).collect { result ->
                 result.onSuccess { orderId ->
                     Log.d("BasicOrderVM", "✅ Order created with ID: $orderId")
+                    _uiState.update { it.copy(orderId = orderId) }
                     requestPaymentToken(orderId, currentUser)
                 }.onFailure { throwable ->
                     Log.e("BasicOrderVM", "❌ Failed to create order: ${throwable.message}", throwable)
@@ -139,12 +141,32 @@ class BasicOrderViewModel @Inject constructor(
             orderRepository.createPaymentRequest(orderId, user).collect { result ->
                 result.onSuccess { token ->
                     Log.d("BasicOrderVM", "✅ Payment token received: $token")
-                    _uiState.update { it.copy(orderCreationState = OrderCreationState.PaymentTokenReceived(token)) }
+                    orderRepository.updateOrderStatusAndPayment(
+                        orderId,
+                        "searching_provider",
+                        "paid"
+                    ).collect { updateResult ->
+                        updateResult.onSuccess {
+                            _uiState.update {
+                                it.copy(orderCreationState = OrderCreationState.PaymentTokenReceived(token))
+                            }
+                        }.onFailure { updateError ->
+                            Log.e(
+                                "BasicOrderVM",
+                                "❌ Failed to update order status: ${updateError.message}",
+                                updateError
+                            )
+                        }
+                    }
                 }.onFailure { throwable ->
                     Log.e("BasicOrderVM", "❌ Failed to request payment token", throwable)
-                    _uiState.update { it.copy(orderCreationState = OrderCreationState.Error(
-                        throwable.message ?: "Gagal membuat permintaan pembayaran."
-                    )) }
+                    _uiState.update {
+                        it.copy(
+                            orderCreationState = OrderCreationState.Error(
+                                throwable.message ?: "Gagal membuat permintaan pembayaran."
+                            )
+                        )
+                    }
                     // ❌ jangan reset langsung di sini, biarkan UI yang reset setelah user lihat pesan
                 }
             }

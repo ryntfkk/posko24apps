@@ -106,16 +106,11 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
                         ) {
                             BasicOrderScreen(
-                                onOrderSuccess = {
-                                    mainViewModel.intendedRoute.value = BottomNavItem.MyOrders.route
-                                    navController.navigate("main_screen") {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            inclusive = true
-                                        }
+                                onOrderSuccess = { orderId ->
+                                    navController.navigate("order_detail_screen/$orderId")
                                     }
+                                    )
                                 }
-                            )
-                        }
                         composable(
                             route = "direct_order_screen/{providerId}/{serviceId}",
                             arguments = listOf(
@@ -124,13 +119,8 @@ class MainActivity : ComponentActivity() {
                             )
                         ) {
                             DirectOrderScreen(
-                                onOrderSuccess = {
-                                    mainViewModel.intendedRoute.value = BottomNavItem.MyOrders.route
-                                    navController.navigate("main_screen") {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            inclusive = true
-                                        }
-                                    }
+                                onOrderSuccess = { orderId ->
+                                    navController.navigate("order_detail_screen/$orderId")
                                 }
                             )
                         }

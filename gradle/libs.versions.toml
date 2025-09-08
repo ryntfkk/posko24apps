@@ -27,7 +27,7 @@ firebaseBom = "33.1.2"
 firebaseAppcheckDebug = "18.0.0"
 
 # Midtrans Snap SDK v2
-midtrans-sdk = "2.3.0"
+midtrans-sdk = "2.3.0-SANDBOX"
 
 # Hilt
 hilt = "2.51.1"

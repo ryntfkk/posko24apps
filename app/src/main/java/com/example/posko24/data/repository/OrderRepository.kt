@@ -13,7 +13,11 @@ interface OrderRepository {
 
     fun getOrderDetails(orderId: String): Flow<Result<Order?>>
     suspend fun updateOrderStatus(orderId: String, newStatus: String): Flow<Result<Boolean>>
-
+    suspend fun updateOrderStatusAndPayment(
+        orderId: String,
+        newStatus: String,
+        paymentStatus: String
+    ): Flow<Result<Boolean>>
     // --- PERUBAHAN DI SINI: Tambahkan parameter User ---
     fun createPaymentRequest(orderId: String, user: User): Flow<Result<String>>
 

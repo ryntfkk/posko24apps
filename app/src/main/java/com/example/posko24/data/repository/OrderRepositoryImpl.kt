@@ -82,6 +82,20 @@ class OrderRepositoryImpl @Inject constructor(
     }.catch {
         emit(Result.failure(it))
     }
+    override suspend fun updateOrderStatusAndPayment(
+        orderId: String,
+        newStatus: String,
+        paymentStatus: String
+    ): Flow<Result<Boolean>> = flow {
+        firestore.collection("orders").document(orderId)
+            .update(mapOf(
+                "status" to newStatus,
+                "paymentStatus" to paymentStatus
+            )).await()
+        emit(Result.success(true))
+    }.catch {
+        emit(Result.failure(it))
+    }
 
     /**
      * =============================

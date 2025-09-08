@@ -40,7 +40,7 @@ import java.util.Locale
 @Composable
 fun BasicOrderScreen(
     viewModel: BasicOrderViewModel = hiltViewModel(),
-    onOrderSuccess: () -> Unit
+    onOrderSuccess: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -61,7 +61,7 @@ fun BasicOrderScreen(
                             when (result.status) {
                                 "success" -> {
                                     Toast.makeText(context, "Pembayaran berhasil", Toast.LENGTH_LONG).show()
-                                    onOrderSuccess()
+                                    onOrderSuccess(uiState.orderId ?: "")
                                 }
                                 "pending" -> {
                                     Toast.makeText(context, "Pembayaran pending", Toast.LENGTH_LONG).show()

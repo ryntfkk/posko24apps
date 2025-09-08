@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.data.model.Order
+import com.example.posko24.data.model.ProviderProfile
 import com.google.firebase.auth.FirebaseAuth
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -46,14 +47,40 @@ fun OrderDetailScreen(
                 is OrderDetailState.Error -> Text(currentState.message)
                 is OrderDetailState.Success -> {
                     val order = currentState.order
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp)
-                    ) {
-                        item { OrderInfoSection(order = order) }
-                        item { Spacer(modifier = Modifier.height(24.dp)) }
-                        item { ActionButtonsSection(order = order, viewModel = viewModel) }
+                    when {
+                        order.orderType == "basic" &&
+                                order.status == "searching_provider" &&
+                                order.providerId == null -> {
+                            Text("Sedang mencari penyedia jasa…")
+                        }
+                        order.orderType == "direct" &&
+                                order.status == "awaiting_provider_confirmation" -> {
+                            Text("Menunggu konfirmasi penyedia…")
+                        }
+                        else -> {
+                            when (val pState = providerState) {
+                                is ProviderProfileState.Loading -> CircularProgressIndicator()
+                                is ProviderProfileState.Error -> Text(pState.message)
+                                is ProviderProfileState.Success -> {
+                                    val provider = pState.profile
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(16.dp)
+                                    ) {
+                                        item { ProviderInfoSection(provider) }
+                                        item { Spacer(modifier = Modifier.height(16.dp)) }
+                                        item { OrderInfoSection(order = order) }
+                                        item { Spacer(modifier = Modifier.height(24.dp)) }
+                                        item { ActionButtonsSection(order = order, viewModel = viewModel) }
+                                    }
+                                }
+                                else -> {
+                                    // Provider belum dimuat, tampilkan loader
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -79,6 +106,15 @@ fun OrderInfoSection(order: Order) {
             Spacer(modifier = Modifier.height(16.dp))
             Text("Biaya Dasar", style = MaterialTheme.typography.labelMedium)
             Text("Rp ${"%,d".format(basePrice.toInt())}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+@Composable
+fun ProviderInfoSection(provider: ProviderProfile) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Penyedia Jasa", style = MaterialTheme.typography.labelMedium)
+            Text(provider.fullName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         }
     }
 }

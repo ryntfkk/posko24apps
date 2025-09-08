@@ -28,6 +28,7 @@ data class DirectOrderUiState(
     val service: ProviderService? = null,
     val paymentToken: String? = null,
     val currentUser: User? = null, // <-- State untuk pengguna
+    val orderId: String? = null,
 
     // State untuk Alamat
     val provinces: List<Wilayah> = emptyList(),
@@ -176,6 +177,7 @@ class DirectOrderViewModel @Inject constructor(
 
             orderRepository.createDirectOrder(order).collect { result ->
                 result.onSuccess { orderId ->
+                    _uiState.update { it.copy(orderId = orderId) }
                     requestPaymentToken(orderId, currentUser) // Kirim user ke fungsi selanjutnya
                 }.onFailure { e ->
                     _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
@@ -188,7 +190,19 @@ class DirectOrderViewModel @Inject constructor(
         viewModelScope.launch {
             orderRepository.createPaymentRequest(orderId, user).collect { result ->
                 result.onSuccess { token ->
-                    _uiState.update { it.copy(isLoading = false, paymentToken = token) }
+                    orderRepository.updateOrderStatusAndPayment(
+                        orderId,
+                        "awaiting_provider_confirmation",
+                        "paid"
+                    ).collect { updateResult ->
+                        updateResult.onSuccess {
+                            _uiState.update { it.copy(isLoading = false, paymentToken = token) }
+                        }.onFailure { updateError ->
+                            _uiState.update {
+                                it.copy(isLoading = false, errorMessage = updateError.message)
+                            }
+                        }
+                    }
                 }.onFailure { e ->
                     _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
                 }

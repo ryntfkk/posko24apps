@@ -27,7 +27,7 @@ import com.midtrans.sdk.uikit.api.model.TransactionResult
 @Composable
 fun DirectOrderScreen(
     viewModel: DirectOrderViewModel = hiltViewModel(),
-    onOrderSuccess: () -> Unit
+    onOrderSuccess: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -44,7 +44,7 @@ fun DirectOrderScreen(
                             when (result.status) {
                                 "success" -> {
                                     Toast.makeText(context, "Pembayaran berhasil", Toast.LENGTH_LONG).show()
-                                    onOrderSuccess()
+                                    onOrderSuccess(uiState.orderId ?: "")
                                 }
                                 "pending" -> {
                                     Toast.makeText(context, "Pembayaran pending", Toast.LENGTH_LONG).show()
