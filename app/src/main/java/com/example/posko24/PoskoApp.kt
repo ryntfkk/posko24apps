@@ -8,6 +8,8 @@ import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.midtrans.sdk.uikit.api.model.CustomColorTheme
 import com.midtrans.sdk.uikit.external.UiKitApi
+import com.midtrans.sdk.uikit.external.UiKitApi.UIKitEventListener
+import com.midtrans.sdk.corekit.models.snap.TransactionResult
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
@@ -20,11 +22,8 @@ class PoskoApp : Application() {
         FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
             DebugAppCheckProviderFactory.getInstance()
         )
-
-        // === GUNAKAN CLIENT KEY SANDBOX-MU DI SINI ===
-        // Biarkan hardcoded sementara (kamu minta tanpa ubah versi Midtrans / BuildConfig)
-        val clientKey = "SB-Mid-client-u_5fBngbQUy-8M8X"
-        val baseUrl = "https://us-central1-posko24-80fa4.cloudfunctions.net/" // merchant server kamu
+        val clientKey = BuildConfig.CLIENT_KEY
+        val baseUrl = BuildConfig.BASE_URL
 
         UiKitApi.Builder()
             .withContext(this)
@@ -34,6 +33,18 @@ class PoskoApp : Application() {
             .enableLog(true)
             .build()
 
-        Log.d("MidtransInit", "CLIENT_KEY_PREFIX=${clientKey.take(12)}, BASE_URL=$baseUrl")
+        UiKitApi.getDefaultInstance().setEventListener(object : UIKitEventListener {
+            override fun onSuccess(result: TransactionResult) {
+                Log.d("MidtransEvent", "Success: ${'$'}{result.transactionId} status=${'$'}{result.transactionStatus}")
+            }
+
+            override fun onPending(result: TransactionResult) {
+                Log.d("MidtransEvent", "Pending: ${'$'}{result.transactionId} status=${'$'}{result.transactionStatus}")
+            }
+            override fun onError(error: Throwable) {
+                Log.e("MidtransEvent", "Error: ${'$'}{error.message}", error)
+            }
+        })
+        Log.d("MidtransInit", "CLIENT_KEY_PREFIX=${'$'}{clientKey.take(12)}, BASE_URL=${'$'}baseUrl")
     }
 }
