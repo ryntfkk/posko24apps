@@ -48,11 +48,14 @@ fun DirectOrderScreen(
                                 }
                                 "pending" -> {
                                     Toast.makeText(context, "Pembayaran pending", Toast.LENGTH_LONG).show()
+                                    onOrderSuccess(uiState.orderId ?: "")
                                 }
                                 else -> {
                                     Toast.makeText(context, "Status: ${result.status}", Toast.LENGTH_LONG).show()
                                 }
                             }
+                            viewModel.resetStateAfterPayment()
+
                         }
 
                         override fun onError(error: SnapError) {
@@ -62,7 +65,6 @@ fun DirectOrderScreen(
                 )
 
             }
-            viewModel.resetStateAfterPayment()
         }
     }
 

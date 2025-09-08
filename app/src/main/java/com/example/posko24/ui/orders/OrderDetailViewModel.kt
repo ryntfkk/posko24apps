@@ -48,7 +48,12 @@ class OrderDetailViewModel @Inject constructor(
                         if (!providerId.isNullOrBlank()) {
                             userRepository.getProviderProfile(providerId).collect { profResult ->
                                 profResult.onSuccess { profile ->
-                                    _providerProfileState.value = ProviderProfileState.Success(profile)
+                                    if (profile != null) {
+                                        _providerProfileState.value = ProviderProfileState.Success(profile)
+                                    } else {
+                                        _providerProfileState.value =
+                                            ProviderProfileState.Error("Profil penyedia tidak ditemukan.")
+                                    }
                                 }
                             }
                         }

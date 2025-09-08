@@ -65,11 +65,14 @@ fun BasicOrderScreen(
                                 }
                                 "pending" -> {
                                     Toast.makeText(context, "Pembayaran pending", Toast.LENGTH_LONG).show()
+                                    onOrderSuccess(uiState.orderId ?: "")
+
                                 }
                                 else -> {
                                     Toast.makeText(context, "Status: ${result.status}", Toast.LENGTH_LONG).show()
                                 }
                             }
+                            viewModel.resetOrderState()
                         }
 
                         override fun onError(error: SnapError) {
@@ -79,7 +82,6 @@ fun BasicOrderScreen(
                 )
             }
 
-            viewModel.resetOrderState()
         } else if (state is OrderCreationState.Error) {
             Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
             Log.e("BasicOrderScreen", "❌ Error order: ${state.message}")
