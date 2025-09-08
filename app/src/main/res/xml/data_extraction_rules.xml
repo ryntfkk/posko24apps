@@ -4,7 +4,6 @@
         <!-- Larang semua dulu -->
         <exclude domain="sharedpref" path="."/>
         <exclude domain="database" path="."/>
-        <exclude domain="files" path="."/>
         <exclude domain="external" path="."/>
     </cloud-backup>
 
@@ -12,7 +11,6 @@
         <!-- Larang semua dulu -->
         <exclude domain="sharedpref" path="."/>
         <exclude domain="database" path="."/>
-        <exclude domain="files" path="."/>
         <exclude domain="external" path="."/>
     </device-transfer>
 </data-extraction-rules>
