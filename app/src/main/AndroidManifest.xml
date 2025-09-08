@@ -33,21 +33,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name="com.midtrans.sdk.uikit.activities.PaymentMethodsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MidtransCompat"
-            tools:replace="android:theme" />
-
-        <!-- (Opsional) Jika UI Kit memanggil halaman detail customer -->
-        <activity
-            android:name="com.midtrans.sdk.uikit.activities.UserDetailsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MidtransCompat"
-            tools:replace="android:theme" />
-
-
-
         <provider
             android:name="com.google.firebase.provider.FirebaseInitProvider"
             android:authorities="${applicationId}.firebaseinitprovider"

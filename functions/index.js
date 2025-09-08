@@ -166,7 +166,7 @@ exports.createMidtransTransaction = functions.https.onCall(
     });
 
     try {
-      const tx = await snap.createTransaction(transactionDetails);
+      const tx = await snap.createTransaction(payload);
       await orderRef.set(
         { paymentGatewayInfo: { token: tx.token, redirect_url: tx.redirect_url, env: resolved.isProduction ? 'production' : 'sandbox' } },
         { merge: true }

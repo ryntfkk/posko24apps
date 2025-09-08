@@ -17,9 +17,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.Wilayah
-import com.midtrans.sdk.corekit.callback.TransactionFinishedCallback
-import com.midtrans.sdk.corekit.core.MidtransSDK
-import com.midtrans.sdk.corekit.models.snap.TransactionResult
+import com.midtrans.sdk.uikit.external.UiKitApi
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,26 +32,10 @@ fun DirectOrderScreen(
     LaunchedEffect(uiState.paymentToken) {
         val token = uiState.paymentToken
         if (token != null) {
-            MidtransSDK.getInstance().setTransactionFinishedCallback(object : TransactionFinishedCallback {
-                override fun onTransactionFinished(result: TransactionResult?) {
-                    if (result != null) {
-                        when (result.status) {
-                            TransactionResult.STATUS_SUCCESS -> {
-                                Toast.makeText(context, "Pembayaran berhasil! Menunggu konfirmasi provider...", Toast.LENGTH_LONG).show()
-                                onOrderSuccess()
-                            }
-                            TransactionResult.STATUS_PENDING -> {
-                                Toast.makeText(context, "Pembayaran tertunda. Selesaikan pembayaran Anda.", Toast.LENGTH_LONG).show()
-                                onOrderSuccess()
-                            }
-                            TransactionResult.STATUS_FAILED -> {
-                                Toast.makeText(context, "Pembayaran Gagal: ${result.statusMessage}", Toast.LENGTH_LONG).show()
-                            }
-                        }
-                    }
-                    viewModel.resetStateAfterPayment()
-                }
-            })
+            (context as? Activity)?.let { activity ->
+                UiKitApi.getDefaultInstance().startPaymentUiFlow(activity, token)
+            }
+            viewModel.resetStateAfterPayment()
         }
     }
 

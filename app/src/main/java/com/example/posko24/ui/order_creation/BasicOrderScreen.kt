@@ -2,11 +2,8 @@ package com.example.posko24.ui.order_creation
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Context
-import android.net.Uri
 import android.util.Log
 import android.widget.Toast
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -30,6 +27,7 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.firebase.firestore.GeoPoint
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.midtrans.sdk.uikit.external.UiKitApi
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -48,17 +46,12 @@ fun BasicOrderScreen(
         val state = uiState.orderCreationState
         if (state is OrderCreationState.PaymentTokenReceived) {
             val token = state.token
-            // Pakai redirectUrl dari server kalau ada; kalau tidak, bangun dari token (SANDBOX)
-            val redirect = "https://app.sandbox.midtrans.com/snap/v4/redirection/$token"
 
             Log.d("BasicOrderScreen", "🔥 Payment token diterima: $token")
-            Log.d("BasicOrderScreen", "🌐 Buka Snap via CustomTabs: $redirect")
+            (context as? Activity)?.let { activity ->
+                UiKitApi.getDefaultInstance().startPaymentUiFlow(activity, token)
+            }
 
-            // Buka Snap Web (SANDBOX), hindari UI Kit supaya tidak call ke production domain
-            openSnapInCustomTabs(context, redirect)
-
-            // Kalau kamu punya mekanisme deep link (finish/cancel url) dari server,
-            // panggil onOrderSuccess() di callback deeplink-mu. Di sini kita reset state saja.
             viewModel.resetOrderState()
         } else if (state is OrderCreationState.Error) {
             Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
@@ -163,22 +156,6 @@ fun BasicOrderScreen(
     }
 }
 
-/* =============================
-   Helper: buka Snap via browser
-   ============================= */
-private fun openSnapInCustomTabs(context: Context, url: String) {
-    try {
-        CustomTabsIntent.Builder()
-            .setShowTitle(true)
-            .build()
-            .launchUrl(context, Uri.parse(url))
-    } catch (t: Throwable) {
-        Log.e("BasicOrderScreen", "CustomTabs error", t)
-        Toast.makeText(context, "Tidak bisa membuka browser. Salin URL:\n$url", Toast.LENGTH_LONG).show()
-    }
-}
-
-// ================== Komponen UI lain tetap ==================
 
 @Composable
 private fun InteractiveMapView(

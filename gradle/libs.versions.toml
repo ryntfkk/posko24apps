@@ -26,8 +26,8 @@ googleGmsGoogleServices = "4.4.2"
 firebaseBom = "33.1.2"
 firebaseAppcheckDebug = "18.0.0"
 
-# Midtrans SDK v1
-midtrans-sdk = "1.33.0"
+# Midtrans Snap SDK v2
+midtrans-sdk = "2.3.0"
 
 # Hilt
 hilt = "2.51.1"
