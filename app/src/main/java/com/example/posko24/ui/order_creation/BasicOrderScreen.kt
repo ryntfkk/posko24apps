@@ -88,7 +88,18 @@ fun BasicOrderScreen(
             viewModel.resetOrderState()
         }
     }
-
+    LaunchedEffect(uiState.paymentStatus) {
+        when (uiState.paymentStatus.lowercase(Locale.ROOT)) {
+            "paid", "pending" -> onOrderSuccess(uiState.orderId ?: "")
+            "failed", "expire" -> {
+                Toast.makeText(
+                    context,
+                    "Pembayaran gagal atau kedaluwarsa",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
     // --- UI tetap sama ---
     Scaffold(
         topBar = { TopAppBar(title = { Text("Detail Pesanan & Alamat") }) }
