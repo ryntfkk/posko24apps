@@ -48,6 +48,21 @@ class OrderRepositoryImpl @Inject constructor(
         emit(Result.failure(exception))
     }
 
+    override fun getUnassignedBasicOrders(): Flow<Result<List<Order>>> = flow {
+        val snapshot = firestore.collection("orders")
+            .whereEqualTo("providerId", null)
+            .whereEqualTo("status", "searching_provider")
+            .orderBy("createdAt", Query.Direction.ASCENDING)
+            .get().await()
+
+        val orders = snapshot.documents.mapNotNull { doc ->
+            doc.toObject(Order::class.java)?.copy(id = doc.id)
+        }
+        emit(Result.success(orders))
+    }.catch { exception ->
+        emit(Result.failure(exception))
+    }
+
     override fun createBasicOrder(order: Order): Flow<Result<String>> = flow {
         val documentReference = firestore.collection("orders").add(order).await()
         emit(Result.success(documentReference.id))

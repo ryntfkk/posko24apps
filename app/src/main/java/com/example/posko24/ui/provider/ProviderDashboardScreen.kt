@@ -43,7 +43,7 @@ fun ProviderDashboardScreen(
         ) {
             item {
                 Text(
-                    "Pesanan Masuk (Butuh Konfirmasi)",
+                    "Pesanan Tersedia",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -69,7 +69,7 @@ fun ProviderDashboardScreen(
                                 modifier = Modifier.fillParentMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("Tidak ada pesanan baru yang masuk saat ini.")
+                                Text("Tidak ada pesanan tersedia saat ini.")
                             }
                         }
                     } else {
@@ -78,11 +78,9 @@ fun ProviderDashboardScreen(
                                 Box(modifier = Modifier.clickable { onOrderClick(order.id) }) {
                                     OrderCard(order = order)
                                 }
-                                if (order.status == "searching_provider") {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Button(onClick = { viewModel.takeOrder(order.id) }) {
-                                        Text("Ambil Pesanan")
-                                    }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(onClick = { viewModel.takeOrder(order.id) }) {
+                                    Text("Ambil Pesanan")
                                 }
                             }
                         }

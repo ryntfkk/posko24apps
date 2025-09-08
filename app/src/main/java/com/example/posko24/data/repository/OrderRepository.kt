@@ -10,6 +10,7 @@ interface OrderRepository {
 
     fun getCustomerOrders(customerId: String): Flow<Result<List<Order>>>
     fun getProviderOrders(providerId: String): Flow<Result<List<Order>>>
+    fun getUnassignedBasicOrders(): Flow<Result<List<Order>>>
 
     fun getOrderDetails(orderId: String): Flow<Result<Order?>>
     suspend fun updateOrderStatus(orderId: String, newStatus: String): Flow<Result<Boolean>>

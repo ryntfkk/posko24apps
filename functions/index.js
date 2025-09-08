@@ -327,47 +327,8 @@ exports.midtransWebhookHandler = functions.https.onRequest(
  * 4) FIND PROVIDER FOR BASIC ORDER (Firestore Trigger v2)
  * ============================================================
  */
-exports.findProviderForBasicOrder = onDocumentUpdated('orders/{orderId}', async (event) => {
-  const after = event.data.after.data();
-  const before = event.data.before.data();
-  const orderRef = event.data.after.ref;
-
-  if (before.status !== 'searching_provider' && after.status === 'searching_provider') {
-    functions.logger.info('[SEARCH_PROVIDER]', { orderId: event.params.orderId });
-    const categoryId = after.serviceSnapshot.categoryName;
-    try {
-      const snap = await db
-        .collection('provider_profiles')
-        .where('primaryCategoryId', '==', categoryId)
-        .where('isAvailable', '==', true)
-        .where('acceptsBasicOrders', '==', true)
-        .get();
-
-      if (snap.empty) {
-        await orderRef.update({
-          status: 'cancelled',
-          statusNotes: 'Tidak ada provider yang ditemukan.',
-        });
-        return null;
-      }
-
-      const providers = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
-      const assigned = providers[0];
-
-      await orderRef.update({
-        providerId: assigned.uid,
-        status: 'pending',
-      });
-      return null;
-    } catch (error) {
-      functions.logger.error('[SEARCH_PROVIDER_FAILED]', { message: error?.message || 'Unknown error' });
-      await orderRef.update({
-        status: 'cancelled',
-        statusNotes: 'Terjadi error sistem saat mencari provider.',
-      });
-      return null;
-    }
-  }
+exports.findProviderForBasicOrder = onDocumentUpdated('orders/{orderId}', async () => {
+  // Trigger disabled. Provider assignment is handled explicitly by claimOrder.
   return null;
 });
 
