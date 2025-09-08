@@ -48,6 +48,13 @@ class ProviderDashboardViewModel @Inject constructor(
             }
         }
     }
+
+    fun takeOrder(orderId: String) {
+        viewModelScope.launch {
+            orderRepository.claimOrder(orderId).collect { }
+            loadIncomingOrders()
+        }
+    }
 }
 
 sealed class ProviderDashboardState {

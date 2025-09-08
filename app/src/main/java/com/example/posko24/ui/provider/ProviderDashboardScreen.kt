@@ -76,8 +76,16 @@ fun ProviderDashboardScreen(
                         }
                     } else {
                         items(currentState.incomingOrders) { order ->
-                            Box(modifier = Modifier.clickable { onOrderClick(order.id) }) {
-                                OrderCard(order = order)
+                            Column {
+                                Box(modifier = Modifier.clickable { onOrderClick(order.id) }) {
+                                    OrderCard(order = order)
+                                }
+                                if (order.status == "searching_provider") {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(onClick = { viewModel.takeOrder(order.id) }) {
+                                        Text("Ambil Pesanan")
+                                    }
+                                }
                             }
                         }
                     }

@@ -142,4 +142,12 @@ class OrderRepositoryImpl @Inject constructor(
     }.catch { exception ->
         emit(Result.failure(exception))
     }
+
+    override fun claimOrder(orderId: String): Flow<Result<Boolean>> = flow {
+        val data = hashMapOf("orderId" to orderId)
+        functions.getHttpsCallable("claimOrder").call(data).await()
+        emit(Result.success(true))
+    }.catch {
+        emit(Result.failure(it))
+    }
 }

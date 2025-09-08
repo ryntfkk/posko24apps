@@ -24,6 +24,7 @@ fun OrderDetailScreen(
     viewModel: OrderDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.orderState.collectAsState()
+    val providerState by viewModel.providerProfileState.collectAsState()
 
     Scaffold(
         topBar = {
@@ -70,7 +71,7 @@ fun OrderDetailScreen(
                                     ) {
                                         item { ProviderInfoSection(provider) }
                                         item { Spacer(modifier = Modifier.height(16.dp)) }
-                                        item { OrderInfoSection(order = order) }
+                                        item { OrderInfoSection(order = order, provider = providerProfile) }
                                         item { Spacer(modifier = Modifier.height(24.dp)) }
                                         item { ActionButtonsSection(order = order, viewModel = viewModel) }
                                     }
@@ -89,7 +90,7 @@ fun OrderDetailScreen(
 }
 
 @Composable
-fun OrderInfoSection(order: Order) {
+fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
     val serviceName = order.serviceSnapshot["serviceName"] as? String ?: "Layanan"
     val basePrice = order.serviceSnapshot["basePrice"] as? Double ?: 0.0
 
@@ -106,6 +107,11 @@ fun OrderInfoSection(order: Order) {
             Spacer(modifier = Modifier.height(16.dp))
             Text("Biaya Dasar", style = MaterialTheme.typography.labelMedium)
             Text("Rp ${"%,d".format(basePrice.toInt())}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            if (provider != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Provider", style = MaterialTheme.typography.labelMedium)
+                Text(provider.fullName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

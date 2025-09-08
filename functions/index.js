@@ -217,7 +217,42 @@ exports.createMidtransTransaction = functions.https.onCall(
 
 /**
  * ============================================================
- * 2) MIDTRANS WEBHOOK (HTTP v2)
+* 2) CLAIM ORDER (Callable v2)
+ * ============================================================
+ */
+exports.claimOrder = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Anda harus login.');
+  }
+
+  const { orderId } = request.data || {};
+  if (!orderId) {
+    throw new functions.https.HttpsError('invalid-argument', 'OrderId wajib diisi.');
+  }
+
+  const uid = request.auth.uid;
+  const orderRef = db.collection('orders').doc(orderId);
+  const snap = await orderRef.get();
+  if (!snap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Pesanan tidak ditemukan.');
+  }
+
+  const data = snap.data();
+  if (data.providerId) {
+    throw new functions.https.HttpsError('failed-precondition', 'Pesanan sudah memiliki provider.');
+  }
+  if (data.status !== 'searching_provider') {
+    throw new functions.https.HttpsError('failed-precondition', 'Pesanan tidak dalam status pencarian provider.');
+  }
+
+  await orderRef.update({ providerId: uid, status: 'pending' });
+  functions.logger.info('[CLAIM_ORDER]', { orderId, providerId: uid });
+  return { success: true };
+});
+
+/**
+ * ============================================================
+ * 3) MIDTRANS WEBHOOK (HTTP v2)
  * ============================================================
  */
 exports.midtransWebhookHandler = functions.https.onRequest(
@@ -289,7 +324,7 @@ exports.midtransWebhookHandler = functions.https.onRequest(
 
 /**
  * ============================================================
- * 3) FIND PROVIDER FOR BASIC ORDER (Firestore Trigger v2)
+ * 4) FIND PROVIDER FOR BASIC ORDER (Firestore Trigger v2)
  * ============================================================
  */
 exports.findProviderForBasicOrder = onDocumentUpdated('orders/{orderId}', async (event) => {
@@ -338,7 +373,7 @@ exports.findProviderForBasicOrder = onDocumentUpdated('orders/{orderId}', async 
 
 /**
  * ============================================================
- * 4) ON PROVIDER ASSIGNED - CREATE CHAT (Firestore Trigger v2)
+ * 5) ON PROVIDER ASSIGNED - CREATE CHAT (Firestore Trigger v2)
  * ============================================================
  */
 exports.onProviderAssigned = onDocumentUpdated('orders/{orderId}', async (event) => {
@@ -354,7 +389,7 @@ exports.onProviderAssigned = onDocumentUpdated('orders/{orderId}', async (event)
 
 /**
  * ============================================================
- * 5) REFUND ON CANCELLATION (Firestore Trigger v2)
+ * 6) REFUND ON CANCELLATION (Firestore Trigger v2)
  * ============================================================
  */
 exports.onOrderCancelled = onDocumentUpdated('orders/{orderId}', async (event) => {
