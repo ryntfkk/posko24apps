@@ -28,6 +28,9 @@ import com.google.firebase.firestore.GeoPoint
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.midtrans.sdk.uikit.external.UiKitApi
+import com.midtrans.sdk.uikit.api.callback.Callback
+import com.midtrans.sdk.uikit.api.exception.SnapError
+import com.midtrans.sdk.corekit.api.model.TransactionResult
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -49,7 +52,30 @@ fun BasicOrderScreen(
 
             Log.d("BasicOrderScreen", "🔥 Payment token diterima: $token")
             (context as? Activity)?.let { activity ->
-                UiKitApi.getDefaultInstance().startPaymentUiFlow(activity, token)
+                UiKitApi.getDefaultInstance().runPaymentTokenLegacy(
+                    activityContext = activity,
+                    snapToken = token,
+                    paymentCallback = object : Callback<TransactionResult> {
+                        override fun onSuccess(result: TransactionResult) {
+                            when (result.status) {
+                                "success" -> {
+                                    Toast.makeText(context, "Pembayaran berhasil", Toast.LENGTH_LONG).show()
+                                    onOrderSuccess()
+                                }
+                                "pending" -> {
+                                    Toast.makeText(context, "Pembayaran pending", Toast.LENGTH_LONG).show()
+                                }
+                                else -> {
+                                    Toast.makeText(context, "Status: ${result.status}", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+
+                        override fun onError(error: SnapError) {
+                            Toast.makeText(context, "Pembayaran gagal: ${error.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                )
             }
 
             viewModel.resetOrderState()

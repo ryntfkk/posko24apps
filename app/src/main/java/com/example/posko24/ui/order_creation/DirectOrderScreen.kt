@@ -18,6 +18,9 @@ import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.Wilayah
 import com.midtrans.sdk.uikit.external.UiKitApi
+import com.midtrans.sdk.uikit.api.callback.Callback
+import com.midtrans.sdk.uikit.api.exception.SnapError
+import com.midtrans.sdk.corekit.api.model.TransactionResult
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,7 +36,31 @@ fun DirectOrderScreen(
         val token = uiState.paymentToken
         if (token != null) {
             (context as? Activity)?.let { activity ->
-                UiKitApi.getDefaultInstance().startPaymentUiFlow(activity, token)
+                UiKitApi.getDefaultInstance().runPaymentTokenLegacy(
+                    activityContext = activity,
+                    snapToken = token,
+                    paymentCallback = object : Callback<TransactionResult> {
+                        override fun onSuccess(result: TransactionResult) {
+                            when (result.status) {
+                                "success" -> {
+                                    Toast.makeText(context, "Pembayaran berhasil", Toast.LENGTH_LONG).show()
+                                    onOrderSuccess()
+                                }
+                                "pending" -> {
+                                    Toast.makeText(context, "Pembayaran pending", Toast.LENGTH_LONG).show()
+                                }
+                                else -> {
+                                    Toast.makeText(context, "Status: ${result.status}", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+
+                        override fun onError(error: SnapError) {
+                            Toast.makeText(context, "Pembayaran gagal: ${error.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                )
+
             }
             viewModel.resetStateAfterPayment()
         }
