@@ -34,7 +34,7 @@ hilt = "2.51.1"
 
 # Lainnya
 coroutines = "1.7.3"
-coil = "2.6.0"
+coil = "2.7.0"
 googleMapsCompose = "4.3.3"
 playServicesMaps = "18.2.0"
 playServicesLocation = "21.3.0"
@@ -85,6 +85,7 @@ kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "ko
 
 # Lainnya
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+coil-svg = { group = "io.coil-kt", name = "coil-svg", version.ref = "coil" }
 google-maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "googleMapsCompose" }
 google-play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 google-play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
