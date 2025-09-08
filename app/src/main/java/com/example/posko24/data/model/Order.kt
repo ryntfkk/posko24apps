@@ -3,10 +3,13 @@ package com.example.posko24.data.model
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.firestore.ServerTimestamp
+import com.google.firebase.firestore.IgnoreExtraProperties
+
 
 /**
  * Data class untuk merepresentasikan dokumen di dalam koleksi 'orders'.
  */
+@IgnoreExtraProperties
 data class Order(
     val id: String = "",
     val orderType: String = "", // "basic" atau "direct"
@@ -26,6 +29,8 @@ data class Order(
     // --- FIELD BARU UNTUK PEMBAYARAN ---
     val paymentStatus: String = "pending", // "pending", "paid", "failed", "refunded"
     val midtransTransactionId: String? = null, // ID Transaksi dari Midtrans
+    val paymentGatewayInfo: Map<String, Any>? = null,
+
 
     @ServerTimestamp
     val createdAt: Timestamp? = null
