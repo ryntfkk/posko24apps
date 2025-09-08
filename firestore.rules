@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users: Pengguna bisa membaca data user lain, tapi hanya bisa menulis data miliknya sendiri.
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == userId;
+    }
+
+    // Service Categories & Provider Profiles: Publik, bisa dibaca oleh siapa saja yang login.
+    match /service_categories/{categoryId} {
+      // Izinkan baca jika pengguna sudah login (auth object tidak null)
+      allow read: if request.auth != null;
+      allow write: if false; // Hanya bisa diubah dari console
+    }
+
+    match /provider_profiles/{providerId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == providerId;
+
+      match /services/{serviceId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth.uid == providerId;
+      }
+    }
+
+    // Address data: Publik, bisa dibaca oleh siapa saja yang login
+    match /provinces/{provinceId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Hanya bisa diubah dari console
+
+      match /cities/{cityId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+
+        match /districts/{districtId} {
+          allow read: if request.auth != null;
+          allow write: if false;
+        }
+      }
+    }
+
+    // Orders: Aturan untuk pesanan
+    match /orders/{orderId} {
+      // Create: Hanya user terautentikasi yang bisa membuat order UNTUK DIRINYA SENDIRI.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.customerId;
+
+      // Read: Customer atau provider yang terlibat, atau provider lain jika pesanan belum memiliki provider dan sedang mencari.
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.customerId ||
+        request.auth.uid == resource.data.providerId ||
+        (resource.data.providerId == null && resource.data.status == "searching_provider" &&
+          exists(/databases/$(database)/documents/provider_profiles/$(request.auth.uid))
+        )
+      );
+
+      // Update: Hanya customer atau provider yang terlibat
+      allow update: if request.auth.uid == resource.data.customerId || request.auth.uid == resource.data.providerId;
+    }
+
+    // Chats: Aturan untuk ruang obrolan
+    match /chats/{orderId} {
+      // Read, Write: Hanya partisipan dalam chat yang bisa mengakses
+      allow read, write: if request.auth.uid in resource.data.participantIds;
+
+      // Subkoleksi messages
+      match /messages/{messageId} {
+        // Read: Partisipan bisa membaca semua pesan
+        allow read: if request.auth.uid in get(/databases/$(database)/documents/chats/$(orderId)).data.participantIds;
+        // Create: Hanya pengirim pesan dan partisipan yang bisa membuat pesan
+        allow create: if request.auth.uid == request.resource.data.senderId &&
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(orderId)).data.participantIds;
+      }
+    }
+
+    // Transactions: Hanya bisa dibaca oleh user yang bersangkutan. Tidak bisa dibuat dari client.
+    match /transactions/{transactionId} {
+      allow read: if request.auth.uid == resource.data.userId;
+      allow create, update, delete: if false; // Hanya bisa dibuat oleh backend (Cloud Functions)
+    }
+  }
+}
