@@ -48,7 +48,7 @@ class OrderDetailViewModel @Inject constructor(
                         if (!providerId.isNullOrBlank()) {
                             userRepository.getProviderProfile(providerId).collect { profResult ->
                                 profResult.onSuccess { profile ->
-                                    _providerProfile.value = profile
+                                    _providerProfileState.value = ProviderProfileState.Success(profile)
                                 }
                             }
                         }
