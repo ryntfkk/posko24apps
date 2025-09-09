@@ -12,7 +12,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.posko24.ui.theme.Posko24Theme
 @Composable
 fun RegisterScreen(
     // Aksi navigasi
@@ -125,5 +126,13 @@ fun RegisterScreen(
                 Text("Sudah punya akun? Login")
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun RegisterScreenPreview() {
+    Posko24Theme {
+        RegisterScreen(onRegisterSuccess = {}, onNavigateToLogin = {})
     }
 }
