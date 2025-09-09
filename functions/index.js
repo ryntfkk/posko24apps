@@ -387,7 +387,7 @@ exports.onProviderAssigned = onDocumentUpdated('orders/{orderId}', async (event)
   const after = event.data.after.data();
   const before = event.data.before.data();
 
-  if (before.providerId === null && after.providerId !== null && after.orderType === 'basic') {
+    if (!before.providerId && after.providerId && after.orderType === 'basic') {
     functions.logger.info('[CREATE_CHAT]', { orderId: event.params.orderId });
     await createChatRoom(after, event.params.orderId);
   }
