@@ -117,36 +117,40 @@ fun MainScreen(
         )
     }
 
-    Scaffold(
-        floatingActionButton = {
-            if (activeRole != "provider") {
-                Box(
-                    modifier = Modifier.offset(y = 42.dp)
+    val fab: (@Composable () -> Unit)? = if (activeRole != "provider") {
+        {
+            Box(
+                modifier = Modifier.offset(y = 42.dp)
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        if (userState !is UserState.Authenticated) {
+                            mainViewModel.intendedRoute.value = SOS_ROUTE
+                            mainNavController.navigate("login_screen")
+                        } else {
+                            onNavigateToConversation("admin")
+                        }
+                    },
+                    modifier = Modifier.size(72.dp),
+                    shape = CircleShape,
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
                 ) {
-                    FloatingActionButton(
-                        onClick = {
-                            if (userState !is UserState.Authenticated) {
-                                mainViewModel.intendedRoute.value = SOS_ROUTE
-                                mainNavController.navigate("login_screen")
-                            } else {
-                                onNavigateToConversation("admin")
-                            }
-                        },
-                        modifier = Modifier.size(72.dp),
-                        shape = CircleShape,
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ) {
-                        Text(
-                            "SOS",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 24.sp
-                        )
-                    }
+                    Text(
+                        "SOS",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp
+                    )
                 }
             }
-        },
+        }
+    } else {
+        null
+    }
+
+    Scaffold(
+        floatingActionButton = fab,
         floatingActionButtonPosition = FabPosition.Center,
         bottomBar = {
             NavigationBar(
@@ -181,7 +185,7 @@ fun MainScreen(
                             indicatorColor = Color(0xFFF2B6B6)
                         )
                     )
-                    if (item == BottomNavItem.MyOrders) {
+                    if (item == BottomNavItem.MyOrders && fab != null) {
                         Spacer(modifier = Modifier.width(36.dp))
                     }
                 }
