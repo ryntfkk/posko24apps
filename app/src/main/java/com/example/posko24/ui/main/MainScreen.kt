@@ -1,37 +1,37 @@
 package com.example.posko24.ui.main
 
 import android.annotation.SuppressLint
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.FabPosition
-import androidx.compose.material3.LargeFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.posko24.navigation.BottomNavItem
+import com.example.posko24.navigation.SOS_ROUTE
 import com.example.posko24.ui.chat.ChatListScreen
 import com.example.posko24.ui.home.HomeScreen
 import com.example.posko24.ui.orders.MyOrdersScreen
 import com.example.posko24.ui.profile.ProfileScreen
 import com.example.posko24.ui.provider.ProviderDashboardScreen
-import com.example.posko24.ui.sos.SosScreen
-
-
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
@@ -56,9 +56,13 @@ fun MainScreen(
         if (userState is UserState.Authenticated && mainViewModel.intendedRoute.value != null) {
             val route = mainViewModel.intendedRoute.value
             if (route != null) {
-                bottomNavController.navigate(route) {
-                    popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
-                    launchSingleTop = true
+                if (route == SOS_ROUTE) {
+                    onNavigateToConversation("admin")
+                } else {
+                    bottomNavController.navigate(route) {
+                        popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                    }
                 }
             }
             mainViewModel.intendedRoute.value = null // Reset rute tujuan
@@ -96,31 +100,24 @@ fun MainScreen(
 
     Scaffold(
         floatingActionButton = {
-            if (activeRole != "provider") {
-                LargeFloatingActionButton(
-                    onClick = {
-                        if (userState !is UserState.Authenticated) {
-                            mainViewModel.intendedRoute.value = BottomNavItem.Sos.route
-                            mainNavController.navigate("login_screen")
-                        } else {
-                            bottomNavController.navigate(BottomNavItem.Sos.route) {
-                                popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    },
-                    shape = CircleShape,
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                    modifier = Modifier.size(72.dp)
-                ) {
-                    Text(
-                        text = "SOS",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                }
+            FloatingActionButton(
+                onClick = {
+                    if (userState !is UserState.Authenticated) {
+                        mainViewModel.intendedRoute.value = SOS_ROUTE
+                        mainNavController.navigate("login_screen")
+                    } else {
+                        onNavigateToConversation("admin")
+                    }
+                },
+                shape = CircleShape,
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError
+            ) {
+                Text(
+                    "SOS",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
             }
         },
         floatingActionButtonPosition = FabPosition.Center,
@@ -129,6 +126,7 @@ fun MainScreen(
                 navigationItems.forEach { item ->
                     val isProtected = item.route in listOf("my_orders", "chats", "profile", "provider_dashboard")
                     NavigationBarItem(
+                        modifier = Modifier.weight(1f),
                         selected = currentRoute == item.route,
                         onClick = {
                             if (isProtected && userState !is UserState.Authenticated) {
@@ -147,6 +145,9 @@ fun MainScreen(
                         icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
                         label = { Text(text = item.title) }
                     )
+                    if (item == BottomNavItem.MyOrders) {
+                        Box(Modifier.weight(1f)) {}
+                    }
                 }
             }
         }
@@ -179,9 +180,6 @@ fun MainScreen(
                 }
             }
             composable(BottomNavItem.MyOrders.route) { MyOrdersScreen(onOrderClick = onOrderClick) }
-            if (activeRole != "provider") {
-                composable(BottomNavItem.Sos.route) { SosScreen() }
-            }
             composable(BottomNavItem.Chats.route) { ChatListScreen(onNavigateToConversation = onNavigateToConversation) }
             composable(BottomNavItem.Profile.route) {
                 ProfileScreen(

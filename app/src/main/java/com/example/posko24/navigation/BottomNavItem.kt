@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
  * @param title Judul yang akan ditampilkan.
  * @param icon Ikon yang akan ditampilkan.
  */
+const val SOS_ROUTE = "sos"
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Home : BottomNavItem(
         route = "home",
