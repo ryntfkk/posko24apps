@@ -50,7 +50,6 @@ class OrderRepositoryImpl @Inject constructor(
 
     override fun getUnassignedBasicOrders(): Flow<Result<List<Order>>> = flow {
         val snapshot = firestore.collection("orders")
-            .whereEqualTo("providerId", null)
             .whereEqualTo("status", "searching_provider")
             .orderBy("createdAt", Query.Direction.ASCENDING)
             .get().await()
