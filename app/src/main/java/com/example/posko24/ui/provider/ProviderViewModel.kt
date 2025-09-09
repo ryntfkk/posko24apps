@@ -5,10 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.repository.ServiceRepository
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 /**
@@ -20,7 +23,9 @@ import javax.inject.Inject
 @HiltViewModel
 class ProviderViewModel @Inject constructor(
     private val repository: ServiceRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     // State untuk menampung daftar provider.
@@ -31,7 +36,13 @@ class ProviderViewModel @Inject constructor(
         // Mengambil categoryId yang dikirim melalui navigasi.
         savedStateHandle.get<String>("categoryId")?.let { categoryId ->
             if (categoryId.isNotEmpty()) {
-                loadProviders(categoryId)
+                viewModelScope.launch {
+                    if (isProvider()) {
+                        loadProviders(categoryId)
+                    } else {
+                        _providerState.value = ProviderListState.Error("Mode provider diperlukan")
+                    }
+                }
             }
         }
     }
@@ -39,20 +50,27 @@ class ProviderViewModel @Inject constructor(
     /**
      * Memuat daftar provider berdasarkan ID kategori.
      */
-    private fun loadProviders(categoryId: String) {
-        viewModelScope.launch {
-            _providerState.value = ProviderListState.Loading
-            repository.getProvidersByCategory(categoryId).collect { result ->
-                result.onSuccess { providers ->
-                    if (providers.isEmpty()) {
-                        _providerState.value = ProviderListState.Empty
-                    } else {
-                        _providerState.value = ProviderListState.Success(providers)
-                    }
-                }.onFailure { exception ->
-                    _providerState.value = ProviderListState.Error(exception.message ?: "Gagal memuat data provider")
+    private suspend fun loadProviders(categoryId: String) {
+        _providerState.value = ProviderListState.Loading
+        repository.getProvidersByCategory(categoryId).collect { result ->
+            result.onSuccess { providers ->
+                if (providers.isEmpty()) {
+                    _providerState.value = ProviderListState.Empty
+                } else {
+                    _providerState.value = ProviderListState.Success(providers)
                 }
+            }.onFailure { exception ->
+                _providerState.value = ProviderListState.Error(exception.message ?: "Gagal memuat data provider")
             }
+        }
+    }
+    private suspend fun isProvider(): Boolean {
+        val uid = auth.currentUser?.uid ?: return false
+        return try {
+            firestore.collection("users").document(uid).get().await()
+                .getString("activeRole") == "provider"
+        } catch (e: Exception) {
+            false
         }
     }
 }

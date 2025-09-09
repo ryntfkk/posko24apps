@@ -20,6 +20,8 @@ import com.example.posko24.ui.chat.ChatListScreen
 import com.example.posko24.ui.home.HomeScreen
 import com.example.posko24.ui.orders.MyOrdersScreen
 import com.example.posko24.ui.profile.ProfileScreen
+import com.example.posko24.ui.provider.ProviderDashboardScreen
+
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
@@ -96,6 +98,22 @@ fun MainScreen(
                     onCategoryClick = onCategoryClick,
                     onOrderClick = onOrderClick
                 )
+            }
+            composable("provider_dashboard") {
+                val activeRole by mainViewModel.activeRole.collectAsState()
+                val state by mainViewModel.userState.collectAsState()
+                if (state is UserState.Authenticated && activeRole == "provider") {
+                    ProviderDashboardScreen(onOrderClick = onOrderClick)
+                } else {
+                    LaunchedEffect(state, activeRole) {
+                        if (state is UserState.Authenticated) {
+                            bottomNavController.navigate(BottomNavItem.Profile.route)
+                        } else {
+                            mainViewModel.intendedRoute.value = "provider_dashboard"
+                            mainNavController.navigate("login_screen")
+                        }
+                    }
+                }
             }
             composable(BottomNavItem.MyOrders.route) { MyOrdersScreen(onOrderClick = onOrderClick) }
             composable(BottomNavItem.Chats.route) { ChatListScreen(onNavigateToConversation = onNavigateToConversation) }

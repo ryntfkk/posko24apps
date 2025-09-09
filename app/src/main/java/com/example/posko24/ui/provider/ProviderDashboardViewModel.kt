@@ -5,16 +5,19 @@ import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.repository.OrderRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
 class ProviderDashboardViewModel @Inject constructor(
     private val orderRepository: OrderRepository,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     private val _dashboardState = MutableStateFlow<ProviderDashboardState>(ProviderDashboardState.Loading)
@@ -31,6 +34,10 @@ class ProviderDashboardViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
+            if (!isProvider(userId)) {
+                _dashboardState.value = ProviderDashboardState.Error("Mode provider diperlukan")
+                return@launch
+            }
             _dashboardState.value = ProviderDashboardState.Loading
             orderRepository.getProviderOrders(userId).collect { result ->
                 result.onSuccess { orders ->
@@ -45,8 +52,15 @@ class ProviderDashboardViewModel @Inject constructor(
     fun refresh() {
         loadProviderOrders()
     }
+    private suspend fun isProvider(userId: String): Boolean {
+        return try {
+            firestore.collection("users").document(userId).get().await()
+                .getString("activeRole") == "provider"
+        } catch (e: Exception) {
+            false
+        }
+    }
 }
-
 sealed class ProviderDashboardState {
     object Loading : ProviderDashboardState()
     data class Success(val incomingOrders: List<Order>) : ProviderDashboardState()
