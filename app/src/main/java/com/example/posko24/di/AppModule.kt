@@ -76,7 +76,29 @@ object AppModule {
     ): TransactionRepository {
         return TransactionRepositoryImpl(firestore)
     }
+    @Provides
+    @Singleton
+    fun provideActiveJobRepository(
+        firestore: FirebaseFirestore
+    ): ActiveJobRepository {
+        return ActiveJobRepositoryImpl(firestore)
+    }
 
+    @Provides
+    @Singleton
+    fun provideSkillRepository(
+        firestore: FirebaseFirestore
+    ): SkillRepository {
+        return SkillRepositoryImpl(firestore)
+    }
+
+    @Provides
+    @Singleton
+    fun provideReviewRepository(
+        firestore: FirebaseFirestore
+    ): ReviewRepository {
+        return ReviewRepositoryImpl(firestore)
+    }
     // Kode baru Anda sudah benar, tidak perlu diubah
     @Provides
     @Singleton
