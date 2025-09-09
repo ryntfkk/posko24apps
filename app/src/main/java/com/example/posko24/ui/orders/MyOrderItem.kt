@@ -17,6 +17,7 @@ fun MyOrderItem(
     activeRole: String,
     onOrderClick: (String) -> Unit,
     onReviewClick: (String) -> Unit,
+    onClaim: (String) -> Unit,
     onAccept: (String) -> Unit,
     onStart: (String) -> Unit,
     onFinish: (String) -> Unit
@@ -47,6 +48,11 @@ fun MyOrderItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 when (order.status) {
+                    "searching_provider" -> {
+                        Button(onClick = { onClaim(order.id) }) {
+                            Text("Claim")
+                        }
+                    }
                     "pending" -> {
                         Button(onClick = { onAccept(order.id) }) {
                             Text("Accept")
