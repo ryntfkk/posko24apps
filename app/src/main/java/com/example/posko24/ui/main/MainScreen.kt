@@ -1,9 +1,9 @@
 package com.example.posko24.ui.main
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
@@ -19,6 +19,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -126,7 +127,6 @@ fun MainScreen(
                 navigationItems.forEach { item ->
                     val isProtected = item.route in listOf("my_orders", "chats", "profile", "provider_dashboard")
                     NavigationBarItem(
-                        modifier = Modifier.weight(1f),
                         selected = currentRoute == item.route,
                         onClick = {
                             if (isProtected && userState !is UserState.Authenticated) {
@@ -146,7 +146,7 @@ fun MainScreen(
                         label = { Text(text = item.title) }
                     )
                     if (item == BottomNavItem.MyOrders) {
-                        Box(Modifier.weight(1f)) {}
+                        Spacer(modifier = Modifier.width(56.dp))
                     }
                 }
             }
