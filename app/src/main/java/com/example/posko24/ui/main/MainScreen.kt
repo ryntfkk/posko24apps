@@ -150,7 +150,7 @@ fun MainScreen(
     }
 
     Scaffold(
-        floatingActionButton = fab,
+        floatingActionButton = fab ?: {},
         floatingActionButtonPosition = FabPosition.Center,
         bottomBar = {
             NavigationBar(
