@@ -55,7 +55,10 @@ service cloud.firestore {
         request.auth.uid == resource.data.customerId ||
         request.auth.uid == resource.data.providerId ||
         (resource.data.providerId == null && resource.data.status == "searching_provider" &&
-          exists(/databases/$(database)/documents/provider_profiles/$(request.auth.uid))
+                    (
+                      (request.auth.token.roles != null && request.auth.token.roles.hasAny(['provider'])) ||
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles.hasAny(['provider'])
+                    )
         )
       );
 

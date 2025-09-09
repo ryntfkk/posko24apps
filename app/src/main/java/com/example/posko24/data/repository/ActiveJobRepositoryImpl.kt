@@ -38,6 +38,7 @@ class ActiveJobRepositoryImpl @Inject constructor(
         val unclaimedJobs = flow {
             val snapshot = firestore.collection("orders")
                 .whereEqualTo("status", "searching_provider")
+                .whereEqualTo("providerId", null)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get().await()
 

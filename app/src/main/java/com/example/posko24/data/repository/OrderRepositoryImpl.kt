@@ -4,6 +4,7 @@ import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.User
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
@@ -63,18 +64,18 @@ class OrderRepositoryImpl @Inject constructor(
     }
 
     override fun createBasicOrder(order: Order, activeRole: String): Flow<Result<String>> = flow {
-        val documentReference = firestore.collection("orders")
-            .add(order.copy(createdByRole = activeRole))
-            .await()
+        val documentReference = firestore.collection("orders").document()
+        documentReference.set(order.copy(createdByRole = activeRole)).await()
+        documentReference.set(mapOf("providerId" to null), SetOptions.merge()).await()
         emit(Result.success(documentReference.id))
     }.catch { exception ->
         emit(Result.failure(exception))
     }
 
     override fun createDirectOrder(order: Order, activeRole: String): Flow<Result<String>> = flow {
-        val documentReference = firestore.collection("orders")
-            .add(order.copy(createdByRole = activeRole))
-            .await()
+        val documentReference = firestore.collection("orders").document()
+        documentReference.set(order.copy(createdByRole = activeRole)).await()
+        documentReference.set(mapOf("providerId" to order.providerId), SetOptions.merge()).await()
         emit(Result.success(documentReference.id))
     }.catch { exception ->
         emit(Result.failure(exception))
