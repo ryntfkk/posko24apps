@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -33,6 +34,14 @@ import com.example.posko24.ui.home.HomeScreen
 import com.example.posko24.ui.orders.MyOrdersScreen
 import com.example.posko24.ui.profile.ProfileScreen
 import com.example.posko24.ui.provider.ProviderDashboardScreen
+import com.example.posko24.ui.theme.Posko24Theme
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.example.posko24.data.repository.UserRepository
+import com.example.posko24.data.model.User
+import com.example.posko24.data.model.ProviderProfile
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -191,5 +200,36 @@ fun MainScreen(
                 )
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun MainScreenPreview() {
+    val fakeRepository = object : UserRepository {
+        override fun getUserProfile(userId: String): Flow<Result<User?>> = flowOf(Result.success(null))
+        override fun getProviderProfile(providerId: String): Flow<Result<ProviderProfile?>> = flowOf(Result.success(null))
+        override suspend fun updateProviderAvailability(providerId: String, isAvailable: Boolean): Flow<Result<Boolean>> = flowOf(Result.success(true))
+        override suspend fun updateActiveRole(userId: String, activeRole: String): Flow<Result<Boolean>> = flowOf(Result.success(true))
+        override suspend fun upgradeToProvider(): Flow<Result<Boolean>> = flowOf(Result.success(true))
+    }
+
+    val previewViewModel = MainViewModel(
+        auth = FirebaseAuth.getInstance(),
+        firestore = FirebaseFirestore.getInstance(),
+        userRepository = fakeRepository
+    )
+
+    Posko24Theme {
+        MainScreen(
+            mainViewModel = previewViewModel,
+            mainNavController = rememberNavController(),
+            onCategoryClick = {},
+            onNavigateToConversation = {},
+            onOrderClick = {},
+            onNavigateToTransactions = {},
+            onNavigateToAccountSettings = {},
+            onNavigateToAddressSettings = {}
+        )
     }
 }
