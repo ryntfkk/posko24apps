@@ -43,7 +43,7 @@ fun ProviderDashboardScreen(
         ) {
             item {
                 Text(
-                    "Pesanan Tersedia",
+                    "Pesanan Saya",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -55,7 +55,7 @@ fun ProviderDashboardScreen(
                 is ProviderDashboardState.Loading -> {
                     item {
                         Box(
-                            modifier = Modifier.fillParentMaxSize(), // Memenuhi sisa layar
+                            modifier = Modifier.fillParentMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator()
@@ -69,19 +69,13 @@ fun ProviderDashboardScreen(
                                 modifier = Modifier.fillParentMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("Tidak ada pesanan tersedia saat ini.")
+                                Text("Belum ada pesanan.")
                             }
                         }
                     } else {
                         items(currentState.incomingOrders) { order ->
-                            Column {
-                                Box(modifier = Modifier.clickable { onOrderClick(order.id) }) {
-                                    OrderCard(order = order)
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Button(onClick = { viewModel.takeOrder(order.id) }) {
-                                    Text("Ambil Pesanan")
-                                }
+                            Box(modifier = Modifier.clickable { onOrderClick(order.id) }) {
+                                OrderCard(order = order)
                             }
                         }
                     }

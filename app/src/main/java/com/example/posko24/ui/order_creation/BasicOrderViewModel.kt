@@ -97,7 +97,10 @@ class BasicOrderViewModel @Inject constructor(
                 _uiState.update { it.copy(orderCreationState = OrderCreationState.Error("Data pengguna tidak lengkap. Harap periksa profil Anda.")) }
                 return@launch
             }
-
+            if (currentUser.activeRole == "provider") {
+                _uiState.update { it.copy(orderCreationState = OrderCreationState.Error("Peran provider tidak dapat membuat pesanan.")) }
+                return@launch
+            }
             if (currentState.selectedDistrict == null || currentState.addressDetail.isBlank()) {
                 Log.e("BasicOrderVM", "❌ Address not completed: province=${currentState.selectedProvince}, city=${currentState.selectedCity}, district=${currentState.selectedDistrict}, address=${currentState.addressDetail}")
                 _uiState.update { it.copy(orderCreationState = OrderCreationState.Error("Harap lengkapi semua data alamat.")) }
@@ -125,7 +128,7 @@ class BasicOrderViewModel @Inject constructor(
 
             Log.d("BasicOrderVM", "📦 Creating order: $order")
 
-            orderRepository.createBasicOrder(order).collect { result ->
+            orderRepository.createBasicOrder(order, currentUser.activeRole).collect { result ->
                 result.onSuccess { orderId ->
                     Log.d("BasicOrderVM", "✅ Order created with ID: $orderId")
                     _uiState.update { it.copy(orderId = orderId) }

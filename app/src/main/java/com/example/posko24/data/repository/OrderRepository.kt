@@ -5,8 +5,8 @@ import com.example.posko24.data.model.User
 import kotlinx.coroutines.flow.Flow
 
 interface OrderRepository {
-    fun createBasicOrder(order: Order): Flow<Result<String>>
-    fun createDirectOrder(order: Order): Flow<Result<String>>
+    fun createBasicOrder(order: Order, activeRole: String): Flow<Result<String>>
+    fun createDirectOrder(order: Order, activeRole: String): Flow<Result<String>>
 
     fun getCustomerOrders(customerId: String): Flow<Result<List<Order>>>
     fun getProviderOrders(providerId: String): Flow<Result<List<Order>>>

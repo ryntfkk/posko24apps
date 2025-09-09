@@ -166,7 +166,12 @@ fun BasicOrderScreen(
                         onMapCoordinatesChanged = viewModel::onMapCoordinatesChanged
                     )
                 }
-
+                if (uiState.currentUser?.activeRole == "provider") {
+                    Text(
+                        text = "Provider tidak dapat membuat pesanan",
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
                 Button(
                     onClick = {
                         selectedService?.let { service ->
@@ -180,7 +185,8 @@ fun BasicOrderScreen(
                     enabled = uiState.selectedDistrict != null &&
                             uiState.addressDetail.isNotBlank() &&
                             selectedService != null &&
-                            uiState.orderCreationState !is OrderCreationState.Loading
+                            uiState.orderCreationState !is OrderCreationState.Loading &&
+                            uiState.currentUser?.activeRole != "provider"
                 ) {
                     if (uiState.orderCreationState is OrderCreationState.Loading) {
                         CircularProgressIndicator(

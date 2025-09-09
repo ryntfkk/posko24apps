@@ -63,15 +63,19 @@ class OrderRepositoryImpl @Inject constructor(
         emit(Result.failure(exception))
     }
 
-    override fun createBasicOrder(order: Order): Flow<Result<String>> = flow {
-        val documentReference = firestore.collection("orders").add(order).await()
+    override fun createBasicOrder(order: Order, activeRole: String): Flow<Result<String>> = flow {
+        val documentReference = firestore.collection("orders")
+            .add(order.copy(createdByRole = activeRole))
+            .await()
         emit(Result.success(documentReference.id))
     }.catch { exception ->
         emit(Result.failure(exception))
     }
 
-    override fun createDirectOrder(order: Order): Flow<Result<String>> = flow {
-        val documentReference = firestore.collection("orders").add(order).await()
+    override fun createDirectOrder(order: Order, activeRole: String): Flow<Result<String>> = flow {
+        val documentReference = firestore.collection("orders")
+            .add(order.copy(createdByRole = activeRole))
+            .await()
         emit(Result.success(documentReference.id))
     }.catch { exception ->
         emit(Result.failure(exception))

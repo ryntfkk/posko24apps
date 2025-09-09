@@ -15,6 +15,7 @@ data class Order(
     val orderType: String = "", // "basic" atau "direct"
     val customerId: String = "",
     val providerId: String? = null, // Awalnya null untuk Basic Order
+    val createdByRole: String = "",
     val serviceSnapshot: Map<String, Any> = emptyMap(), // Salinan info layanan
     val status: String = "", // e.g., "awaiting_payment", "searching_provider"
 

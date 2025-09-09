@@ -158,6 +158,10 @@ class DirectOrderViewModel @Inject constructor(
             _uiState.update { it.copy(errorMessage = "Harap lengkapi semua detail alamat.") }
             return
         }
+        if (currentUser.activeRole == "provider") {
+            _uiState.update { it.copy(errorMessage = "Peran provider tidak dapat membuat pesanan.") }
+            return
+        }
 
         _uiState.update { it.copy(isLoading = true) }
 
@@ -179,7 +183,7 @@ class DirectOrderViewModel @Inject constructor(
                 )
             )
 
-            orderRepository.createDirectOrder(order).collect { result ->
+            orderRepository.createDirectOrder(order, currentUser.activeRole).collect { result ->
                 result.onSuccess { orderId ->
                     _uiState.update { it.copy(orderId = orderId) }
                     observeOrder(orderId)

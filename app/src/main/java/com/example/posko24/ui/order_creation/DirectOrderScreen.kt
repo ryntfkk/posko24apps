@@ -120,12 +120,16 @@ fun DirectOrderScreen(
                         )
                         // --- INPUT ALAMAT LENGKAP SELESAI ---
                     }
-
+                    if (uiState.currentUser?.activeRole == "provider") {
+                        Text(
+                            text = "Provider tidak dapat membuat pesanan",
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
                     Button(
                         onClick = { viewModel.createOrder() },
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        enabled = !uiState.isLoading && uiState.selectedDistrict != null && uiState.addressDetail.isNotBlank()
-                    ) {
+                        enabled = !uiState.isLoading && uiState.selectedDistrict != null && uiState.addressDetail.isNotBlank() && uiState.currentUser?.activeRole != "provider"                    ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                         } else {

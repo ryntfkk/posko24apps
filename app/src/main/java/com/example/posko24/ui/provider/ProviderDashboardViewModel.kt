@@ -4,45 +4,46 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.repository.OrderRepository
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ProviderDashboardViewModel @Inject constructor(
-    private val orderRepository: OrderRepository
+    private val orderRepository: OrderRepository,
+    private val auth: FirebaseAuth
 ) : ViewModel() {
 
     private val _dashboardState = MutableStateFlow<ProviderDashboardState>(ProviderDashboardState.Loading)
     val dashboardState = _dashboardState.asStateFlow()
 
     init {
-        loadAvailableOrders()
+        loadProviderOrders()
     }
 
-    private fun loadAvailableOrders() {
-
-
+    private fun loadProviderOrders() {
+        val userId = auth.currentUser?.uid
+        if (userId == null) {
+            _dashboardState.value = ProviderDashboardState.Error("Anda harus login untuk melihat pesanan.")
+            return
+        }
         viewModelScope.launch {
             _dashboardState.value = ProviderDashboardState.Loading
-            orderRepository.getUnassignedBasicOrders().collect { result ->
+            orderRepository.getProviderOrders(userId).collect { result ->
                 result.onSuccess { orders ->
                     _dashboardState.value = ProviderDashboardState.Success(orders)
                 }.onFailure {
-                    _dashboardState.value = ProviderDashboardState.Error(it.message ?: "Gagal memuat pesanan tersedia.")
+                    _dashboardState.value = ProviderDashboardState.Error(it.message ?: "Gagal memuat pesanan.")
                 }
             }
         }
     }
 
-    fun takeOrder(orderId: String) {
-        viewModelScope.launch {
-            orderRepository.claimOrder(orderId).collect { }
-            loadAvailableOrders()
-        }
+    fun refresh() {
+        loadProviderOrders()
     }
 }
 
