@@ -5,9 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -18,6 +16,7 @@ import com.example.posko24.ui.components.OrderCard
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProviderDashboardScreen(
+    activeRole: String,
     viewModel: ProviderDashboardViewModel = hiltViewModel(),
     activeJobsViewModel: ActiveJobsViewModel = hiltViewModel(),
     skillsViewModel: SkillsViewModel = hiltViewModel(),
@@ -30,6 +29,13 @@ fun ProviderDashboardScreen(
     val skillsState by skillsViewModel.state.collectAsState()
     val reviewsState by reviewsViewModel.state.collectAsState()
     val balanceState by balanceViewModel.state.collectAsState()
+    LaunchedEffect(activeRole) {
+        viewModel.onActiveRoleChanged(activeRole)
+        activeJobsViewModel.onActiveRoleChanged(activeRole)
+        skillsViewModel.onActiveRoleChanged(activeRole)
+        reviewsViewModel.onActiveRoleChanged(activeRole)
+        balanceViewModel.onActiveRoleChanged(activeRole)
+    }
 
     Scaffold(
         topBar = {

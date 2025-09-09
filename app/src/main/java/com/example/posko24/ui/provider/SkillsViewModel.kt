@@ -41,6 +41,11 @@ class SkillsViewModel @Inject constructor(
             }
         }
     }
+    fun onActiveRoleChanged(role: String) {
+        if (role == "provider") {
+            loadSkills()
+        }
+    }
 }
 
 sealed class SkillsState {

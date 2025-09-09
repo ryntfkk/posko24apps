@@ -54,6 +54,19 @@ fun MainScreen(
             mainViewModel.intendedRoute.value = null // Reset rute tujuan
         }
     }
+    LaunchedEffect(activeRole) {
+        val startRoute = if (activeRole == "provider") {
+            BottomNavItem.ProviderDashboard.route
+        } else {
+            BottomNavItem.Home.route
+        }
+        bottomNavController.navigate(startRoute) {
+            popUpTo(bottomNavController.graph.findStartDestination().id) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
 
     val navigationItems = if (activeRole == "provider") {
         listOf(
@@ -114,7 +127,7 @@ fun MainScreen(
             composable(BottomNavItem.ProviderDashboard.route) {
                 val state by mainViewModel.userState.collectAsState()
                 if (state is UserState.Authenticated && activeRole == "provider") {
-                    ProviderDashboardScreen(onOrderClick = onOrderClick)
+                    ProviderDashboardScreen(activeRole = activeRole, onOrderClick = onOrderClick)
                 } else {
                     LaunchedEffect(state, activeRole) {
                         if (state is UserState.Authenticated) {

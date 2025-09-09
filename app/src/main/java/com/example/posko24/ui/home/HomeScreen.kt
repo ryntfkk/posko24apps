@@ -47,7 +47,7 @@ fun HomeScreen(
     when (val state = userState) {
         is UserState.Authenticated -> {
             if (activeRole == "provider") {
-                ProviderDashboardScreen(onOrderClick = onOrderClick)
+                ProviderDashboardScreen(activeRole = activeRole, onOrderClick = onOrderClick)
             } else {
                 CategoryListScreen(viewModel = homeViewModel, onCategoryClick = onCategoryClick)
             }

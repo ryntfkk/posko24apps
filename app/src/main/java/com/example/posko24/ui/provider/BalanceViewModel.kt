@@ -42,6 +42,12 @@ class BalanceViewModel @Inject constructor(
             }
         }
     }
+
+    fun onActiveRoleChanged(role: String) {
+        if (role == "provider") {
+            loadBalance()
+        }
+    }
 }
 
 sealed class BalanceState {

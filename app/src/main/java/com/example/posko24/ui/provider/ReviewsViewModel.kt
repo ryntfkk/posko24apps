@@ -41,6 +41,11 @@ class ReviewsViewModel @Inject constructor(
             }
         }
     }
+    fun onActiveRoleChanged(role: String) {
+        if (role == "provider") {
+            loadReviews()
+        }
+    }
 }
 
 sealed class ReviewsState {

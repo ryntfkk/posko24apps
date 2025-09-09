@@ -52,6 +52,11 @@ class ProviderDashboardViewModel @Inject constructor(
     fun refresh() {
         loadProviderOrders()
     }
+    fun onActiveRoleChanged(role: String) {
+        if (role == "provider") {
+            loadProviderOrders()
+        }
+    }
     private suspend fun isProvider(userId: String): Boolean {
         return try {
             firestore.collection("users").document(userId).get().await()

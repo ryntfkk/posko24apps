@@ -41,6 +41,11 @@ class ActiveJobsViewModel @Inject constructor(
             }
         }
     }
+    fun onActiveRoleChanged(role: String) {
+        if (role == "provider") {
+            loadActiveJobs()
+        }
+    }
 }
 
 sealed class ActiveJobsState {
