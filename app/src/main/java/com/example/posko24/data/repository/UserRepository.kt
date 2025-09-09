@@ -25,4 +25,9 @@ interface UserRepository {
      * Meng-upgrade pengguna saat ini menjadi provider.
      */
     suspend fun upgradeToProvider(): Flow<Result<Boolean>>
+    /**
+     * Memperbarui data profil pengguna seperti nama, nomor telepon, atau foto profil.
+     * Mengembalikan [Result] yang menandakan apakah operasi berhasil atau gagal.
+     */
+    suspend fun updateUserProfile(userId: String, data: Map<String, Any?>): Result<Unit>
 }

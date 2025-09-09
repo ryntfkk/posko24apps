@@ -4,10 +4,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.UserAddress
+import com.example.posko24.data.model.Wilayah
 import com.example.posko24.data.repository.AddressRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.GeoPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import javax.inject.Inject
 
 @HiltViewModel
@@ -15,18 +18,88 @@ class AddressSettingsViewModel @Inject constructor(
     private val addressRepository: AddressRepository,
     private val auth: FirebaseAuth
 ) : ViewModel() {
-
-    var addressDetail = mutableStateOf("")
+    var provinces = mutableStateOf<List<Wilayah>>(emptyList())
+        private set
+    var cities = mutableStateOf<List<Wilayah>>(emptyList())
+        private set
+    var districts = mutableStateOf<List<Wilayah>>(emptyList())
         private set
 
-    fun onAddressDetailChange(value: String) {
-        addressDetail.value = value
+    var selectedProvince = mutableStateOf<Wilayah?>(null)
+        private set
+    var selectedCity = mutableStateOf<Wilayah?>(null)
+        private set
+    var selectedDistrict = mutableStateOf<Wilayah?>(null)
+        private set
+    var addressDetail = mutableStateOf("")
+        private set
+    var latitude = mutableStateOf("")
+        private set
+    var longitude = mutableStateOf("")
+        private set
+    init {
+        loadProvinces()
+    }
+    private fun loadProvinces() {
+        viewModelScope.launch {
+            addressRepository.getProvinces().collect { result ->
+                result.onSuccess { list -> provinces.value = list }
+            }
+        }
     }
 
+    private fun loadCities(province: Wilayah) {
+        viewModelScope.launch {
+            addressRepository.getCities(province.docId).collect { result ->
+                result.onSuccess { list -> cities.value = list }
+            }
+        }
+    }
+
+    private fun loadDistricts(province: Wilayah, city: Wilayah) {
+        viewModelScope.launch {
+            addressRepository.getDistricts(province.docId, city.docId).collect { result ->
+                result.onSuccess { list -> districts.value = list }
+            }
+        }
+    }
+
+    fun onProvinceSelected(wilayah: Wilayah) {
+        selectedProvince.value = wilayah
+        selectedCity.value = null
+        selectedDistrict.value = null
+        cities.value = emptyList()
+        districts.value = emptyList()
+        loadCities(wilayah)
+    }
+
+    fun onCitySelected(wilayah: Wilayah) {
+        selectedCity.value = wilayah
+        selectedDistrict.value = null
+        districts.value = emptyList()
+        selectedProvince.value?.let { loadDistricts(it, wilayah) }
+    }
+
+    fun onDistrictSelected(wilayah: Wilayah) {
+        selectedDistrict.value = wilayah
+    }
+
+    fun onAddressDetailChange(value: String) { addressDetail.value = value }
+    fun onLatitudeChange(value: String) { latitude.value = value }
+    fun onLongitudeChange(value: String) { longitude.value = value }
     fun saveAddress(onResult: (Boolean) -> Unit) {
         val userId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
-            val address = UserAddress(detail = addressDetail.value)
+            val lat = latitude.value.toDoubleOrNull()
+            val lng = longitude.value.toDoubleOrNull()
+            val geoPoint = if (lat != null && lng != null) GeoPoint(lat, lng) else null
+            val address = UserAddress(
+                province = selectedProvince.value?.name ?: "",
+                city = selectedCity.value?.name ?: "",
+                district = selectedDistrict.value?.name ?: "",
+                detail = addressDetail.value,
+                location = geoPoint
+            )
             val result = addressRepository.saveAddress(userId, address)
             onResult(result.isSuccess)
         }

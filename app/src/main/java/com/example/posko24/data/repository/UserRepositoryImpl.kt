@@ -56,4 +56,12 @@ class UserRepositoryImpl @Inject constructor(
     }.catch {
         emit(Result.failure(it))
     }
+    override suspend fun updateUserProfile(userId: String, data: Map<String, Any?>): Result<Unit> {
+        return try {
+            firestore.collection("users").document(userId).update(data).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
