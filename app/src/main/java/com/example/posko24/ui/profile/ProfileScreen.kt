@@ -26,8 +26,6 @@ import com.example.posko24.MainActivity
 import com.example.posko24.R
 import com.example.posko24.data.model.User
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Slider
 import com.example.posko24.data.model.ProviderProfile
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Info
@@ -223,25 +221,23 @@ fun ProfileInfoRow(icon: ImageVector, text: String) {
         Text(text, style = MaterialTheme.typography.bodyLarge)
     }
 }
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoleSlider(activeRole: String, onRoleChange: (String) -> Unit) {
-    var sliderPosition by remember { mutableStateOf(if (activeRole == "provider") 1f else 0f) }
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Slider(
-            value = sliderPosition,
-            onValueChange = {
-                sliderPosition = it
-                onRoleChange(if (it < 0.5f) "customer" else "provider")
-            },
-            valueRange = 0f..1f,
-            steps = 1
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Customer")
-            Text("Provider")
+    var selectedIndex by remember(activeRole) { mutableStateOf(if (activeRole == "provider") 1 else 0) }
+    val roles = listOf("customer", "provider")
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        roles.forEachIndexed { index, role ->
+            SegmentedButton(
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = roles.size),
+                selected = selectedIndex == index,
+                onClick = {
+                    selectedIndex = index
+                    onRoleChange(role)
+                }
+            ) {
+                Text(role.replaceFirstChar { it.uppercase() })
+            }
         }
     }
 }
