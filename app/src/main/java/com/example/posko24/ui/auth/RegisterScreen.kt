@@ -264,14 +264,25 @@ private fun AddressDropdowns(
 
     ExposedDropdownMenuBox(
         expanded = provinceExpanded,
-        onExpandedChange = { provinceExpanded = !provinceExpanded }
+        onExpandedChange = {
+            if (!uiState.provincesLoading && uiState.provinceLoadError == null) {
+                provinceExpanded = !provinceExpanded
+            }
+        }
     ) {
         OutlinedTextField(
             value = uiState.selectedProvince?.name ?: "",
             onValueChange = {},
             readOnly = true,
+            enabled = uiState.provinceLoadError == null && !uiState.provincesLoading,
             label = { Text("Provinsi") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = provinceExpanded) },
+            trailingIcon = {
+                if (uiState.provincesLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                } else {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = provinceExpanded)
+                }
+            },
             modifier = Modifier
                 .menuAnchor()
                 .fillMaxWidth()
@@ -291,7 +302,13 @@ private fun AddressDropdowns(
             }
         }
     }
-
+    if (uiState.provinceLoadError != null) {
+        Text(
+            uiState.provinceLoadError,
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
     Spacer(modifier = Modifier.height(8.dp))
 
     ExposedDropdownMenuBox(

@@ -29,7 +29,9 @@ data class RegisterUiState(
     val mapCoordinates: GeoPoint? = GeoPoint(-6.9926, 110.4283),
     val cameraPosition: CameraPosition = CameraPosition.fromLatLngZoom(
         LatLng(-6.9926, 110.4283), 12f
-    )
+    ),
+    val provincesLoading: Boolean = false,
+    val provinceLoadError: String? = null
 )
 
 @HiltViewModel
@@ -50,10 +52,26 @@ class RegisterViewModel @Inject constructor(
 
     private fun loadProvinces() {
         viewModelScope.launch {
+            _uiState.update { it.copy(provincesLoading = true, provinceLoadError = null) }
             addressRepository.getProvinces().collect { result ->
-                result.onSuccess { provinces ->
-                    _uiState.update { it.copy(provinces = provinces) }
-                }
+                result
+                    .onSuccess { provinces ->
+                        _uiState.update {
+                            it.copy(
+                                provinces = provinces,
+                                provincesLoading = false,
+                                provinceLoadError = null
+                            )
+                        }
+                    }
+                    .onFailure { e ->
+                        _uiState.update {
+                            it.copy(
+                                provincesLoading = false,
+                                provinceLoadError = e.message ?: "Gagal memuat provinsi"
+                            )
+                        }
+                    }
             }
         }
     }

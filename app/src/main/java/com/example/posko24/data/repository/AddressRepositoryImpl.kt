@@ -1,5 +1,6 @@
 package com.example.posko24.data.repository
 
+import android.util.Log
 import com.example.posko24.data.model.Wilayah
 import com.example.posko24.data.model.UserAddress
 import com.google.firebase.firestore.FirebaseFirestore
@@ -14,6 +15,7 @@ class AddressRepositoryImpl @Inject constructor(
 ) : AddressRepository {
 
     override fun getProvinces(): Flow<Result<List<Wilayah>>> = flow {
+        Log.d(TAG, "Fetching provinces from Firestore")
         val snapshot = firestore.collection("provinces").orderBy("name").get().await()
         val provinces = snapshot.documents.mapNotNull { doc ->
             Wilayah(
@@ -22,9 +24,11 @@ class AddressRepositoryImpl @Inject constructor(
                 name = doc.getString("name") ?: ""
             )
         }
+        Log.d(TAG, "Fetched ${provinces.size} provinces")
         emit(Result.success(provinces))
-    }.catch {
-        emit(Result.failure(it))
+    }.catch { e ->
+        Log.e(TAG, "Failed to fetch provinces", e)
+        emit(Result.failure(Exception("Gagal memuat provinsi: ${e.message}", e)))
     }
 
     override fun getCities(provinceDocId: String): Flow<Result<List<Wilayah>>> = flow {
@@ -74,3 +78,4 @@ class AddressRepositoryImpl @Inject constructor(
         }
     }
 }
+private const val TAG = "AddressRepository"
