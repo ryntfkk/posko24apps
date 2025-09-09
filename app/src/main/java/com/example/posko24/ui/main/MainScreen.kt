@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -118,28 +119,31 @@ fun MainScreen(
 
     Scaffold(
         floatingActionButton = {
-            Box(
-                modifier = Modifier.offset(y = 42.dp)
-            ) {
-                FloatingActionButton(
-                    onClick = {
-                        if (userState !is UserState.Authenticated) {
-                            mainViewModel.intendedRoute.value = SOS_ROUTE
-                            mainNavController.navigate("login_screen")
-                        } else {
-                            onNavigateToConversation("admin")
-                        }
-                    },
-                    modifier = Modifier.size(72.dp),
-                    shape = CircleShape,
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError
+            if (activeRole != "provider") {
+                Box(
+                    modifier = Modifier.offset(y = 42.dp)
                 ) {
-                    Text(
-                        "SOS",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                    FloatingActionButton(
+                        onClick = {
+                            if (userState !is UserState.Authenticated) {
+                                mainViewModel.intendedRoute.value = SOS_ROUTE
+                                mainNavController.navigate("login_screen")
+                            } else {
+                                onNavigateToConversation("admin")
+                            }
+                        },
+                        modifier = Modifier.size(72.dp),
+                        shape = CircleShape,
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ) {
+                        Text(
+                            "SOS",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp
+                        )
+                    }
                 }
             }
         },
