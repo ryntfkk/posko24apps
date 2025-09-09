@@ -5,12 +5,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,7 +21,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -133,7 +137,10 @@ fun MainScreen(
         },
         floatingActionButtonPosition = FabPosition.Center,
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                containerColor = Color(0xFFF8DAD2),
+                modifier = Modifier.clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            ) {
                 navigationItems.forEach { item ->
                     val isProtected = item.route in listOf("my_orders", "chats", "profile", "provider_dashboard")
                     NavigationBarItem(
@@ -153,10 +160,17 @@ fun MainScreen(
                             }
                         },
                         icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
-                        label = { Text(text = item.title) }
+                        label = { Text(text = item.title) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Color.Black,
+                            selectedTextColor = Color.Black,
+                            unselectedIconColor = Color.Black.copy(alpha = 0.6f),
+                            unselectedTextColor = Color.Black.copy(alpha = 0.6f),
+                            indicatorColor = Color(0xFFF2B6B6)
+                        )
                     )
                     if (item == BottomNavItem.MyOrders) {
-                        Spacer(modifier = Modifier.width(56.dp))
+                        Spacer(modifier = Modifier.width(64.dp))
                     }
                 }
             }
