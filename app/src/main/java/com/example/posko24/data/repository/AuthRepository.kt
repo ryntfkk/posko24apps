@@ -2,6 +2,7 @@ package com.example.posko24.data.repository
 
 import com.google.firebase.auth.AuthResult
 import kotlinx.coroutines.flow.Flow
+import com.example.posko24.data.model.UserAddress
 
 /**
  * Interface untuk AuthRepository.
@@ -22,10 +23,9 @@ interface AuthRepository {
      */
     suspend fun register(
         fullName: String,
-        email: String,
-        phoneNumber: String,
+        contact: String,
         password: String,
-        roles: List<String>
+        address: UserAddress
     ): Flow<Result<AuthResult>>
 
     /**

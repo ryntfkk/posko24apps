@@ -40,9 +40,10 @@ object AppModule {
     @Singleton
     fun provideAuthRepository(
         auth: FirebaseAuth,
-        firestore: FirebaseFirestore
+        firestore: FirebaseFirestore,
+        addressRepository: AddressRepository
     ): AuthRepository {
-        return AuthRepositoryImpl(auth, firestore)
+        return AuthRepositoryImpl(auth, firestore, addressRepository)
     }
 
     @Provides

@@ -1,6 +1,7 @@
 package com.example.posko24.data.repository
 
 import com.example.posko24.data.model.User
+import com.example.posko24.data.model.UserAddress
 import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -12,7 +13,8 @@ import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val addressRepository: AddressRepository
 ) : AuthRepository {
 
     override suspend fun login(email: String, password: String): Flow<Result<AuthResult>> = flow {
@@ -26,27 +28,33 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun register(
         fullName: String,
-        email: String,
-        phoneNumber: String,
+        contact: String,
         password: String,
-        roles: List<String>
+        address: UserAddress
     ): Flow<Result<AuthResult>> = flow {
         // HAPUS BARIS "emit(Result.success(null!!))" DARI SINI
 
-        val authResult = auth.createUserWithEmailAndPassword(email, password).await()
+        val authResult = auth.createUserWithEmailAndPassword(contact, password).await()
         val firebaseUser = authResult.user
 
         if (firebaseUser != null) {
+            val email = if (contact.contains("@")) contact else ""
+            val phoneNumber = if (!contact.contains("@")) contact else ""
             val newUser = User(
                 uid = firebaseUser.uid,
                 fullName = fullName,
                 email = email,
                 phoneNumber = phoneNumber,
-                roles = roles
+                roles = listOf("customer")
 
             )
             firestore.collection("users").document(firebaseUser.uid).set(newUser).await()
-            emit(Result.success(authResult))
+            val saveResult = addressRepository.saveAddress(firebaseUser.uid, address)
+            if (saveResult.isSuccess) {
+                emit(Result.success(authResult))
+            } else {
+                emit(Result.failure(saveResult.exceptionOrNull()!!))
+            }
         } else {
             emit(Result.failure(Exception("Gagal membuat user.")))
         }

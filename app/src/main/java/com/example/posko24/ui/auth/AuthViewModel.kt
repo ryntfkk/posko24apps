@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.repository.AuthRepository
+import com.example.posko24.data.model.UserAddress
 import com.google.firebase.auth.AuthResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,12 +38,12 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun register(fullName: String, email: String, phoneNumber: String, password: String, roles: List<String>) {
+    fun register(fullName: String, contact: String, password: String, address: UserAddress) {
         viewModelScope.launch {
             // 1. Set state ke Loading SEBELUM memanggil repository
             _authState.value = AuthState.Loading
 
-            repository.register(fullName, email, phoneNumber, password, roles).collect { result ->
+            repository.register(fullName, contact, password, address).collect { result ->
                 result.onSuccess { authResult ->
                     // authResult tidak akan pernah null di sini
                     _authState.value = AuthState.Success(authResult)

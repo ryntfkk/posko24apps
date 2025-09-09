@@ -104,8 +104,6 @@ class RegisterViewModel @Inject constructor(
     }
 
     fun register(fullName: String, contact: String, password: String) {
-        val email = if (contact.contains("@")) contact else ""
-        val phone = if (!contact.contains("@")) contact else ""
         val current = _uiState.value
         val address = UserAddress(
             province = current.selectedProvince?.name ?: "",
@@ -117,12 +115,8 @@ class RegisterViewModel @Inject constructor(
         )
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            authRepository.register(fullName, email, phone, password, listOf("customer")).collect { result ->
+            authRepository.register(fullName, contact, password, address).collect { result ->
                 result.onSuccess { authResult ->
-                    val userId = authResult.user?.uid
-                    if (userId != null) {
-                        addressRepository.saveAddress(userId, address)
-                    }
                     _authState.value = AuthState.Success(authResult)
                 }.onFailure { exception ->
                     _authState.value = AuthState.Error(exception.message ?: "Gagal mendaftar")
