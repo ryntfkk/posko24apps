@@ -32,29 +32,24 @@ fun HomeScreen(
     val userState by mainViewModel.userState.collectAsState()
     val activeRole by mainViewModel.activeRole.collectAsState()
 
-
     // Tentukan UI berdasarkan user state
     when (val state = userState) {
         is UserState.Authenticated -> {
-            // Jika user terautentikasi, cek peran aktifnya
-            if (state.user.roles.contains("provider") && activeRole == "provider") {
+            if (activeRole == "provider") {
                 ProviderDashboardScreen(onOrderClick = onOrderClick)
             } else {
                 CategoryListScreen(viewModel = homeViewModel, onCategoryClick = onCategoryClick)
             }
         }
         is UserState.Guest -> {
-            // Jika user adalah tamu (belum login), tampilkan daftar kategori
             CategoryListScreen(viewModel = homeViewModel, onCategoryClick = onCategoryClick)
         }
         is UserState.Loading -> {
-            // Tampilkan loading saat state sedang dimuat
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         }
         is UserState.Error -> {
-            // Tampilkan pesan error jika terjadi kesalahan
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(text = state.message)
             }

@@ -21,6 +21,11 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
         title = "Home",
         icon = Icons.Default.Home
     )
+    object ProviderDashboard : BottomNavItem(
+        route = "provider_dashboard",
+        title = "Dashboard",
+        icon = Icons.Default.Home
+    )
     object MyOrders : BottomNavItem(
         route = "my_orders",
         title = "My Order",

@@ -37,6 +37,7 @@ fun MainScreen(
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val userState by mainViewModel.userState.collectAsState()
+    val activeRole by mainViewModel.activeRole.collectAsState()
 
     // Efek untuk navigasi otomatis setelah login berhasil
     LaunchedEffect(userState) {
@@ -52,18 +53,27 @@ fun MainScreen(
         }
     }
 
-    val navigationItems = listOf(
-        BottomNavItem.Home,
-        BottomNavItem.MyOrders,
-        BottomNavItem.Chats,
-        BottomNavItem.Profile
-    )
+    val navigationItems = if (activeRole == "provider") {
+        listOf(
+            BottomNavItem.ProviderDashboard,
+            BottomNavItem.MyOrders,
+            BottomNavItem.Chats,
+            BottomNavItem.Profile
+        )
+    } else {
+        listOf(
+            BottomNavItem.Home,
+            BottomNavItem.MyOrders,
+            BottomNavItem.Chats,
+            BottomNavItem.Profile
+        )
+    }
 
     Scaffold(
         bottomBar = {
             NavigationBar {
                 navigationItems.forEach { item ->
-                    val isProtected = item.route in listOf("my_orders", "chats", "profile")
+                    val isProtected = item.route in listOf("my_orders", "chats", "profile", "provider_dashboard")
                     NavigationBarItem(
                         selected = currentRoute == item.route,
                         onClick = {
@@ -89,7 +99,7 @@ fun MainScreen(
     ) { paddingValues ->
         NavHost(
             navController = bottomNavController,
-            startDestination = BottomNavItem.Home.route,
+            startDestination = if (activeRole == "provider") BottomNavItem.ProviderDashboard.route else BottomNavItem.Home.route,
             modifier = Modifier.padding(paddingValues)
         ) {
             composable(BottomNavItem.Home.route) {
@@ -99,8 +109,7 @@ fun MainScreen(
                     onOrderClick = onOrderClick
                 )
             }
-            composable("provider_dashboard") {
-                val activeRole by mainViewModel.activeRole.collectAsState()
+            composable(BottomNavItem.ProviderDashboard.route) {
                 val state by mainViewModel.userState.collectAsState()
                 if (state is UserState.Authenticated && activeRole == "provider") {
                     ProviderDashboardScreen(onOrderClick = onOrderClick)
@@ -109,7 +118,7 @@ fun MainScreen(
                         if (state is UserState.Authenticated) {
                             bottomNavController.navigate(BottomNavItem.Profile.route)
                         } else {
-                            mainViewModel.intendedRoute.value = "provider_dashboard"
+                            mainViewModel.intendedRoute.value = BottomNavItem.ProviderDashboard.route
                             mainNavController.navigate("login_screen")
                         }
                     }
