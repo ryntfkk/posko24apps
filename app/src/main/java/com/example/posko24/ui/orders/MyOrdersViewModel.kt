@@ -20,11 +20,9 @@ class MyOrdersViewModel @Inject constructor(
     private val _ordersState = MutableStateFlow<OrdersState>(OrdersState.Loading)
     val ordersState = _ordersState.asStateFlow()
 
-    init {
-        loadCustomerOrders()
-    }
+    private var currentRole: String? = null
 
-    private fun loadCustomerOrders() {
+    fun loadOrders(role: String) {
         val userId = auth.currentUser?.uid
         if (userId == null) {
             _ordersState.value = OrdersState.Error("Anda harus login untuk melihat pesanan.")
@@ -34,12 +32,26 @@ class MyOrdersViewModel @Inject constructor(
         viewModelScope.launch {
             _ordersState.value = OrdersState.Loading
 
-            orderRepository.getCustomerOrders(userId).collect { result ->
+            val ordersFlow = if (role == "provider") {
+                orderRepository.getProviderOrders(userId)
+            } else {
+                orderRepository.getCustomerOrders(userId)
+            }
+
+            ordersFlow.collect { result ->
                 result.onSuccess { orders ->
                     if (orders.isEmpty()) {
                         _ordersState.value = OrdersState.Empty
                     } else {
-                        val ongoingStatuses = listOf("awaiting_payment", "searching_provider", "awaiting_provider_confirmation", "pending", "accepted", "ongoing", "awaiting_confirmation")
+                        val ongoingStatuses = listOf(
+                            "awaiting_payment",
+                            "searching_provider",
+                            "awaiting_provider_confirmation",
+                            "pending",
+                            "accepted",
+                            "ongoing",
+                            "awaiting_confirmation"
+                        )
                         val historyStatuses = listOf("completed", "cancelled")
                         val ongoingOrders = orders.filter { it.status in ongoingStatuses }.sortedByDescending { it.createdAt }
                         val historyOrders = orders.filter { it.status in historyStatuses }.sortedByDescending { it.createdAt }
@@ -47,8 +59,15 @@ class MyOrdersViewModel @Inject constructor(
                         _ordersState.value = OrdersState.Success(ongoingOrders, historyOrders)
                     }
                 }.onFailure {
-                    _ordersState.value = OrdersState.Error(it.message ?: "Gagal memuat pesanan.")                }
+                    _ordersState.value = OrdersState.Error(it.message ?: "Gagal memuat pesanan.")
+                }
             }
+        }
+    }
+    fun onActiveRoleChanged(role: String) {
+        if (currentRole != role) {
+            currentRole = role
+            loadOrders(role)
         }
     }
 }

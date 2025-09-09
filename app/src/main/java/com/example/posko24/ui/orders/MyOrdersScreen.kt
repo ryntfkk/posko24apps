@@ -12,18 +12,21 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.data.model.Order
 import com.example.posko24.ui.components.OrderCard
-import kotlinx.coroutines.launch
-
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyOrdersScreen(
+    activeRole: String,
     viewModel: MyOrdersViewModel = hiltViewModel(),
     onOrderClick: (String) -> Unit
 ) {
     val state by viewModel.ordersState.collectAsState()
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("Sedang Berjalan", "Riwayat")
+
+    LaunchedEffect(activeRole) {
+        viewModel.onActiveRoleChanged(activeRole)
+    }
 
     Scaffold(
         topBar = {

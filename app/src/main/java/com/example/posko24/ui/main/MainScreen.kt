@@ -219,7 +219,9 @@ fun MainScreen(
                     }
                 }
             }
-            composable(BottomNavItem.MyOrders.route) { MyOrdersScreen(onOrderClick = onOrderClick) }
+            composable(BottomNavItem.MyOrders.route) {
+                MyOrdersScreen(activeRole = activeRole, onOrderClick = onOrderClick)
+            }
             composable(BottomNavItem.Chats.route) { ChatListScreen(onNavigateToConversation = onNavigateToConversation) }
             composable(BottomNavItem.Profile.route) {
                 ProfileScreen(
