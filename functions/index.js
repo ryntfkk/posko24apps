@@ -252,7 +252,53 @@ exports.claimOrder = functions.https.onCall(async (request) => {
 
 /**
  * ============================================================
- * 3) MIDTRANS WEBHOOK (HTTP v2)
+ * 3) UPGRADE TO PROVIDER (Callable v2)
+  * ============================================================
+  */
+ exports.upgradeToProvider = functions.https.onCall(async (request) => {
+   if (!request.auth) {
+     throw new functions.https.HttpsError('unauthenticated', 'Anda harus login.');
+   }
+
+   const uid = request.auth.uid;
+   const userRef = db.collection('users').doc(uid);
+   const userSnap = await userRef.get();
+   if (!userSnap.exists) {
+     throw new functions.https.HttpsError('not-found', 'User tidak ditemukan.');
+   }
+
+   const userData = userSnap.data() || {};
+
+   await db.runTransaction(async (tx) => {
+     tx.update(userRef, {
+       roles: admin.firestore.FieldValue.arrayUnion('provider'),
+     });
+
+     const profileRef = db.collection('provider_profiles').doc(uid);
+     const profileSnap = await tx.get(profileRef);
+     if (!profileSnap.exists) {
+       tx.set(profileRef, {
+         uid,
+         fullName: userData.fullName || '',
+         primaryCategoryId: '',
+         bio: '',
+         available: true,
+         acceptsBasicOrders: true,
+         averageRating: 0,
+         totalReviews: 0,
+         profilePictureUrl: userData.profilePictureUrl || null,
+         location: null,
+       });
+     }
+   });
+
+   functions.logger.info('[UPGRADE_TO_PROVIDER]', { uid });
+   return { success: true };
+ });
+
+ /**
+  * ============================================================
+  * 4) MIDTRANS WEBHOOK (HTTP v2)
  * ============================================================
  */
 exports.midtransWebhookHandler = functions.https.onRequest(
@@ -324,7 +370,7 @@ exports.midtransWebhookHandler = functions.https.onRequest(
 
 /**
  * ============================================================
- * 4) FIND PROVIDER FOR BASIC ORDER (Firestore Trigger v2)
+ * 5) FIND PROVIDER FOR BASIC ORDER (Firestore Trigger v2)
  * ============================================================
  */
 exports.findProviderForBasicOrder = onDocumentUpdated('orders/{orderId}', async () => {
@@ -334,7 +380,7 @@ exports.findProviderForBasicOrder = onDocumentUpdated('orders/{orderId}', async 
 
 /**
  * ============================================================
- * 5) ON PROVIDER ASSIGNED - CREATE CHAT (Firestore Trigger v2)
+ * 6) ON PROVIDER ASSIGNED - CREATE CHAT (Firestore Trigger v2)
  * ============================================================
  */
 exports.onProviderAssigned = onDocumentUpdated('orders/{orderId}', async (event) => {
@@ -350,7 +396,7 @@ exports.onProviderAssigned = onDocumentUpdated('orders/{orderId}', async (event)
 
 /**
  * ============================================================
- * 6) REFUND ON CANCELLATION (Firestore Trigger v2)
+ * 7) REFUND ON CANCELLATION (Firestore Trigger v2)
  * ============================================================
  */
 exports.onOrderCancelled = onDocumentUpdated('orders/{orderId}', async (event) => {
