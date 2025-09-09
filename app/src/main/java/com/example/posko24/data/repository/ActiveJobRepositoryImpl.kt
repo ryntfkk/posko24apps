@@ -14,9 +14,15 @@ class ActiveJobRepositoryImpl @Inject constructor(
 ) : ActiveJobRepository {
 
     override fun getActiveJobs(providerId: String): Flow<Result<List<Order>>> = flow {
+        val activeStatuses = listOf(
+            "pending",
+            "accepted",
+            "ongoing",
+            "awaiting_confirmation"
+        )
         val snapshot = firestore.collection("orders")
             .whereEqualTo("providerId", providerId)
-            .whereIn("status", listOf("in_progress", "waiting_payment"))
+            .whereIn("status", activeStatuses)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .get().await()
 
