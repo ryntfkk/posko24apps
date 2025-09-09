@@ -7,6 +7,7 @@ import com.example.posko24.data.model.User
 import com.example.posko24.data.repository.AuthRepository
 import com.example.posko24.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.example.posko24.ui.main.MainViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +19,7 @@ class ProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val authRepository: AuthRepository,
     private val auth: FirebaseAuth
+
 ) : ViewModel() {
 
     private val _profileState = MutableStateFlow<ProfileState>(ProfileState.Loading)
@@ -74,10 +76,13 @@ class ProfileViewModel @Inject constructor(
             }
         }
     }
-    fun upgradeToProvider() {
+    fun upgradeToProvider(mainViewModel: MainViewModel) {
         viewModelScope.launch {
             userRepository.upgradeToProvider().collect { result ->
-                result.onSuccess { loadUserProfile() }
+                result.onSuccess {
+                    loadUserProfile()
+                    mainViewModel.refreshUserProfile()
+                }
             }
         }
     }

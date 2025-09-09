@@ -46,9 +46,9 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    private fun loadUserProfile(uid: String) {
-        // Mencegah pemuatan ulang jika user sudah ada
-        if (_userState.value is UserState.Authenticated) return
+    private fun loadUserProfile(uid: String, forceRefresh: Boolean = false) {
+        // Mencegah pemuatan ulang jika user sudah ada dan tidak diminta refresh
+        if (!forceRefresh && _userState.value is UserState.Authenticated) return
 
         viewModelScope.launch {
             _userState.value = UserState.Loading
@@ -67,6 +67,10 @@ class MainViewModel @Inject constructor(
             }
         }
     }
+    fun refreshUserProfile() {
+        val uid = auth.currentUser?.uid ?: return
+        loadUserProfile(uid, forceRefresh = true)
+    }
     fun setActiveRole(role: String) {
         val uid = auth.currentUser?.uid ?: return
         viewModelScope.launch {
@@ -77,6 +81,7 @@ class MainViewModel @Inject constructor(
                         val user = (_userState.value as UserState.Authenticated).user.copy(activeRole = role)
                         _userState.value = UserState.Authenticated(user)
                     }
+                    refreshUserProfile()
                 }
             }
         }

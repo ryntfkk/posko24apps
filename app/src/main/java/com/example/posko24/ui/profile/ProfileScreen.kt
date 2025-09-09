@@ -138,7 +138,7 @@ fun ProfileScreen(
                     if (!currentState.user.roles.contains("provider")) {
                         item {
                             Button(
-                                onClick = { viewModel.upgradeToProvider() },
+                                onClick = { viewModel.upgradeToProvider(mainViewModel) },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Daftar sebagai provider")
