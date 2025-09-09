@@ -1,7 +1,9 @@
 package com.example.posko24.ui.main
 
 import android.annotation.SuppressLint
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -115,24 +117,28 @@ fun MainScreen(
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    if (userState !is UserState.Authenticated) {
-                        mainViewModel.intendedRoute.value = SOS_ROUTE
-                        mainNavController.navigate("login_screen")
-                    } else {
-                        onNavigateToConversation("admin")
-                    }
-                },
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.error,
-                contentColor = MaterialTheme.colorScheme.onError
+            Box(
+                modifier = Modifier.offset(y = 12.dp)
             ) {
-                Text(
-                    "SOS",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                FloatingActionButton(
+                    onClick = {
+                        if (userState !is UserState.Authenticated) {
+                            mainViewModel.intendedRoute.value = SOS_ROUTE
+                            mainNavController.navigate("login_screen")
+                        } else {
+                            onNavigateToConversation("admin")
+                        }
+                    },
+                    shape = CircleShape,
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                ) {
+                    Text(
+                        "SOS",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    }
             }
         },
         floatingActionButtonPosition = FabPosition.Center,
