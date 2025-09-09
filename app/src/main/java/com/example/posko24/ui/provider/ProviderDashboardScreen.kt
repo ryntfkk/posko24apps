@@ -1,6 +1,5 @@
 package com.example.posko24.ui.provider
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.posko24.data.model.Order
 import com.example.posko24.ui.components.OrderCard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,6 +27,7 @@ fun ProviderDashboardScreen(
     val skillsState by skillsViewModel.state.collectAsState()
     val reviewsState by reviewsViewModel.state.collectAsState()
     val balanceState by balanceViewModel.state.collectAsState()
+    var selectedOrder by remember { mutableStateOf<Order?>(null) }
     LaunchedEffect(activeRole) {
         activeJobsViewModel.onActiveRoleChanged(activeRole)
         skillsViewModel.onActiveRoleChanged(activeRole)
@@ -45,6 +46,39 @@ fun ProviderDashboardScreen(
             )
         }
     ) { paddingValues ->
+        selectedOrder?.let { order ->
+            val addressParts = listOfNotNull(
+                order.addressText.takeIf { it.isNotBlank() },
+                order.district?.name,
+                order.city?.name,
+                order.province?.name
+            )
+            val fullAddress = addressParts.joinToString(", ")
+            val lat = order.location?.latitude
+            val lng = order.location?.longitude
+            AlertDialog(
+                onDismissRequest = { selectedOrder = null },
+                title = { Text("Rincian Order") },
+                text = {
+                    Column {
+                        if (fullAddress.isNotEmpty()) {
+                            Text("Alamat: $fullAddress")
+                        }
+                        if (lat != null && lng != null) {
+                            Text("Koordinat: $lat, $lng")
+                        } else {
+                            Text("Koordinat: Tidak tersedia")
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { selectedOrder = null }) {
+                        Text("Tutup")
+                    }
+                }
+            )
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -101,9 +135,11 @@ fun ProviderDashboardScreen(
                         item { Text("Belum ada pekerjaan aktif.") }
                     } else {
                         items(jobsState.jobs) { job ->
-                            Box(modifier = Modifier.clickable { onOrderClick(job.id) }) {
-                                OrderCard(order = job)
-                            }
+                            OrderCard(
+                                order = job,
+                                onCardClick = { selectedOrder = job },
+                                onTakeOrderClick = { onOrderClick(job.id) }
+                            )
                         }
                     }
                 }
