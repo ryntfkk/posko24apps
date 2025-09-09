@@ -1,6 +1,10 @@
 package com.example.posko24.ui.auth
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -13,14 +17,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.data.model.Wilayah
 import com.example.posko24.ui.theme.Posko24Theme
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.firestore.GeoPoint
+import com.google.maps.android.compose.CameraPositionState
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.rememberCameraPositionState
+import kotlinx.coroutines.launch
+
 
 @Composable
 fun RegisterScreen(
@@ -36,6 +47,41 @@ fun RegisterScreen(
     val authState by viewModel.authState.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    val cameraPositionState = rememberCameraPositionState { position = uiState.cameraPosition }
+    val coroutineScope = rememberCoroutineScope()
+
+    fun fetchLocation() {
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location ->
+                if (location != null) {
+                    val latLng = LatLng(location.latitude, location.longitude)
+                    coroutineScope.launch {
+                        cameraPositionState.animate(
+                            CameraUpdateFactory.newLatLngZoom(latLng, 15f)
+                        )
+                    }
+                    viewModel.onMapCoordinatesChanged(
+                        GeoPoint(location.latitude, location.longitude)
+                    )
+                } else {
+                    Toast.makeText(context, "Lokasi tidak tersedia", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(context, "Lokasi tidak tersedia", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            fetchLocation()
+        } else {
+            Toast.makeText(context, "Izin lokasi ditolak", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // Mengamati perubahan pada authState
     LaunchedEffect(authState) {
@@ -134,11 +180,21 @@ fun RegisterScreen(
                     Text("Tentukan Titik di Peta", style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     InteractiveMapView(
-                        cameraPosition = uiState.cameraPosition,
+                        cameraPositionState = cameraPositionState,
                         onMapCoordinatesChanged = viewModel::onMapCoordinatesChanged
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = { viewModel.onMapCoordinatesChanged(GeoPoint(-6.9926, 110.4283)) }) {
+                    Button(onClick = {
+                        if (ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.ACCESS_FINE_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+                        ) {
+                            fetchLocation()
+                        } else {
+                            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                        }
+                    }) {
                         Text("Lokasi Saya")
                     }
                     Spacer(modifier = Modifier.height(24.dp))
@@ -278,10 +334,9 @@ private fun AddressDropdowns(
 
 @Composable
 private fun InteractiveMapView(
-    cameraPosition: CameraPosition,
+    cameraPositionState: CameraPositionState,
     onMapCoordinatesChanged: (GeoPoint) -> Unit
 ) {
-    val cameraPositionState = rememberCameraPositionState { position = cameraPosition }
 
     LaunchedEffect(cameraPositionState.isMoving) {
         if (!cameraPositionState.isMoving) {
