@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -55,7 +56,7 @@ fun AddressSettingsScreen(
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = provinceExpanded.value) },
                     modifier = Modifier.menuAnchor().fillMaxWidth()
                 )
-                ExposedDropdownMenu(
+                DropdownMenu(
                     expanded = provinceExpanded.value,
                     onDismissRequest = { provinceExpanded.value = false }
                 ) {
@@ -86,7 +87,7 @@ fun AddressSettingsScreen(
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cityExpanded.value) },
                     modifier = Modifier.menuAnchor().fillMaxWidth()
                 )
-                ExposedDropdownMenu(
+                DropdownMenu(
                     expanded = cityExpanded.value,
                     onDismissRequest = { cityExpanded.value = false }
                 ) {
@@ -117,7 +118,7 @@ fun AddressSettingsScreen(
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = districtExpanded.value) },
                     modifier = Modifier.menuAnchor().fillMaxWidth()
                 )
-                ExposedDropdownMenu(
+                DropdownMenu(
                     expanded = districtExpanded.value,
                     onDismissRequest = { districtExpanded.value = false }
                 ) {
