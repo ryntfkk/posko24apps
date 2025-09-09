@@ -118,7 +118,7 @@ fun MainScreen(
     Scaffold(
         floatingActionButton = {
             Box(
-                modifier = Modifier.offset(y = 24.dp)
+                modifier = Modifier.offset(y = 28.dp)
             ) {
                 FloatingActionButton(
                     onClick = {
@@ -176,7 +176,7 @@ fun MainScreen(
                         )
                     )
                     if (item == BottomNavItem.MyOrders) {
-                        Spacer(modifier = Modifier.width(48.dp))
+                        Spacer(modifier = Modifier.width(36.dp))
                     }
                 }
             }
