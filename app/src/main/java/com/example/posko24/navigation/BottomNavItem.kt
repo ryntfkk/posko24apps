@@ -5,6 +5,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -35,6 +36,11 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
         route = "chats",
         title = "Chats",
         icon = Icons.Default.Email
+    )
+    object Sos : BottomNavItem(
+        route = "sos",
+        title = "SOS",
+        icon = Icons.Default.Warning
     )
     object Profile : BottomNavItem(
         route = "profile",

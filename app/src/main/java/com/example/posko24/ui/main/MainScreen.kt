@@ -2,13 +2,21 @@ package com.example.posko24.ui.main
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.LargeFloatingActionButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -21,6 +29,8 @@ import com.example.posko24.ui.home.HomeScreen
 import com.example.posko24.ui.orders.MyOrdersScreen
 import com.example.posko24.ui.profile.ProfileScreen
 import com.example.posko24.ui.provider.ProviderDashboardScreen
+import com.example.posko24.ui.sos.SosScreen
+
 
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -85,6 +95,35 @@ fun MainScreen(
     }
 
     Scaffold(
+        floatingActionButton = {
+            if (activeRole != "provider") {
+                LargeFloatingActionButton(
+                    onClick = {
+                        if (userState !is UserState.Authenticated) {
+                            mainViewModel.intendedRoute.value = BottomNavItem.Sos.route
+                            mainNavController.navigate("login_screen")
+                        } else {
+                            bottomNavController.navigate(BottomNavItem.Sos.route) {
+                                popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    },
+                    shape = CircleShape,
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
+                    modifier = Modifier.size(72.dp)
+                ) {
+                    Text(
+                        text = "SOS",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+            }
+        },
+        floatingActionButtonPosition = FabPosition.Center,
         bottomBar = {
             NavigationBar {
                 navigationItems.forEach { item ->
@@ -140,6 +179,9 @@ fun MainScreen(
                 }
             }
             composable(BottomNavItem.MyOrders.route) { MyOrdersScreen(onOrderClick = onOrderClick) }
+            if (activeRole != "provider") {
+                composable(BottomNavItem.Sos.route) { SosScreen() }
+            }
             composable(BottomNavItem.Chats.route) { ChatListScreen(onNavigateToConversation = onNavigateToConversation) }
             composable(BottomNavItem.Profile.route) {
                 ProfileScreen(
