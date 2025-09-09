@@ -3,6 +3,7 @@ package com.example.posko24.data.repository
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.ServiceCategory
+import com.google.firebase.firestore.GeoPoint
 import kotlinx.coroutines.flow.Flow
 
 interface ServiceRepository {
@@ -24,4 +25,15 @@ interface ServiceRepository {
      * Mengambil daftar layanan (rate card) dari seorang provider.
      */
     fun getProviderServices(providerId: String): Flow<Result<List<ProviderService>>>
+
+
+    /**
+     * Mengambil daftar provider terdekat berdasarkan lokasi pengguna.
+     * @param currentLocation Lokasi pengguna saat ini.
+     * @param maxDistanceKm Jarak maksimum dalam kilometer.
+     */
+    fun getNearbyProviders(
+        currentLocation: GeoPoint,
+        maxDistanceKm: Double = 30.0
+    ): Flow<Result<List<ProviderProfile>>>
 }

@@ -5,10 +5,16 @@ import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.ServiceCategory
 import com.example.posko24.data.model.User
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.GeoPoint
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sin
+import kotlin.math.sqrt
 import javax.inject.Inject
 
 class ServiceRepositoryImpl @Inject constructor(
@@ -56,7 +62,61 @@ class ServiceRepositoryImpl @Inject constructor(
     }.catch { exception ->
         emit(Result.failure(exception))
     }
+    override fun getNearbyProviders(
+        currentLocation: GeoPoint,
+        maxDistanceKm: Double
+    ): Flow<Result<List<ProviderProfile>>> = flow {
+        val usersSnapshot = firestore.collection("users")
+            .whereArrayContains("roles", "provider")
+            .get().await()
 
+        val users = usersSnapshot.documents.mapNotNull { doc ->
+            doc.toObject(User::class.java)?.copy(uid = doc.id)
+        }
+
+        if (users.isEmpty()) {
+            emit(Result.success(emptyList()))
+            return@flow
+        }
+
+        val profiles = users.mapNotNull { user ->
+            val profileDoc = firestore.collection("provider_profiles")
+                .document(user.uid)
+                .get().await()
+            profileDoc.toObject(ProviderProfile::class.java)?.copy(uid = profileDoc.id)?.let { profile ->
+                profile.copy(
+                    fullName = user.fullName,
+                    profilePictureUrl = user.profilePictureUrl
+                )
+            }
+        }
+
+        val filtered = profiles.filter { profile ->
+            profile.location?.let { loc ->
+                distanceInKm(
+                    currentLocation.latitude,
+                    currentLocation.longitude,
+                    loc.latitude,
+                    loc.longitude
+                ) <= maxDistanceKm
+            } ?: false
+        }
+
+        emit(Result.success(filtered))
+    }.catch { exception ->
+        emit(Result.failure(exception))
+    }
+
+    private fun distanceInKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val earthRadius = 6371.0
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = sin(dLat / 2).pow(2.0) +
+                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
+                sin(dLon / 2).pow(2.0)
+        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        return earthRadius * c
+    }
 
     // --- IMPLEMENTASI FUNGSI BARU DI SINI ---
     override fun getProviderDetails(providerId: String): Flow<Result<ProviderProfile?>> = flow {
