@@ -3,6 +3,7 @@ package com.example.posko24.ui.order_creation
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.posko24.data.model.AddressComponent
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ProviderService
@@ -173,9 +174,9 @@ class DirectOrderViewModel @Inject constructor(
                 status = "awaiting_payment",
                 paymentStatus = "pending",
                 addressText = currentState.addressDetail,
-                province = currentState.selectedProvince?.name ?: "",
-                city = currentState.selectedCity?.name ?: "",
-                district = currentState.selectedDistrict.name,
+                province = currentState.selectedProvince?.let { AddressComponent(it.id, it.name) },
+                city = currentState.selectedCity?.let { AddressComponent(it.id, it.name) },
+                district = currentState.selectedDistrict?.let { AddressComponent(it.id, it.name) },
                 serviceSnapshot = mapOf(
                     "categoryName" to provider.primaryCategoryId,
                     "serviceName" to service.name,

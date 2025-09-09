@@ -2,8 +2,9 @@ package com.example.posko24.data.model
 
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.GeoPoint
-import com.google.firebase.firestore.ServerTimestamp
 import com.google.firebase.firestore.IgnoreExtraProperties
+import com.google.firebase.firestore.ServerTimestamp
+import com.google.firebase.firestore.DocumentSnapshot
 
 
 /**
@@ -20,9 +21,9 @@ data class Order(
     val status: String = "", // e.g., "awaiting_payment", "searching_provider"
 
     // --- ALAMAT TERSTRUKTUR (SESUAI PERMINTAAN ANDA) ---
-    val province: String = "",
-    val city: String = "",
-    val district: String = "",
+    val province: AddressComponent? = null,
+    val city: AddressComponent? = null,
+    val district: AddressComponent? = null,
     val addressText: String = "", // Untuk detail jalan, nomor rumah, dll.
     val location: GeoPoint? = null,
 
@@ -35,4 +36,22 @@ data class Order(
 
     @ServerTimestamp
     val createdAt: Timestamp? = null
-)
+) {
+    companion object {
+        fun fromDocument(doc: DocumentSnapshot): Order? {
+            val order = doc.toObject(Order::class.java)?.copy(id = doc.id) ?: return null
+            fun Any?.toComponent(): AddressComponent? = when (this) {
+                is Map<*, *> -> AddressComponent(
+                    code = this["code"] as? String ?: "",
+                    name = this["name"] as? String ?: ""
+                )
+                is String -> AddressComponent(code = "", name = this)
+                else -> null
+            }
+            val province = doc.get("province").toComponent()
+            val city = doc.get("city").toComponent()
+            val district = doc.get("district").toComponent()
+            return order.copy(province = province, city = city, district = district)
+        }
+    }
+}

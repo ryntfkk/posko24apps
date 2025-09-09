@@ -28,7 +28,7 @@ class ActiveJobRepositoryImpl @Inject constructor(
             .get().await()
 
         val jobs = snapshot.documents.mapNotNull { doc ->
-            doc.toObject(Order::class.java)?.copy(id = doc.id)
+            Order.fromDocument(doc)
         }
         emit(Result.success(jobs))
     }.catch {

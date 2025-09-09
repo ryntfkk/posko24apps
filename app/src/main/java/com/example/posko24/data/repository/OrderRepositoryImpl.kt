@@ -27,7 +27,7 @@ class OrderRepositoryImpl @Inject constructor(
             .get().await()
 
         val orders = snapshot.documents.mapNotNull { doc ->
-            doc.toObject(Order::class.java)?.copy(id = doc.id)
+            Order.fromDocument(doc)
         }
         emit(Result.success(orders))
     }.catch { exception ->
@@ -41,7 +41,7 @@ class OrderRepositoryImpl @Inject constructor(
             .get().await()
 
         val orders = snapshot.documents.mapNotNull { doc ->
-            doc.toObject(Order::class.java)?.copy(id = doc.id)
+            Order.fromDocument(doc)
         }
         emit(Result.success(orders))
     }.catch { exception ->
@@ -55,7 +55,7 @@ class OrderRepositoryImpl @Inject constructor(
             .get().await()
 
         val orders = snapshot.documents.mapNotNull { doc ->
-            doc.toObject(Order::class.java)?.copy(id = doc.id)
+            Order.fromDocument(doc)
         }
         emit(Result.success(orders))
     }.catch { exception ->
@@ -87,7 +87,7 @@ class OrderRepositoryImpl @Inject constructor(
                     trySend(Result.failure(error))
                     return@addSnapshotListener
                 }
-                val order = snapshot?.toObject(Order::class.java)?.copy(id = snapshot.id)
+                val order = snapshot?.let { Order.fromDocument(it) }
                 trySend(Result.success(order))
             }
         awaitClose { listener.remove() }
@@ -154,7 +154,7 @@ class OrderRepositoryImpl @Inject constructor(
             .get().await()
 
         val orders = snapshot.documents.mapNotNull { doc ->
-            doc.toObject(Order::class.java)?.copy(id = doc.id)
+            Order.fromDocument(doc)
         }
         emit(Result.success(orders))
     }.catch { exception ->
