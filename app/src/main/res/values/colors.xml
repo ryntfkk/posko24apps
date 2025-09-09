@@ -3,7 +3,7 @@
     <!-- Brand tokens used by XML-based views (e.g., Midtrans) and adaptive icon background. -->
     <color name="brand_primary">#2563EB</color>
     <color name="brand_primary_dark">#1E40AF</color>
-    <color name="brand_accent">#10B981</color>
+    <color name="brand_accent">#FF0000</color>
 
 
     <!-- Legacy palette kept for compatibility; safe to remove if unused. -->

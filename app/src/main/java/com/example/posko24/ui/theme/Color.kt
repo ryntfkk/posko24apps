@@ -8,9 +8,9 @@ import androidx.compose.ui.graphics.Color
  * Brand palette. Adjust these three only to rebrand quickly.
  * Why: Single source of truth for Compose color roles.
  */
-val BrandPrimaryLight = Color(0xFF7CEBB7)
-val BrandPrimary = Color(0xFF05CC7E)
-val BrandPrimaryDark = Color(0xFF027A49)
+val BrandPrimaryLight = Color(0xFFFF7F7F)
+val BrandPrimary = Color(0xFFFF0000)
+val BrandPrimaryDark = Color(0xFF8B0000)
 
 
 val BrandSecondaryLight = Color(0xFFFF7AB6)

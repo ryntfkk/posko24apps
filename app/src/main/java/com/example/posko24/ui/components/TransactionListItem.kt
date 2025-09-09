@@ -16,7 +16,7 @@ import java.util.*
 
 @Composable
 fun TransactionListItem(transaction: Transaction) {
-    val amountColor = if (transaction.amount >= 0) Color(0xFF008000) else MaterialTheme.colorScheme.error
+    val amountColor = if (transaction.amount >= 0) Color(0xFFFF0000) else MaterialTheme.colorScheme.error
     val amountPrefix = if (transaction.amount >= 0) "+ Rp" else "- Rp"
     val formattedAmount = "%,d".format(Math.abs(transaction.amount).toInt())
     val formattedDate = transaction.createdAt?.toDate()?.let {

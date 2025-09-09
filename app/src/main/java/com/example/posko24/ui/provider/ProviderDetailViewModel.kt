@@ -6,21 +6,16 @@ import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.repository.ServiceRepository
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
 class ProviderDetailViewModel @Inject constructor(
     private val repository: ServiceRepository,
-    savedStateHandle: SavedStateHandle,
-    private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     // State untuk detail profil provider
@@ -35,13 +30,8 @@ class ProviderDetailViewModel @Inject constructor(
         savedStateHandle.get<String>("providerId")?.let { providerId ->
             if (providerId.isNotEmpty()) {
                 viewModelScope.launch {
-                    if (isProvider()) {
-                        loadProviderDetails(providerId)
-                        loadProviderServices(providerId)
-                    } else {
-                        _providerDetailState.value = ProviderDetailState.Error("Mode provider diperlukan")
-                        _providerServicesState.value = ProviderServicesState.Error("Mode provider diperlukan")
-                    }
+                    loadProviderDetails(providerId)
+                    loadProviderServices(providerId)
                 }
             }
         }
@@ -70,15 +60,7 @@ class ProviderDetailViewModel @Inject constructor(
             }
         }
     }
-    private suspend fun isProvider(): Boolean {
-        val uid = auth.currentUser?.uid ?: return false
-        return try {
-            firestore.collection("users").document(uid).get().await()
-                .getString("activeRole") == "provider"
-        } catch (e: Exception) {
-            false
-        }
-    }
+
 }
 
 // Sealed classes untuk state management
