@@ -67,7 +67,7 @@ fun ProviderDashboardScreen(
                         }
                     }
                     is BalanceState.Success -> {
-                        Text("Rp ${currentBalance.balance}", style = MaterialTheme.typography.headlineSmall)
+                        Text("Rp ${currentBalance.user.balance}", style = MaterialTheme.typography.headlineSmall)
                     }
                     is BalanceState.Error -> {
                         Text(currentBalance.message)
