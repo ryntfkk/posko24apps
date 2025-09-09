@@ -5,13 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.repository.ServiceRepository
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 /**
@@ -23,9 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ProviderViewModel @Inject constructor(
     private val repository: ServiceRepository,
-    private val savedStateHandle: SavedStateHandle,
-    private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     // State untuk menampung daftar provider.
@@ -37,11 +32,7 @@ class ProviderViewModel @Inject constructor(
         savedStateHandle.get<String>("categoryId")?.let { categoryId ->
             if (categoryId.isNotEmpty()) {
                 viewModelScope.launch {
-                    if (isProvider()) {
-                        loadProviders(categoryId)
-                    } else {
-                        _providerState.value = ProviderListState.Error("Mode provider diperlukan")
-                    }
+                    loadProviders(categoryId)
                 }
             }
         }
@@ -64,15 +55,7 @@ class ProviderViewModel @Inject constructor(
             }
         }
     }
-    private suspend fun isProvider(): Boolean {
-        val uid = auth.currentUser?.uid ?: return false
-        return try {
-            firestore.collection("users").document(uid).get().await()
-                .getString("activeRole") == "provider"
-        } catch (e: Exception) {
-            false
-        }
-    }
+
 }
 
 /**
