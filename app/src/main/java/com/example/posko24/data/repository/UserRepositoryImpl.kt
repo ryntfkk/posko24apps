@@ -33,10 +33,9 @@ class UserRepositoryImpl @Inject constructor(
 
 
     override suspend fun updateProviderAvailability(providerId: String, isAvailable: Boolean): Flow<Result<Boolean>> = flow {
-        // --- PERBAIKAN DI SINI ---
-        // Ganti "available" menjadi "isAvailable" agar cocok dengan model dan database
+
         firestore.collection("provider_profiles").document(providerId)
-            .update("isAvailable", isAvailable).await()
+            .update("available", isAvailable).await()
         // --- AKHIR PERBAIKAN ---
         emit(Result.success(true))
     }.catch {
