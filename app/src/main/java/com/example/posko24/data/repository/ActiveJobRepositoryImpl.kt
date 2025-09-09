@@ -18,7 +18,8 @@ class ActiveJobRepositoryImpl @Inject constructor(
             "pending",
             "accepted",
             "ongoing",
-            "awaiting_confirmation"
+            "awaiting_confirmation",
+            "awaiting_provider_confirmation"
         )
         val snapshot = firestore.collection("orders")
             .whereEqualTo("providerId", providerId)
