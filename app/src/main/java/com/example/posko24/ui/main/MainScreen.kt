@@ -118,7 +118,7 @@ fun MainScreen(
     Scaffold(
         floatingActionButton = {
             Box(
-                modifier = Modifier.offset(y = 12.dp)
+                modifier = Modifier.offset(y = 24.dp)
             ) {
                 FloatingActionButton(
                     onClick = {
@@ -138,7 +138,7 @@ fun MainScreen(
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
-                    }
+                }
             }
         },
         floatingActionButtonPosition = FabPosition.Center,
@@ -176,7 +176,7 @@ fun MainScreen(
                         )
                     )
                     if (item == BottomNavItem.MyOrders) {
-                        Spacer(modifier = Modifier.width(64.dp))
+                        Spacer(modifier = Modifier.width(48.dp))
                     }
                 }
             }
