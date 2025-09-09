@@ -36,8 +36,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            Posko24Theme {
-                Surface(
+            Posko24Theme(darkTheme = false) {
+            Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {

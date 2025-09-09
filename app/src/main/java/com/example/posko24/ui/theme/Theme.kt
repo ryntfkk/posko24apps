@@ -33,7 +33,7 @@ private val LightColorScheme = lightColorScheme(
  */
 @Composable
 fun Posko24Theme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {

@@ -35,7 +35,7 @@ import com.example.posko24.ui.main.MainViewModel
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
-    mainViewModel: MainViewModel = hiltViewModel(),
+    mainViewModel: MainViewModel,
     onNavigateToTransactions: (Float) -> Unit,
     onNavigateToAccountSettings: () -> Unit,
     onNavigateToAddressSettings: () -> Unit

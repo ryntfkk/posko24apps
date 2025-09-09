@@ -143,6 +143,7 @@ fun MainScreen(
             composable(BottomNavItem.Chats.route) { ChatListScreen(onNavigateToConversation = onNavigateToConversation) }
             composable(BottomNavItem.Profile.route) {
                 ProfileScreen(
+                    mainViewModel = mainViewModel,
                     onNavigateToTransactions = onNavigateToTransactions,
                     onNavigateToAccountSettings = onNavigateToAccountSettings,
                     onNavigateToAddressSettings = onNavigateToAddressSettings
