@@ -1,12 +1,11 @@
 package com.example.posko24.ui.profile
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.widget.Toast
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -20,10 +19,20 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.posko24.ui.components.InteractiveMapView
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.firestore.GeoPoint
+import com.google.maps.android.compose.rememberCameraPositionState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +40,41 @@ fun AddressSettingsScreen(
     viewModel: AddressSettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    val cameraPositionState = rememberCameraPositionState {
+        val loc = viewModel.location.value
+        val latLng = if (loc != null) LatLng(loc.latitude, loc.longitude) else LatLng(-6.9926, 110.4283)
+        position = CameraPosition.fromLatLngZoom(latLng, 15f)
+    }
+
+    fun fetchLocation() {
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location ->
+                if (location != null) {
+                    val latLng = LatLng(location.latitude, location.longitude)
+                    coroutineScope.launch {
+                        cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
+                    }
+                    viewModel.onLocationChange(GeoPoint(location.latitude, location.longitude))
+                } else {
+                    Toast.makeText(context, "Lokasi tidak tersedia", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(context, "Lokasi tidak tersedia", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            fetchLocation()
+        } else {
+            Toast.makeText(context, "Izin lokasi ditolak", Toast.LENGTH_SHORT).show()
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Pengaturan Alamat") })
@@ -42,7 +86,6 @@ fun AddressSettingsScreen(
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
-            // Province dropdown
             val provinceExpanded = remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
                 expanded = provinceExpanded.value,
@@ -73,7 +116,6 @@ fun AddressSettingsScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // City dropdown
             val cityExpanded = remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
                 expanded = cityExpanded.value,
@@ -104,7 +146,6 @@ fun AddressSettingsScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // District dropdown
             val districtExpanded = remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
                 expanded = districtExpanded.value,
@@ -142,20 +183,27 @@ fun AddressSettingsScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = viewModel.latitude.value,
-                onValueChange = viewModel::onLatitudeChange,
-                label = { Text("Latitude") },
-                modifier = Modifier.fillMaxWidth()
+            InteractiveMapView(
+                cameraPositionState = cameraPositionState,
+                onMapCoordinatesChanged = viewModel::onLocationChange
             )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(onClick = {
+                if (ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    fetchLocation()
+                } else {
+                    locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                }
+            }) {
+                Text("Lokasi Saya")
+            }
             Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = viewModel.longitude.value,
-                onValueChange = viewModel::onLongitudeChange,
-                label = { Text("Longitude") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+
             Button(
                 onClick = {
                     viewModel.saveAddress { success ->
@@ -163,7 +211,7 @@ fun AddressSettingsScreen(
                         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Simpan")
             }

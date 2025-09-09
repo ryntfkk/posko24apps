@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,10 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.data.model.BasicService
 import com.example.posko24.data.model.Wilayah
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.firebase.firestore.GeoPoint
-import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.example.posko24.ui.components.InteractiveMapView
 import com.midtrans.sdk.uikit.external.UiKitApi
 import com.midtrans.sdk.uikit.api.callback.Callback
 import com.midtrans.sdk.uikit.api.exception.SnapError
@@ -45,6 +41,7 @@ fun BasicOrderScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var selectedService by remember { mutableStateOf<BasicService?>(null) }
+    val cameraPositionState = rememberCameraPositionState { position = uiState.cameraPosition }
 
     LaunchedEffect(uiState.orderCreationState) {
         val state = uiState.orderCreationState
@@ -162,7 +159,7 @@ fun BasicOrderScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     InteractiveMapView(
-                        cameraPosition = uiState.cameraPosition,
+                        cameraPositionState = cameraPositionState,
                         onMapCoordinatesChanged = viewModel::onMapCoordinatesChanged
                     )
                 }
@@ -202,40 +199,6 @@ fun BasicOrderScreen(
     }
 }
 
-
-@Composable
-private fun InteractiveMapView(
-    cameraPosition: CameraPosition,
-    onMapCoordinatesChanged: (GeoPoint) -> Unit
-) {
-    val cameraPositionState = rememberCameraPositionState { position = cameraPosition }
-
-    LaunchedEffect(cameraPositionState.isMoving) {
-        if (!cameraPositionState.isMoving) {
-            val newLatLng = cameraPositionState.position.target
-            onMapCoordinatesChanged(GeoPoint(newLatLng.latitude, newLatLng.longitude))
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(250.dp)
-    ) {
-        GoogleMap(
-            modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState
-        )
-        Icon(
-            imageVector = Icons.Default.LocationOn,
-            contentDescription = "Pin Lokasi",
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(bottom = 24.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

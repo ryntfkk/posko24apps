@@ -33,9 +33,7 @@ class AddressSettingsViewModel @Inject constructor(
         private set
     var addressDetail = mutableStateOf("")
         private set
-    var latitude = mutableStateOf("")
-        private set
-    var longitude = mutableStateOf("")
+    var location = mutableStateOf<GeoPoint?>(GeoPoint(-6.9926, 110.4283))
         private set
     init {
         loadProvinces()
@@ -85,20 +83,18 @@ class AddressSettingsViewModel @Inject constructor(
     }
 
     fun onAddressDetailChange(value: String) { addressDetail.value = value }
-    fun onLatitudeChange(value: String) { latitude.value = value }
-    fun onLongitudeChange(value: String) { longitude.value = value }
+    fun onLocationChange(value: GeoPoint) { location.value = value }
     fun saveAddress(onResult: (Boolean) -> Unit) {
         val userId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
-            val lat = latitude.value.toDoubleOrNull()
-            val lng = longitude.value.toDoubleOrNull()
-            val geoPoint = if (lat != null && lng != null) GeoPoint(lat, lng) else null
+
             val address = UserAddress(
                 province = selectedProvince.value?.name ?: "",
                 city = selectedCity.value?.name ?: "",
                 district = selectedDistrict.value?.name ?: "",
                 detail = addressDetail.value,
-                location = geoPoint
+                location = location.value
+
             )
             val result = addressRepository.saveAddress(userId, address)
             onResult(result.isSuccess)

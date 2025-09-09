@@ -7,8 +7,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,12 +22,10 @@ import com.example.posko24.data.model.Wilayah
 import com.example.posko24.ui.theme.Posko24Theme
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.firestore.GeoPoint
-import com.google.maps.android.compose.CameraPositionState
-import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.example.posko24.ui.components.InteractiveMapView
 import kotlinx.coroutines.launch
 
 
@@ -376,38 +372,6 @@ private fun AddressDropdowns(
     }
 }
 
-@Composable
-private fun InteractiveMapView(
-    cameraPositionState: CameraPositionState,
-    onMapCoordinatesChanged: (GeoPoint) -> Unit
-) {
-
-    LaunchedEffect(cameraPositionState.isMoving) {
-        if (!cameraPositionState.isMoving) {
-            val newLatLng = cameraPositionState.position.target
-            onMapCoordinatesChanged(GeoPoint(newLatLng.latitude, newLatLng.longitude))
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(250.dp)
-    ) {
-        GoogleMap(
-            modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState
-        )
-        Icon(
-            imageVector = Icons.Default.LocationOn,
-            contentDescription = "Pin Lokasi",
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(bottom = 24.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-    }
-}
 @Preview(showBackground = true)
 @Composable
 fun RegisterScreenPreview() {
