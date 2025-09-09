@@ -28,14 +28,16 @@ fun HomeScreen(
     onCategoryClick: (String) -> Unit,
     onOrderClick: (String) -> Unit
 ) {
-    // Dapatkan user state dari MainViewModel
+    // Dapatkan user state dan active role dari MainViewModel
     val userState by mainViewModel.userState.collectAsState()
+    val activeRole by mainViewModel.activeRole.collectAsState()
+
 
     // Tentukan UI berdasarkan user state
     when (val state = userState) {
         is UserState.Authenticated -> {
-            // Jika user terautentikasi, cek perannya
-            if (state.user.roles.contains("provider")) {
+            // Jika user terautentikasi, cek peran aktifnya
+            if (state.user.roles.contains("provider") && activeRole == "provider") {
                 ProviderDashboardScreen(onOrderClick = onOrderClick)
             } else {
                 CategoryListScreen(viewModel = homeViewModel, onCategoryClick = onCategoryClick)
