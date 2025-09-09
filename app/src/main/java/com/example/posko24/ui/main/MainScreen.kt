@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FabPosition
@@ -118,7 +119,7 @@ fun MainScreen(
     Scaffold(
         floatingActionButton = {
             Box(
-                modifier = Modifier.offset(y = 28.dp)
+                modifier = Modifier.offset(y = 42.dp)
             ) {
                 FloatingActionButton(
                     onClick = {
@@ -129,6 +130,7 @@ fun MainScreen(
                             onNavigateToConversation("admin")
                         }
                     },
+                    modifier = Modifier.size(72.dp),
                     shape = CircleShape,
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError
