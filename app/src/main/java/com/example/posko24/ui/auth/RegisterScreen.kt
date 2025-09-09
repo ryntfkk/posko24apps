@@ -44,6 +44,7 @@ fun RegisterScreen(
     var contact by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var confirmPasswordError by remember { mutableStateOf(false) }
     val authState by viewModel.authState.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -131,7 +132,10 @@ fun RegisterScreen(
 
                     OutlinedTextField(
                         value = password,
-                        onValueChange = { password = it },
+                        onValueChange = {
+                            password = it
+                            confirmPasswordError = false
+                        },
                         label = { Text("Kata Sandi") },
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
@@ -141,20 +145,43 @@ fun RegisterScreen(
 
                     OutlinedTextField(
                         value = confirmPassword,
-                        onValueChange = { confirmPassword = it },
+                        onValueChange = {
+                            confirmPassword = it
+                            confirmPasswordError = false
+                        },
                         label = { Text("Konfirmasi Kata Sandi") },
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                        eyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        isError = confirmPasswordError
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
-
+                    if (confirmPasswordError) {
+                        Text(
+                            text = "Kata sandi tidak cocok",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.align(Alignment.Start)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    } else {
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
                     val step1Valid = fullName.isNotBlank() && contact.isNotBlank() &&
-                            password.isNotBlank() && confirmPassword.isNotBlank() &&
-                            password == confirmPassword
+                            password.isNotBlank() && confirmPassword.isNotBlank()
 
                     Button(
-                        onClick = { currentStep = 2 },
+                        onClick = {
+                            if (password == confirmPassword) {
+                                currentStep = 2
+                            } else {
+                                confirmPasswordError = true
+                                Toast.makeText(
+                                    context,
+                                    "Kata sandi dan konfirmasi tidak cocok",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = step1Valid
                     ) {
