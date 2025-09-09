@@ -22,6 +22,7 @@ import com.example.posko24.ui.main.MainViewModel
 import com.example.posko24.ui.order_creation.BasicOrderScreen
 import com.example.posko24.ui.order_creation.DirectOrderScreen
 import com.example.posko24.ui.orders.OrderDetailScreen
+import com.example.posko24.ui.orders.ReviewScreen
 import com.example.posko24.ui.provider.ProviderDetailScreen
 import com.example.posko24.ui.provider.ProviderListScreen
 import com.example.posko24.ui.profile.TransactionHistoryScreen
@@ -72,6 +73,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onOrderClick = { orderId ->
                                     navController.navigate("order_detail_screen/$orderId")
+                                },
+                                onReviewClick = { orderId ->
+                                    navController.navigate("review_screen/$orderId")
                                 },
                                 onNavigateToTransactions = { balance ->
                                     navController.navigate("transaction_history_screen/$balance")
@@ -140,6 +144,13 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("orderId") { type = NavType.StringType })
                         ) {
                             OrderDetailScreen()
+                        }
+                        composable(
+                            route = "review_screen/{orderId}",
+                            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+                            ReviewScreen(orderId = orderId)
                         }
                         composable(
                             route = "conversation_screen/{orderId}",

@@ -60,6 +60,7 @@ fun MainScreen(
     onCategoryClick: (String) -> Unit,
     onNavigateToConversation: (String) -> Unit,
     onOrderClick: (String) -> Unit,
+    onReviewClick: (String) -> Unit,
     onNavigateToTransactions: (Float) -> Unit,
     onNavigateToAccountSettings: () -> Unit,
     onNavigateToAddressSettings: () -> Unit
@@ -220,7 +221,11 @@ fun MainScreen(
                 }
             }
             composable(BottomNavItem.MyOrders.route) {
-                MyOrdersScreen(activeRole = activeRole, onOrderClick = onOrderClick)
+                MyOrdersScreen(
+                    activeRole = activeRole,
+                    onOrderClick = onOrderClick,
+                    onReviewClick = onReviewClick
+                )
             }
             composable(BottomNavItem.Chats.route) { ChatListScreen(onNavigateToConversation = onNavigateToConversation) }
             composable(BottomNavItem.Profile.route) {
@@ -259,6 +264,7 @@ fun MainScreenPreview() {
             onCategoryClick = {},
             onNavigateToConversation = {},
             onOrderClick = {},
+            onReviewClick = {},
             onNavigateToTransactions = {},
             onNavigateToAccountSettings = {},
             onNavigateToAddressSettings = {}

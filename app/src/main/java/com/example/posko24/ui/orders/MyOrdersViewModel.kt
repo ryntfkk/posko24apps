@@ -70,6 +70,12 @@ class MyOrdersViewModel @Inject constructor(
             loadOrders(role)
         }
     }
+
+    fun updateOrderStatus(orderId: String, newStatus: String) {
+        viewModelScope.launch {
+            orderRepository.updateOrderStatus(orderId, newStatus).collect { }
+        }
+    }
 }
 
 // State class Anda sudah bagus, tidak perlu diubah
