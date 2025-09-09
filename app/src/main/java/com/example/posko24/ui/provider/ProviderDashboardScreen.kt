@@ -17,20 +17,17 @@ import com.example.posko24.ui.components.OrderCard
 @Composable
 fun ProviderDashboardScreen(
     activeRole: String,
-    viewModel: ProviderDashboardViewModel = hiltViewModel(),
     activeJobsViewModel: ActiveJobsViewModel = hiltViewModel(),
     skillsViewModel: SkillsViewModel = hiltViewModel(),
     reviewsViewModel: ReviewsViewModel = hiltViewModel(),
     balanceViewModel: BalanceViewModel = hiltViewModel(),
     onOrderClick: (String) -> Unit
 ) {
-    val state by viewModel.dashboardState.collectAsState()
     val activeJobsState by activeJobsViewModel.state.collectAsState()
     val skillsState by skillsViewModel.state.collectAsState()
     val reviewsState by reviewsViewModel.state.collectAsState()
     val balanceState by balanceViewModel.state.collectAsState()
     LaunchedEffect(activeRole) {
-        viewModel.onActiveRoleChanged(activeRole)
         activeJobsViewModel.onActiveRoleChanged(activeRole)
         skillsViewModel.onActiveRoleChanged(activeRole)
         reviewsViewModel.onActiveRoleChanged(activeRole)
@@ -182,58 +179,6 @@ fun ProviderDashboardScreen(
                 }
                 is ReviewsState.Error -> {
                     item { Text(reviewState.message) }
-                }
-            }
-
-            /** Pesanan Saya */
-            item {
-                Text(
-                    "Pesanan Saya",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-                Divider()
-            }
-
-            when (val currentState = state) {
-                is ProviderDashboardState.Loading -> {
-                    item {
-                        Box(
-                            modifier = Modifier.fillParentMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                }
-                is ProviderDashboardState.Success -> {
-                    if (currentState.incomingOrders.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier.fillParentMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("Belum ada pesanan.")
-                            }
-                        }
-                    } else {
-                        items(currentState.incomingOrders) { order ->
-                            Box(modifier = Modifier.clickable { onOrderClick(order.id) }) {
-                                OrderCard(order = order)
-                            }
-                        }
-                    }
-                }
-                is ProviderDashboardState.Error -> {
-                    item {
-                        Box(
-                            modifier = Modifier.fillParentMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(currentState.message)
-                        }
-                    }
                 }
             }
         }
