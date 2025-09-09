@@ -1,6 +1,7 @@
 package com.example.posko24.data.repository
 
 import com.example.posko24.data.model.Wilayah
+import com.example.posko24.data.model.UserAddress
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -55,5 +56,14 @@ class AddressRepositoryImpl @Inject constructor(
         emit(Result.success(districts))
     }.catch {
         emit(Result.failure(it))
+    }
+    override suspend fun saveAddress(userId: String, address: UserAddress): Result<Unit> {
+        return try {
+            firestore.collection("users").document(userId)
+                .collection("addresses").add(address).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

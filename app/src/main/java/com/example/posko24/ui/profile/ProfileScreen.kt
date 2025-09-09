@@ -9,9 +9,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +27,7 @@ import com.example.posko24.R
 import com.example.posko24.data.model.User
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Slider
 import com.example.posko24.data.model.ProviderProfile
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Info
@@ -39,7 +38,9 @@ import com.example.posko24.ui.main.MainViewModel
 fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
     mainViewModel: MainViewModel = hiltViewModel(),
-    onNavigateToTransactions: (Float) -> Unit
+    onNavigateToTransactions: (Float) -> Unit,
+    onNavigateToAccountSettings: () -> Unit,
+    onNavigateToAddressSettings: () -> Unit
 ) {
     val state by viewModel.profileState.collectAsState()
     val activeRole by mainViewModel.activeRole.collectAsState()
@@ -64,28 +65,7 @@ fun ProfileScreen(
                         ProfileHeader(user = currentState.user)
                         Spacer(modifier = Modifier.height(32.dp))
                     }
-                    if (currentState.user.roles.contains("provider")) {
-                        item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    "Mode Provider",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Switch(
-                                    checked = activeRole == "provider",
-                                    onCheckedChange = {
-                                        mainViewModel.setActiveRole(if (it) "provider" else "customer")
-                                    }
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-                    }
+
                     item {
                         Card(
                             modifier = Modifier
@@ -131,8 +111,31 @@ fun ProfileScreen(
 
                     item {
                         ProfileInfoRow(icon = Icons.Default.Phone, text = currentState.user.phoneNumber)
-                        val spacer = if (currentState.user.roles.contains("provider")) 32.dp else 16.dp
-                        Spacer(modifier = Modifier.height(spacer))
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    if (currentState.user.roles.contains("provider")) {
+                        item {
+                            RoleSlider(activeRole = activeRole, onRoleChange = mainViewModel::setActiveRole)
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+
+                    item {
+                        Button(
+                            onClick = onNavigateToAccountSettings,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Pengaturan Akun")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = onNavigateToAddressSettings,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Pengaturan Alamat")
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
 
                     if (!currentState.user.roles.contains("provider")) {
@@ -157,7 +160,7 @@ fun ProfileScreen(
                                 context.startActivity(intent)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                            modifier = Modifier.fillMaxWidth() // Buat tombol lebih lebar
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = "Logout")
                             Spacer(modifier = Modifier.width(8.dp))
@@ -218,5 +221,27 @@ fun ProfileInfoRow(icon: ImageVector, text: String) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.width(16.dp))
         Text(text, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+@Composable
+fun RoleSlider(activeRole: String, onRoleChange: (String) -> Unit) {
+    var sliderPosition by remember { mutableStateOf(if (activeRole == "provider") 1f else 0f) }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Slider(
+            value = sliderPosition,
+            onValueChange = {
+                sliderPosition = it
+                onRoleChange(if (it < 0.5f) "customer" else "provider")
+            },
+            valueRange = 0f..1f,
+            steps = 1
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Customer")
+            Text("Provider")
+        }
     }
 }

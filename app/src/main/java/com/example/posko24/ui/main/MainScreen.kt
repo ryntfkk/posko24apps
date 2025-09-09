@@ -31,7 +31,9 @@ fun MainScreen(
     onCategoryClick: (String) -> Unit,
     onNavigateToConversation: (String) -> Unit,
     onOrderClick: (String) -> Unit,
-    onNavigateToTransactions: (Float) -> Unit
+    onNavigateToTransactions: (Float) -> Unit,
+    onNavigateToAccountSettings: () -> Unit,
+    onNavigateToAddressSettings: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
@@ -126,7 +128,13 @@ fun MainScreen(
             }
             composable(BottomNavItem.MyOrders.route) { MyOrdersScreen(onOrderClick = onOrderClick) }
             composable(BottomNavItem.Chats.route) { ChatListScreen(onNavigateToConversation = onNavigateToConversation) }
-            composable(BottomNavItem.Profile.route) { ProfileScreen(onNavigateToTransactions = onNavigateToTransactions) }
+            composable(BottomNavItem.Profile.route) {
+                ProfileScreen(
+                    onNavigateToTransactions = onNavigateToTransactions,
+                    onNavigateToAccountSettings = onNavigateToAccountSettings,
+                    onNavigateToAddressSettings = onNavigateToAddressSettings
+                )
+            }
         }
     }
 }

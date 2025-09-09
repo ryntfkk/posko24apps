@@ -25,6 +25,8 @@ import com.example.posko24.ui.orders.OrderDetailScreen
 import com.example.posko24.ui.provider.ProviderDetailScreen
 import com.example.posko24.ui.provider.ProviderListScreen
 import com.example.posko24.ui.profile.TransactionHistoryScreen
+import com.example.posko24.ui.profile.AccountSettingsScreen
+import com.example.posko24.ui.profile.AddressSettingsScreen
 import com.example.posko24.ui.theme.Posko24Theme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -73,6 +75,12 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onNavigateToTransactions = { balance ->
                                     navController.navigate("transaction_history_screen/$balance")
+                                },
+                                onNavigateToAccountSettings = {
+                                    navController.navigate("account_settings_screen")
+                                },
+                                onNavigateToAddressSettings = {
+                                    navController.navigate("address_settings_screen")
                                 }
                             )
                         }
@@ -146,6 +154,12 @@ class MainActivity : ComponentActivity() {
                             TransactionHistoryScreen(
                                 balance = backStackEntry.arguments?.getFloat("balance") ?: 0f
                             )
+                        }
+                        composable("account_settings_screen") {
+                            AccountSettingsScreen()
+                        }
+                        composable("address_settings_screen") {
+                            AddressSettingsScreen()
                         }
                     }
                 }
