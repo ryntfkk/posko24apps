@@ -152,20 +152,20 @@ fun RegisterScreen(
                         label = { Text("Konfirmasi Kata Sandi") },
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
-                        eyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        isError = confirmPasswordError
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        isError = confirmPasswordError,
+                        supportingText = {
+                            if (confirmPasswordError) {
+                                Text(
+                                    text = "Kata sandi tidak cocok",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        }
                     )
-                    if (confirmPasswordError) {
-                        Text(
-                            text = "Kata sandi tidak cocok",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.align(Alignment.Start)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                    } else {
-                        Spacer(modifier = Modifier.height(24.dp))
-                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+
                     val step1Valid = fullName.isNotBlank() && contact.isNotBlank() &&
                             password.isNotBlank() && confirmPassword.isNotBlank()
 
