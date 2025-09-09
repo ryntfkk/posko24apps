@@ -1,4 +1,5 @@
 package com.example.posko24.data.model
+import com.google.firebase.firestore.GeoPoint
 
 data class UserAddress(
     val id: String = "",
@@ -6,6 +7,5 @@ data class UserAddress(
     val city: String = "",
     val district: String = "",
     val detail: String = "",
-    val latitude: Double? = null,
-    val longitude: Double? = null
+    val location: GeoPoint? = null
 )

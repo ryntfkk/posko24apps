@@ -110,8 +110,7 @@ class RegisterViewModel @Inject constructor(
             city = current.selectedCity?.name ?: "",
             district = current.selectedDistrict?.name ?: "",
             detail = current.addressDetail,
-            latitude = current.mapCoordinates?.latitude,
-            longitude = current.mapCoordinates?.longitude
+            location = current.mapCoordinates
         )
         viewModelScope.launch {
             _authState.value = AuthState.Loading

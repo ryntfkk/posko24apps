@@ -59,8 +59,15 @@ class AddressRepositoryImpl @Inject constructor(
     }
     override suspend fun saveAddress(userId: String, address: UserAddress): Result<Unit> {
         return try {
+            val data = hashMapOf(
+                "province" to address.province,
+                "city" to address.city,
+                "district" to address.district,
+                "detail" to address.detail,
+                "location" to address.location
+            )
             firestore.collection("users").document(userId)
-                .collection("addresses").add(address).await()
+                .collection("addresses").add(data).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
