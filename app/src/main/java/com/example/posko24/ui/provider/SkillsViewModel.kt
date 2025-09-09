@@ -2,6 +2,7 @@ package com.example.posko24.ui.provider
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.posko24.data.model.Skill
 import com.example.posko24.data.repository.SkillRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,6 +45,6 @@ class SkillsViewModel @Inject constructor(
 
 sealed class SkillsState {
     object Loading : SkillsState()
-    data class Success(val skills: List<String>) : SkillsState()
+    data class Success(val skills: List<Skill>) : SkillsState()
     data class Error(val message: String) : SkillsState()
 }

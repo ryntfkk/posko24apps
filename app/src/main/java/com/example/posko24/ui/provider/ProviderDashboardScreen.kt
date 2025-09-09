@@ -131,7 +131,7 @@ fun ProviderDashboardScreen(
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             skillState.skills.forEach { skill ->
-                                Text("• $skill")
+                                Text("• ${skill.name}")
                             }
                             if (skillState.skills.isEmpty()) {
                                 Text("Belum ada keahlian.")
