@@ -25,14 +25,14 @@ class ActiveJobsViewModel @Inject constructor(
     }
 
     private fun loadActiveJobs() {
-        val userId = auth.currentUser?.uid
-        if (userId == null) {
+        val providerId = auth.currentUser?.uid
+        if (providerId == null) {
             _state.value = ActiveJobsState.Error("Anda harus login untuk melihat pekerjaan aktif.")
             return
         }
         viewModelScope.launch {
             _state.value = ActiveJobsState.Loading
-            repository.getActiveJobs(userId).collect { result ->
+            repository.getActiveJobs(providerId).collect { result ->
                 result.onSuccess { jobs ->
                     _state.value = ActiveJobsState.Success(jobs)
                 }.onFailure {
