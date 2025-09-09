@@ -8,7 +8,6 @@ import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -34,35 +33,25 @@ class MyOrdersViewModel @Inject constructor(
             _ordersState.value = OrdersState.Loading
 
             if (role == "provider") {
-                val providerFlow = orderRepository.getProviderOrders(userId)
-                val unassignedFlow = orderRepository.getUnassignedBasicOrders()
+                orderRepository.getProviderOrders(userId).collect { result ->
+                    result.onSuccess { orders ->
+                        if (orders.isEmpty()) {
+                            _ordersState.value = OrdersState.Empty
+                        } else {
+                            val ongoingStatuses = listOf(
+                                "awaiting_payment",
+                                "searching_provider",
+                                "awaiting_provider_confirmation",
+                                "pending",
+                                "accepted",
+                                "ongoing",
+                                "awaiting_confirmation"
+                            )
+                            val historyStatuses = listOf("completed", "cancelled")
+                            val ongoingOrders = orders.filter { it.status in ongoingStatuses }.sortedByDescending { it.createdAt }
+                            val historyOrders = orders.filter { it.status in historyStatuses }.sortedByDescending { it.createdAt }
 
-                combine(providerFlow, unassignedFlow) { providerResult, unassignedResult ->
-                    providerResult to unassignedResult
-                }.collect { (providerResult, unassignedResult) ->
-                    providerResult.onSuccess { providerOrders ->
-                        unassignedResult.onSuccess { unassignedOrders ->
-                            val orders = providerOrders + unassignedOrders
-                            if (orders.isEmpty()) {
-                                _ordersState.value = OrdersState.Empty
-                            } else {
-                                val ongoingStatuses = listOf(
-                                    "awaiting_payment",
-                                    "searching_provider",
-                                    "awaiting_provider_confirmation",
-                                    "pending",
-                                    "accepted",
-                                    "ongoing",
-                                    "awaiting_confirmation"
-                                )
-                                val historyStatuses = listOf("completed", "cancelled")
-                                val ongoingOrders = orders.filter { it.status in ongoingStatuses }.sortedByDescending { it.createdAt }
-                                val historyOrders = orders.filter { it.status in historyStatuses }.sortedByDescending { it.createdAt }
-
-                                _ordersState.value = OrdersState.Success(ongoingOrders, historyOrders)
-                            }
-                        }.onFailure {
-                            _ordersState.value = OrdersState.Error(it.message ?: "Gagal memuat pesanan.")
+                            _ordersState.value = OrdersState.Success(ongoingOrders, historyOrders)
                         }
                     }.onFailure {
                         _ordersState.value = OrdersState.Error(it.message ?: "Gagal memuat pesanan.")
