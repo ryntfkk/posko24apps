@@ -24,7 +24,8 @@ interface AuthRepository {
         fullName: String,
         email: String,
         phoneNumber: String,
-        password: String
+        password: String,
+        roles: List<String>
     ): Flow<Result<AuthResult>>
 
     /**

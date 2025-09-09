@@ -32,13 +32,17 @@ import androidx.compose.material3.Switch
 import com.example.posko24.data.model.ProviderProfile
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Info
+import com.example.posko24.ui.main.MainViewModel
+
 
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
+    mainViewModel: MainViewModel = hiltViewModel(),
     onNavigateToTransactions: (Float) -> Unit
 ) {
     val state by viewModel.profileState.collectAsState()
+    val activeRole by mainViewModel.activeRole.collectAsState()
     val context = LocalContext.current
 
     Box( // Gunakan Box untuk menampung state Loading/Error di tengah
@@ -60,7 +64,28 @@ fun ProfileScreen(
                         ProfileHeader(user = currentState.user)
                         Spacer(modifier = Modifier.height(32.dp))
                     }
-
+                    if (currentState.user.roles.contains("provider")) {
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Mode Provider",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Switch(
+                                    checked = activeRole == "provider",
+                                    onCheckedChange = {
+                                        mainViewModel.setActiveRole(if (it) "provider" else "customer")
+                                    }
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
                     item {
                         Card(
                             modifier = Modifier
@@ -106,7 +131,20 @@ fun ProfileScreen(
 
                     item {
                         ProfileInfoRow(icon = Icons.Default.Phone, text = currentState.user.phoneNumber)
-                        Spacer(modifier = Modifier.height(32.dp)) // Beri jarak sebelum tombol
+                        val spacer = if (currentState.user.roles.contains("provider")) 32.dp else 16.dp
+                        Spacer(modifier = Modifier.height(spacer))
+                    }
+
+                    if (!currentState.user.roles.contains("provider")) {
+                        item {
+                            Button(
+                                onClick = { viewModel.upgradeToProvider() },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Daftar sebagai provider")
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
                     }
 
                     item {

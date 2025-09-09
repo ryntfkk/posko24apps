@@ -13,6 +13,7 @@ data class User(
     val profilePictureUrl: String? = null,
     val balance: Double = 0.0,
     val roles: List<String> = listOf("customer"),
+    val activeRole: String = "customer",
     val createdAt: Timestamp = Timestamp.now()
 ) {
     fun isValidForPayment(): Boolean {

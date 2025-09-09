@@ -16,4 +16,13 @@ interface UserRepository {
      * Memperbarui status ketersediaan provider.
      */
     suspend fun updateProviderAvailability(providerId: String, isAvailable: Boolean): Flow<Result<Boolean>>
+
+    /**
+     * Menyimpan peran aktif pengguna (provider atau customer).
+     */
+    suspend fun updateActiveRole(userId: String, activeRole: String): Flow<Result<Boolean>>
+    /**
+     * Meng-upgrade pengguna saat ini menjadi provider.
+     */
+    suspend fun upgradeToProvider(): Flow<Result<Boolean>>
 }

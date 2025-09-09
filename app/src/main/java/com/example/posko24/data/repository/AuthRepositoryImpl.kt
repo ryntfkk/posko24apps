@@ -28,7 +28,8 @@ class AuthRepositoryImpl @Inject constructor(
         fullName: String,
         email: String,
         phoneNumber: String,
-        password: String
+        password: String,
+        roles: List<String>
     ): Flow<Result<AuthResult>> = flow {
         // HAPUS BARIS "emit(Result.success(null!!))" DARI SINI
 
@@ -40,7 +41,9 @@ class AuthRepositoryImpl @Inject constructor(
                 uid = firebaseUser.uid,
                 fullName = fullName,
                 email = email,
-                phoneNumber = phoneNumber
+                phoneNumber = phoneNumber,
+                roles = roles
+
             )
             firestore.collection("users").document(firebaseUser.uid).set(newUser).await()
             emit(Result.success(authResult))

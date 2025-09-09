@@ -24,6 +24,7 @@ fun RegisterScreen(
     var email by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var registerAsProvider by remember { mutableStateOf(false) }
     val authState by viewModel.authState.collectAsState()
     val context = LocalContext.current
 
@@ -88,12 +89,23 @@ fun RegisterScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
             )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = registerAsProvider,
+                    onCheckedChange = { registerAsProvider = it }
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Daftar sebagai provider")
+            }
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
                     if (fullName.isNotBlank() && email.isNotBlank() && phoneNumber.isNotBlank() && password.isNotBlank()) {
-                        viewModel.register(fullName, email, phoneNumber, password)
+                        val roles = if (registerAsProvider) listOf("customer", "provider") else listOf("customer")
+                        viewModel.register(fullName, email, phoneNumber, password, roles)
                     } else {
                         Toast.makeText(context, "Semua kolom wajib diisi", Toast.LENGTH_SHORT).show()
                     }

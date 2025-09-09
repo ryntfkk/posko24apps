@@ -3,6 +3,7 @@ package com.example.posko24.data.repository
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.User
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
@@ -37,6 +38,21 @@ class UserRepositoryImpl @Inject constructor(
         firestore.collection("provider_profiles").document(providerId)
             .update("isAvailable", isAvailable).await()
         // --- AKHIR PERBAIKAN ---
+        emit(Result.success(true))
+    }.catch {
+        emit(Result.failure(it))
+    }
+
+    override suspend fun upgradeToProvider(): Flow<Result<Boolean>> = flow {
+        FirebaseFunctions.getInstance().getHttpsCallable("upgradeToProvider").call().await()
+        emit(Result.success(true))
+    }.catch {
+        emit(Result.failure(it))
+    }
+
+    override suspend fun updateActiveRole(userId: String, activeRole: String): Flow<Result<Boolean>> = flow {
+        firestore.collection("users").document(userId)
+            .update("activeRole", activeRole).await()
         emit(Result.success(true))
     }.catch {
         emit(Result.failure(it))

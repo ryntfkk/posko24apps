@@ -74,7 +74,13 @@ class ProfileViewModel @Inject constructor(
             }
         }
     }
-
+    fun upgradeToProvider() {
+        viewModelScope.launch {
+            userRepository.upgradeToProvider().collect { result ->
+                result.onSuccess { loadUserProfile() }
+            }
+        }
+    }
     fun logout() {
         authRepository.logout()
     }
