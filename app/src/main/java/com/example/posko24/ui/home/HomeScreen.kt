@@ -5,9 +5,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -35,8 +35,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -96,47 +97,39 @@ fun CategoryListScreen(
         viewModel.loadNearbyProviders(GeoPoint(0.0, 0.0))
     }
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxSize()
-    ) {
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            var query by remember { mutableStateOf("") }
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .clip(RoundedCornerShape(12.dp))
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.bg_search_section),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+    var query by remember { mutableStateOf("") }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.bg_search_section),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(8.dp)
+                        .padding(16.dp)
                 ) {
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        placeholder = { Text("Cari layanan...") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        shape = RoundedCornerShape(5.dp),
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(40.dp)
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Cari layanan...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    shape = RoundedCornerShape(5.dp),
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
                     )
                     IconButton(
                         onClick = {},
@@ -144,22 +137,30 @@ fun CategoryListScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifikasi"
+                            contentDescription = "Notifikasi",
+                            tint = Color.White
                         )
                     }
                 }
             }
-        }
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Banner",
+                        modifier = Modifier.padding(16.dp)
 
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Banner",
-                    modifier = Modifier.padding(16.dp)
-                )
+                    )
+                }
             }
-        }
-
         when (val currentState = categoriesState) {
             is CategoriesState.Loading -> {
                 item(span = { GridItemSpan(maxLineSpan) }) { CircularProgressIndicator() }
@@ -177,26 +178,30 @@ fun CategoryListScreen(
             }
         }
 
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Text(text = "Teknisi terbaik di sekitar")
-        }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Text(text = "Teknisi terbaik di sekitar")
+                }
 
-        when (val providerState = providersState) {
-            is NearbyProvidersState.Loading -> {
-                item(span = { GridItemSpan(maxLineSpan) }) { CircularProgressIndicator() }
-            }
-            is NearbyProvidersState.Success -> {
-                if (providerState.providers.isEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }) { Text("Belum ada teknisi di sekitar.") }
-                } else {
-                    items(providerState.providers, span = { GridItemSpan(maxLineSpan) }) { provider ->
-                        ProviderListItem(provider = provider, onClick = {})
+                            when (val providerState = providersState) {
+                                is NearbyProvidersState.Loading -> {
+                                    item(span = { GridItemSpan(maxLineSpan) }) { CircularProgressIndicator() }
+                                }
+                                is NearbyProvidersState.Success -> {
+                                    if (providerState.providers.isEmpty()) {
+                                        item(span = { GridItemSpan(maxLineSpan) }) { Text("Belum ada teknisi di sekitar.") }
+                                    } else {
+                                        items(providerState.providers, span = { GridItemSpan(maxLineSpan) }) { provider ->
+                                            ProviderListItem(provider = provider, onClick = {})
+                                        }
+                                    }
+                                }
+                            is NearbyProvidersState.Error -> {
+                            item(span = { GridItemSpan(maxLineSpan) }) { Text(providerState.message) }
+                        }
+                        }
+                        }
                     }
                 }
-            }
-            is NearbyProvidersState.Error -> {
-                item(span = { GridItemSpan(maxLineSpan) }) { Text(providerState.message) }
-            }
-        }
-    }
-}
+
+
+
