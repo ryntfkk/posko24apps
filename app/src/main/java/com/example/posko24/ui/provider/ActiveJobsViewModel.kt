@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.repository.ActiveJobRepository
+import com.example.posko24.data.repository.OrderRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +15,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ActiveJobsViewModel @Inject constructor(
     private val repository: ActiveJobRepository,
+    private val orderRepository: OrderRepository,
     private val auth: FirebaseAuth
 ) : ViewModel() {
 
@@ -44,6 +46,18 @@ class ActiveJobsViewModel @Inject constructor(
     fun onActiveRoleChanged(role: String) {
         if (role == "provider") {
             loadActiveJobs()
+        }
+    }
+    fun claimOrder(orderId: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            orderRepository.claimOrder(orderId).collect { result ->
+                result.onSuccess {
+                    loadActiveJobs()
+                    onSuccess()
+                }.onFailure {
+                    _state.value = ActiveJobsState.Error(it.message ?: "Gagal mengambil order.")
+                }
+            }
         }
     }
 }

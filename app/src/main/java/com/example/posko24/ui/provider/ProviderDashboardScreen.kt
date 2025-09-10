@@ -135,10 +135,17 @@ fun ProviderDashboardScreen(
                         item { Text("Belum ada pekerjaan aktif.") }
                     } else {
                         items(jobsState.jobs) { job ->
+                            val showClaim = job.providerId == null && job.status == "searching_provider"
                             OrderCard(
                                 order = job,
                                 onCardClick = { selectedOrder = job },
-                                onTakeOrderClick = { onOrderClick(job.id) }
+                                onTakeOrderClick = if (showClaim) {
+                                    {
+                                        activeJobsViewModel.claimOrder(job.id) {
+                                            onOrderClick(job.id)
+                                        }
+                                    }
+                                } else null
                             )
                         }
                     }
