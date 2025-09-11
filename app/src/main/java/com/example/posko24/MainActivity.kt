@@ -143,7 +143,13 @@ class MainActivity : ComponentActivity() {
                             route = "order_detail_screen/{orderId}",
                             arguments = listOf(navArgument("orderId") { type = NavType.StringType })
                         ) {
-                            OrderDetailScreen()
+                            OrderDetailScreen(
+                                onNavigateHome = {
+                                    navController.navigate("main_screen") {
+                                        popUpTo("main_screen") { inclusive = true }
+                                    }
+                                }
+                            )
                         }
                         composable(
                             route = "review_screen/{orderId}",

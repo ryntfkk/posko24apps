@@ -2,14 +2,23 @@ package com.example.posko24.ui.orders
 
 import android.annotation.SuppressLint
 import android.util.Log
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -21,6 +30,7 @@ import com.google.firebase.auth.FirebaseAuth
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderDetailScreen(
+    onNavigateHome: () -> Unit,
     viewModel: OrderDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.orderState.collectAsState()
@@ -52,7 +62,17 @@ fun OrderDetailScreen(
                         order.orderType == "basic" &&
                                 order.status == "searching_provider" &&
                                 order.providerId == null -> {
-                            Text("Sedang mencari penyedia jasa…")
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                AnimatedSignalIcon()
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Sedang mencari penyedia jasa…")
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(onClick = onNavigateHome) {
+                                    Text("Kembali ke Home")
+                                }
+                            }
                         }
                         order.orderType == "direct" &&
                                 order.status == "awaiting_provider_confirmation" -> {
@@ -165,4 +185,24 @@ fun ActionButtonsSection(order: Order, viewModel: OrderDetailViewModel) {
             }
         }
     }
+}
+
+@Composable
+fun AnimatedSignalIcon(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "")
+    val alpha by transition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = ""
+    )
+    Icon(
+        imageVector = Icons.Filled.SignalCellularAlt,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary.copy(alpha = alpha),
+        modifier = modifier.size(48.dp)
+    )
 }
