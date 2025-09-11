@@ -1,31 +1,35 @@
 package com.example.posko24.ui.home
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,11 +39,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.R
 import com.example.posko24.ui.components.CategoryCard
@@ -84,6 +91,7 @@ fun HomeScreen(
         }
     }
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryListScreen(
@@ -109,45 +117,75 @@ fun CategoryListScreen(
                 painter = painterResource(id = R.drawable.bg_search_section),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.matchParentSize()
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                OutlinedTextField(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                BasicTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Cari layanan...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    shape = RoundedCornerShape(5.dp),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    ),
                     singleLine = true,
+                    textStyle = TextStyle(fontSize = 12.sp, color = Color.Black),
+                    cursorBrush = SolidColor(Color.Black),
+                    decorationBox = { innerTextField ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .background(
+                                    color = Color.White,
+                                    shape = RoundedCornerShape(5.dp)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = Color.LightGray,
+                                    shape = RoundedCornerShape(5.dp)
+                                )
+                                .padding(horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search Icon",
+                                tint = Color.Black
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(modifier = Modifier.weight(1f)) {
+                                if (query.isEmpty()) {
+                                    Text(
+                                        text = "Cari layanan...",
+                                        color = Color.Gray,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        }
+                    },
                     modifier = Modifier.weight(1f)
+                )
+                IconButton(
+                    onClick = {},
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Notifikasi",
+                        tint = Color.White
                     )
-                    IconButton(
-                        onClick = {},
-                        modifier = Modifier.padding(start = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifikasi",
-                            tint = Color.White
-                        )
-                    }
                 }
             }
+        }
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            // --- PERUBAHAN DI SINI: Mengurangi jarak vertikal dan horizontal ---
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
@@ -157,51 +195,54 @@ fun CategoryListScreen(
                     Text(
                         text = "Banner",
                         modifier = Modifier.padding(16.dp)
-
                     )
                 }
             }
-        when (val currentState = categoriesState) {
-            is CategoriesState.Loading -> {
-                item(span = { GridItemSpan(maxLineSpan) }) { CircularProgressIndicator() }
-            }
-            is CategoriesState.Success -> {
-                items(currentState.categories) { category ->
-                    CategoryCard(
-                        category = category,
-                        onClick = { onCategoryClick(category.id) }
-                    )
-                }
-            }
-            is CategoriesState.Error -> {
-                item(span = { GridItemSpan(maxLineSpan) }) { Text(text = currentState.message) }
-            }
-        }
-
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    Text(text = "Teknisi terbaik di sekitar")
+            when (val currentState = categoriesState) {
+                is CategoriesState.Loading -> {
+                    item(span = { GridItemSpan(maxLineSpan) }) { CircularProgressIndicator() }
                 }
 
-                            when (val providerState = providersState) {
-                                is NearbyProvidersState.Loading -> {
-                                    item(span = { GridItemSpan(maxLineSpan) }) { CircularProgressIndicator() }
-                                }
-                                is NearbyProvidersState.Success -> {
-                                    if (providerState.providers.isEmpty()) {
-                                        item(span = { GridItemSpan(maxLineSpan) }) { Text("Belum ada teknisi di sekitar.") }
-                                    } else {
-                                        items(providerState.providers, span = { GridItemSpan(maxLineSpan) }) { provider ->
-                                            ProviderListItem(provider = provider, onClick = {})
-                                        }
-                                    }
-                                }
-                            is NearbyProvidersState.Error -> {
-                            item(span = { GridItemSpan(maxLineSpan) }) { Text(providerState.message) }
-                        }
-                        }
+                is CategoriesState.Success -> {
+                    items(currentState.categories) { category ->
+                        CategoryCard(
+                            category = category,
+                            onClick = { onCategoryClick(category.id) }
+                        )
+                    }
+                }
+
+                is CategoriesState.Error -> {
+                    item(span = { GridItemSpan(maxLineSpan) }) { Text(text = currentState.message) }
+                }
+            }
+
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Text(
+                    text = "Teknisi terbaik di sekitar",
+                    modifier = Modifier.padding(top = 8.dp) // Beri sedikit padding atas agar tidak terlalu mepet
+                )
+            }
+
+            when (val providerState = providersState) {
+                is NearbyProvidersState.Loading -> {
+                    item(span = { GridItemSpan(maxLineSpan) }) { CircularProgressIndicator() }
+                }
+
+                is NearbyProvidersState.Success -> {
+                    if (providerState.providers.isEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) { Text("Belum ada teknisi di sekitar.") }
+                    } else {
+                        items(providerState.providers, span = { GridItemSpan(maxLineSpan) }) { provider ->
+                            ProviderListItem(provider = provider, onClick = {})
                         }
                     }
                 }
 
-
-
+                is NearbyProvidersState.Error -> {
+                    item(span = { GridItemSpan(maxLineSpan) }) { Text(providerState.message) }
+                }
+            }
+        }
+    }
+}
