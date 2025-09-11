@@ -91,10 +91,10 @@ data class PopularService(
 )
 
 val dummyPopularServices = listOf(
-    PopularService("svc1", "Cuci AC", Icons.Default.AcUnit, "Rp 50.000"),
-    PopularService("svc2", "Perbaikan Listrik", Icons.Default.ElectricalServices, "Mulai Rp 75.000"),
-    PopularService("svc3", "Servis Keran Bocor", Icons.Default.WaterDamage, "Rp 60.000"),
-    PopularService("svc4", "Jasa Tukang", Icons.Default.Build, "Hubungi kami")
+PopularService("svc1", "Cuci AC", Icons.Default.AcUnit, "Mulai Rp 65.000"),
+PopularService("svc2", "Perbaikan Listrik", Icons.Default.ElectricalServices, "Mulai Rp 55.000"),
+PopularService("svc3", "Rumah Bocor", Icons.Default.WaterDamage, "Mulai Rp 75.000"),
+PopularService("svc4", "Tukang Harian", Icons.Default.Build, "Mulai Rp 150.000")
 )
 
 data class Voucher(
