@@ -1,8 +1,15 @@
 package com.example.posko24.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -20,8 +28,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.ConfirmationNumber
+import androidx.compose.material.icons.filled.ElectricalServices
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.WaterDamage
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,14 +58,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.posko24.R
+import com.example.posko24.ui.components.ActiveOrderBanner
 import com.example.posko24.ui.components.CategoryCard
 import com.example.posko24.ui.components.ProviderListItem
 import com.example.posko24.ui.main.MainViewModel
@@ -59,25 +82,44 @@ import com.google.accompanist.pager.HorizontalPagerIndicator
 import com.google.accompanist.pager.rememberPagerState
 import com.google.firebase.firestore.GeoPoint
 import kotlinx.coroutines.delay
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import com.example.posko24.ui.components.ActiveOrderBanner
+
+data class PopularService(
+    val id: String,
+    val name: String,
+    val icon: ImageVector,
+    val price: String
+)
+
+val dummyPopularServices = listOf(
+    PopularService("svc1", "Cuci AC", Icons.Default.AcUnit, "Rp 50.000"),
+    PopularService("svc2", "Perbaikan Listrik", Icons.Default.ElectricalServices, "Mulai Rp 75.000"),
+    PopularService("svc3", "Servis Keran Bocor", Icons.Default.WaterDamage, "Rp 60.000"),
+    PopularService("svc4", "Jasa Tukang", Icons.Default.Build, "Hubungi kami")
+)
+
+data class Voucher(
+    val id: String,
+    val title: String,
+    val description: String,
+    val code: String
+)
+
+val dummyVouchers = listOf(
+    Voucher("v1", "Diskon 20%", "Untuk semua layanan", "POSKOHEMAT20"),
+    Voucher("v2", "Cashback Rp 25.000", "Min. transaksi Rp 100rb", "UNTUNGBANGET"),
+    Voucher("v3", "Gratis Biaya Admin", "Khusus pengguna baru", "NEWUSER24")
+)
+
 @Composable
 fun HomeScreen(
-    mainViewModel: MainViewModel, // Terima MainViewModel sebagai sumber kebenaran
+    mainViewModel: MainViewModel,
     homeViewModel: HomeViewModel = hiltViewModel(),
     onCategoryClick: (String) -> Unit,
     onOrderClick: (String) -> Unit
 ) {
-    // Dapatkan user state dan active role dari MainViewModel
     val userState by mainViewModel.userState.collectAsState()
     val activeRole by mainViewModel.activeRole.collectAsState()
 
-    // Tentukan UI berdasarkan user state
     when (val state = userState) {
         is UserState.Authenticated -> {
             if (activeRole == "provider") {
@@ -107,8 +149,7 @@ fun HomeScreen(
 fun CategoryListScreen(
     viewModel: HomeViewModel,
     onCategoryClick: (String) -> Unit,
-    onOrderClick: (String) -> Unit // <-- Terima onOrderClick
-
+    onOrderClick: (String) -> Unit
 ) {
     val categoriesState by viewModel.categoriesState.collectAsState()
     val providersState by viewModel.nearbyProvidersState.collectAsState()
@@ -116,7 +157,6 @@ fun CategoryListScreen(
     val activeOrderDetails by viewModel.activeOrderDetails.collectAsState()
     val pagerState = rememberPagerState(initialPage = 0)
 
-    // Efek untuk pergeseran banner otomatis
     if (bannerImageUrls.isNotEmpty()) {
         LaunchedEffect(Unit) {
             while (true) {
@@ -136,7 +176,6 @@ fun CategoryListScreen(
     var query by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Bagian Search Bar (tidak berubah)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -210,18 +249,16 @@ fun CategoryListScreen(
             }
         }
 
-        // Bagian Konten Utama
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
             contentPadding = PaddingValues(vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp) // Jarak antar item di LazyColumn
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // --- ITEM BARU: SECTION ORDER AKTIF DENGAN ANIMASI ---
             item {
                 AnimatedVisibility(
-                    visible = activeOrderDetails  != null,
+                    visible = activeOrderDetails != null,
                     enter = fadeIn(animationSpec = tween(300)) + slideInVertically(animationSpec = tween(300)),
                     exit = fadeOut(animationSpec = tween(300)) + slideOutVertically(animationSpec = tween(300))
                 ) {
@@ -234,7 +271,6 @@ fun CategoryListScreen(
                     }
                 }
             }
-            // Item 1: Banner Slider
             item {
                 if (bannerImageUrls.isNotEmpty()) {
                     Box(
@@ -268,12 +304,9 @@ fun CategoryListScreen(
                 }
             }
 
-            // Item 2: Kategori Slider (LazyRow)
             item {
                 when (val currentState = categoriesState) {
-                    is CategoriesState.Loading -> {
-                        CircularProgressIndicator(modifier = Modifier.padding(16.dp))
-                    }
+                    is CategoriesState.Loading -> CircularProgressIndicator(modifier = Modifier.padding(16.dp))
                     is CategoriesState.Success -> {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 16.dp),
@@ -287,49 +320,78 @@ fun CategoryListScreen(
                             }
                         }
                     }
-                    is CategoriesState.Error -> {
-                        Text(
-                            text = currentState.message,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
+                    is CategoriesState.Error -> Text(
+                        text = currentState.message,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
                 }
             }
 
-            // Item 3: Judul Teknisi
             item {
                 Text(
-                    text = "Teknisi terbaik di sekitar",
+                    text = "Ada voucher buat kamu!",
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
 
-            // Item 4: Daftar Teknisi
-            when (val providerState = providersState) {
-                is NearbyProvidersState.Loading -> {
-                    item { CircularProgressIndicator(modifier = Modifier.padding(16.dp)) }
-                }
-                is NearbyProvidersState.Success -> {
-                    if (providerState.providers.isEmpty()) {
-                        item {
-                            Text(
-                                "Belum ada teknisi di sekitar.",
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                        }
-                    } else {
-                        items(providerState.providers) { provider ->
-                            ProviderListItem(
-                                provider = provider,
-                                onClick = {},
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                        }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(dummyVouchers) { voucher ->
+                        VoucherCard(voucher = voucher)
                     }
                 }
-                is NearbyProvidersState.Error -> {
-                    item {
+            }
+
+            item {
+                Text(
+                    text = "Teknisi terbaik di sekitar",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .padding(horizontal = 16.dp)
+                )
+            }
+
+            // ==========================================================
+            // SECTION TEKNISI TERDEKAT (YANG DIUBAH)
+            // ==========================================================
+            item {
+                when (val providerState = providersState) {
+                    is NearbyProvidersState.Loading -> {
+                        // TAMPILKAN KARTU PENCARIAN SAAT LOADING
+                        SearchingProviderCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        )
+                    }
+                    is NearbyProvidersState.Success -> {
+                        if (providerState.providers.isEmpty()) {
+                            EmptyProviderCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                            )
+                        } else {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(providerState.providers) { provider ->
+                                    ProviderListItem(
+                                        provider = provider,
+                                        onClick = {},
+                                        modifier = Modifier.width(300.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    is NearbyProvidersState.Error -> {
                         Text(
                             providerState.message,
                             modifier = Modifier.padding(horizontal = 16.dp)
@@ -337,6 +399,177 @@ fun CategoryListScreen(
                     }
                 }
             }
+
+            item {
+                Text(
+                    text = "Layanan Populer",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .padding(horizontal = 16.dp)
+                )
+            }
+
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(dummyPopularServices) { service ->
+                        PopularServiceCard(service = service, onClick = { /* Aksi */ })
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun VoucherCard(voucher: Voucher, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.width(280.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.ConfirmationNumber,
+                contentDescription = "Voucher Icon",
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = voucher.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    text = voucher.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                )
+            }
+            Button(
+                onClick = { /* TODO: Aksi klaim voucher */ },
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp)
+            ) {
+                Text(text = "Klaim", fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+
+@Composable
+fun PopularServiceCard(
+    service: PopularService,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .width(150.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = service.icon,
+                contentDescription = service.name,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Text(
+                text = service.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = service.price,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+// ==========================================================
+// COMPOSABLE BARU UNTUK KARTU PENCARIAN
+// ==========================================================
+@Composable
+fun SearchingProviderCard(modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.height(120.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Mencari teknisi terdekat...",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun EmptyProviderCard(modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.height(120.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.PersonOff,
+                contentDescription = "Tidak ada teknisi",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Tidak ada teknisi di sekitar",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
