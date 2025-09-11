@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 /**
  * ViewModel untuk HomeScreen.
@@ -19,7 +22,9 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val repository: ServiceRepository
+    private val repository: ServiceRepository,
+    private val firestore: FirebaseFirestore
+
 ) : ViewModel() {
 
     // State untuk menampung daftar kategori layanan.
@@ -28,6 +33,9 @@ class HomeViewModel @Inject constructor(
     // State untuk provider terdekat
     private val _nearbyProvidersState = MutableStateFlow<NearbyProvidersState>(NearbyProvidersState.Loading)
     val nearbyProvidersState = _nearbyProvidersState.asStateFlow()
+
+    private val _bannerUrls = MutableStateFlow<List<String>>(emptyList())
+    val bannerUrls: StateFlow<List<String>> = _bannerUrls
 
     // init block akan dieksekusi saat ViewModel pertama kali dibuat.
     init {
@@ -63,6 +71,21 @@ class HomeViewModel @Inject constructor(
                     _nearbyProvidersState.value = NearbyProvidersState.Error(exception.message ?: "Gagal memuat data")
                 }
             }
+        }
+    }
+    private fun loadBanners() {
+        viewModelScope.launch {
+            firestore.collection("banners")
+                .get()
+                .addOnSuccessListener { result ->
+                    val urls = result.map { document ->
+                        document.getString("imageUrl") ?: ""
+                    }.filter { it.isNotEmpty() }
+                    _bannerUrls.value = urls
+                }
+                .addOnFailureListener {
+                    // Handle error, misalnya log atau tampilkan pesan
+                }
         }
     }
 }

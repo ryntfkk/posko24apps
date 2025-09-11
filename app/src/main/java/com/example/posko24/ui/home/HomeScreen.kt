@@ -23,7 +23,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -55,6 +54,14 @@ import com.example.posko24.ui.main.MainViewModel
 import com.example.posko24.ui.main.UserState
 import com.example.posko24.ui.provider.ProviderDashboardScreen
 import com.google.firebase.firestore.GeoPoint
+// --- IMPORT BARU UNTUK GAMBAR & BANNER ---
+import coil.compose.rememberAsyncImagePainter
+import com.google.accompanist.pager.ExperimentalPagerApi
+import com.google.accompanist.pager.HorizontalPager
+import com.google.accompanist.pager.HorizontalPagerIndicator
+import com.google.accompanist.pager.rememberPagerState
+import kotlinx.coroutines.delay
+
 
 @Composable
 fun HomeScreen(
@@ -92,7 +99,7 @@ fun HomeScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPagerApi::class) // <-- Tambahkan ExperimentalPagerApi
 @Composable
 fun CategoryListScreen(
     viewModel: HomeViewModel,
@@ -100,6 +107,19 @@ fun CategoryListScreen(
 ) {
     val categoriesState by viewModel.categoriesState.collectAsState()
     val providersState by viewModel.nearbyProvidersState.collectAsState()
+
+    // Mengambil daftar URL banner dari ViewModel
+    val bannerImageUrls by viewModel.bannerUrls.collectAsState()
+    val pagerState = rememberPagerState(initialPage = 0)
+
+    // Efek untuk pergeseran banner otomatis
+    LaunchedEffect(key1 = pagerState.currentPage) {
+        delay(3000) // Jeda 3 detik
+        if (bannerImageUrls.isNotEmpty()) {
+            val nextPage = (pagerState.currentPage + 1) % bannerImageUrls.size
+            pagerState.animateScrollToPage(nextPage)
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadNearbyProviders(GeoPoint(0.0, 0.0))
@@ -183,7 +203,6 @@ fun CategoryListScreen(
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             contentPadding = PaddingValues(16.dp),
-            // --- PERUBAHAN DI SINI: Mengurangi jarak vertikal dan horizontal ---
             verticalArrangement = Arrangement.spacedBy(6.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier
@@ -191,12 +210,37 @@ fun CategoryListScreen(
                 .fillMaxWidth()
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Banner",
-                        modifier = Modifier.padding(16.dp)
-                    )
+                // --- KODE BANNER DIGANTI DENGAN SLIDER OTOMATIS ---
+                if (bannerImageUrls.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp) // Sesuaikan tinggi banner
+                            .clip(RoundedCornerShape(8.dp))
+                    ) {
+                        HorizontalPager(
+                            count = bannerImageUrls.size,
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize()
+                        ) { page ->
+                            Image(
+                                painter = rememberAsyncImagePainter(bannerImageUrls[page]),
+                                contentDescription = "Banner Image ${page + 1}",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        HorizontalPagerIndicator(
+                            pagerState = pagerState,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 8.dp),
+                            activeColor = MaterialTheme.colorScheme.primary,
+                            inactiveColor = Color.White.copy(alpha = 0.5f)
+                        )
+                    }
                 }
+                // --- AKHIR DARI KODE BANNER ---
             }
             when (val currentState = categoriesState) {
                 is CategoriesState.Loading -> {
@@ -220,7 +264,7 @@ fun CategoryListScreen(
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
                     text = "Teknisi terbaik di sekitar",
-                    modifier = Modifier.padding(top = 8.dp) // Beri sedikit padding atas agar tidak terlalu mepet
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
 

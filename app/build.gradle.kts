@@ -86,6 +86,7 @@ dependencies {
 
     implementation(libs.coil.compose)
     implementation(libs.coil.svg)
+    implementation("io.coil-kt:coil-compose:2.4.0")
 
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
@@ -113,4 +114,8 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
 
     implementation("androidx.browser:browser:1.8.0")
+
+    
+    implementation("com.google.accompanist:accompanist-pager:0.32.0")
+    implementation("com.google.accompanist:accompanist-pager-indicators:0.32.0")
 }
