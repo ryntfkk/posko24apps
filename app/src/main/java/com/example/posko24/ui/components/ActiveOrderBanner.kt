@@ -40,17 +40,13 @@ fun ActiveOrderBanner(
             Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
                 when (order.status) {
                     "searching_provider", "awaiting_provider_confirmation" -> {
-                        // Gunakan animasi sinyal untuk pencarian
+                        // Ikon sinyal untuk pencarian provider
                         AnimatedSignalIcon(modifier = Modifier.fillMaxSize())
                     }
-                    "accepted" -> {
-                        // Gunakan animasi gear untuk status accepted
+                    "pending", "accepted", "on_the_way", "in_progress" -> {
+                        // Ikon gear untuk status pesanan aktif lainnya
                         AnimatedGearIcon(modifier = Modifier.fillMaxSize())
                     }
-                    // Anda bisa menambahkan ikon default untuk status lain jika perlu
-                    // else -> {
-                    //     Icon(imageVector = Icons.Default.Info, contentDescription = "Order")
-                    // }
                 }
             }
             // ==========================================================
