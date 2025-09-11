@@ -14,10 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -47,22 +46,26 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.rememberAsyncImagePainter
 import com.example.posko24.R
 import com.example.posko24.ui.components.CategoryCard
 import com.example.posko24.ui.components.ProviderListItem
 import com.example.posko24.ui.main.MainViewModel
 import com.example.posko24.ui.main.UserState
 import com.example.posko24.ui.provider.ProviderDashboardScreen
-import com.google.firebase.firestore.GeoPoint
-// --- IMPORT BARU UNTUK GAMBAR & BANNER ---
-import coil.compose.rememberAsyncImagePainter
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.HorizontalPagerIndicator
 import com.google.accompanist.pager.rememberPagerState
+import com.google.firebase.firestore.GeoPoint
 import kotlinx.coroutines.delay
-
-
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import com.example.posko24.ui.components.ActiveOrderBanner
 @Composable
 fun HomeScreen(
     mainViewModel: MainViewModel, // Terima MainViewModel sebagai sumber kebenaran
@@ -80,11 +83,11 @@ fun HomeScreen(
             if (activeRole == "provider") {
                 ProviderDashboardScreen(activeRole = activeRole, onOrderClick = onOrderClick)
             } else {
-                CategoryListScreen(viewModel = homeViewModel, onCategoryClick = onCategoryClick)
+                CategoryListScreen(viewModel = homeViewModel, onCategoryClick = onCategoryClick, onOrderClick = onOrderClick)
             }
         }
         is UserState.Guest -> {
-            CategoryListScreen(viewModel = homeViewModel, onCategoryClick = onCategoryClick)
+            CategoryListScreen(viewModel = homeViewModel, onCategoryClick = onCategoryClick, onOrderClick = onOrderClick)
         }
         is UserState.Loading -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -99,25 +102,30 @@ fun HomeScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPagerApi::class) // <-- Tambahkan ExperimentalPagerApi
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPagerApi::class)
 @Composable
 fun CategoryListScreen(
     viewModel: HomeViewModel,
-    onCategoryClick: (String) -> Unit
+    onCategoryClick: (String) -> Unit,
+    onOrderClick: (String) -> Unit // <-- Terima onOrderClick
+
 ) {
     val categoriesState by viewModel.categoriesState.collectAsState()
     val providersState by viewModel.nearbyProvidersState.collectAsState()
-
-    // Mengambil daftar URL banner dari ViewModel
     val bannerImageUrls by viewModel.bannerUrls.collectAsState()
+    val activeOrderDetails by viewModel.activeOrderDetails.collectAsState()
     val pagerState = rememberPagerState(initialPage = 0)
 
     // Efek untuk pergeseran banner otomatis
-    LaunchedEffect(key1 = pagerState.currentPage) {
-        delay(3000) // Jeda 3 detik
-        if (bannerImageUrls.isNotEmpty()) {
-            val nextPage = (pagerState.currentPage + 1) % bannerImageUrls.size
-            pagerState.animateScrollToPage(nextPage)
+    if (bannerImageUrls.isNotEmpty()) {
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(5000)
+                if (!pagerState.isScrollInProgress) {
+                    val nextPage = (pagerState.currentPage + 1) % bannerImageUrls.size
+                    pagerState.animateScrollToPage(nextPage)
+                }
+            }
         }
     }
 
@@ -128,6 +136,7 @@ fun CategoryListScreen(
     var query by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        // Bagian Search Bar (tidak berubah)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -200,22 +209,39 @@ fun CategoryListScreen(
                 }
             }
         }
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+
+        // Bagian Konten Utama
+        LazyColumn(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth()
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp) // Jarak antar item di LazyColumn
         ) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                // --- KODE BANNER DIGANTI DENGAN SLIDER OTOMATIS ---
+            // --- ITEM BARU: SECTION ORDER AKTIF DENGAN ANIMASI ---
+            item {
+                AnimatedVisibility(
+                    visible = activeOrderDetails  != null,
+                    enter = fadeIn(animationSpec = tween(300)) + slideInVertically(animationSpec = tween(300)),
+                    exit = fadeOut(animationSpec = tween(300)) + slideOutVertically(animationSpec = tween(300))
+                ) {
+                    activeOrderDetails?.let { details ->
+                        ActiveOrderBanner(
+                            activeOrderDetails = details,
+                            onClick = { onOrderClick(details.order.id) },
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                }
+            }
+            // Item 1: Banner Slider
+            item {
                 if (bannerImageUrls.isNotEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(180.dp) // Sesuaikan tinggi banner
+                            .height(180.dp)
+                            .padding(horizontal = 16.dp)
                             .clip(RoundedCornerShape(8.dp))
                     ) {
                         HorizontalPager(
@@ -240,51 +266,75 @@ fun CategoryListScreen(
                         )
                     }
                 }
-                // --- AKHIR DARI KODE BANNER ---
             }
-            when (val currentState = categoriesState) {
-                is CategoriesState.Loading -> {
-                    item(span = { GridItemSpan(maxLineSpan) }) { CircularProgressIndicator() }
-                }
 
-                is CategoriesState.Success -> {
-                    items(currentState.categories) { category ->
-                        CategoryCard(
-                            category = category,
-                            onClick = { onCategoryClick(category.id) }
+            // Item 2: Kategori Slider (LazyRow)
+            item {
+                when (val currentState = categoriesState) {
+                    is CategoriesState.Loading -> {
+                        CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                    }
+                    is CategoriesState.Success -> {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(currentState.categories) { category ->
+                                CategoryCard(
+                                    category = category,
+                                    onClick = { onCategoryClick(category.id) }
+                                )
+                            }
+                        }
+                    }
+                    is CategoriesState.Error -> {
+                        Text(
+                            text = currentState.message,
+                            modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
                 }
-
-                is CategoriesState.Error -> {
-                    item(span = { GridItemSpan(maxLineSpan) }) { Text(text = currentState.message) }
-                }
             }
 
-            item(span = { GridItemSpan(maxLineSpan) }) {
+            // Item 3: Judul Teknisi
+            item {
                 Text(
                     text = "Teknisi terbaik di sekitar",
-                    modifier = Modifier.padding(top = 8.dp)
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
 
+            // Item 4: Daftar Teknisi
             when (val providerState = providersState) {
                 is NearbyProvidersState.Loading -> {
-                    item(span = { GridItemSpan(maxLineSpan) }) { CircularProgressIndicator() }
+                    item { CircularProgressIndicator(modifier = Modifier.padding(16.dp)) }
                 }
-
                 is NearbyProvidersState.Success -> {
                     if (providerState.providers.isEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }) { Text("Belum ada teknisi di sekitar.") }
+                        item {
+                            Text(
+                                "Belum ada teknisi di sekitar.",
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                        }
                     } else {
-                        items(providerState.providers, span = { GridItemSpan(maxLineSpan) }) { provider ->
-                            ProviderListItem(provider = provider, onClick = {})
+                        items(providerState.providers) { provider ->
+                            ProviderListItem(
+                                provider = provider,
+                                onClick = {},
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
                         }
                     }
                 }
-
                 is NearbyProvidersState.Error -> {
-                    item(span = { GridItemSpan(maxLineSpan) }) { Text(providerState.message) }
+                    item {
+                        Text(
+                            providerState.message,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
                 }
             }
         }

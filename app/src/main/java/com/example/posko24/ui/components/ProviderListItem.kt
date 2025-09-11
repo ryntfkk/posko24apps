@@ -26,16 +26,18 @@ import com.example.posko24.data.model.ProviderProfile
  *
  * @param provider Objek ProviderProfile yang akan ditampilkan.
  * @param onClick Aksi yang dijalankan saat item di-klik.
+ * @param modifier Modifier untuk kustomisasi dari luar.
  */
 @Composable
 fun ProviderListItem(
     provider: ProviderProfile,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier // <-- PERUBAHAN 1: Tambahkan parameter modifier
 ) {
     Card(
-        modifier = Modifier
+        // --- PERUBAHAN 2: Terapkan modifier dari parameter ---
+        modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp, horizontal = 8.dp)
             .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
