@@ -249,6 +249,8 @@ fun MainScreenPreview() {
         override suspend fun updateProviderAvailability(providerId: String, isAvailable: Boolean): Flow<Result<Boolean>> = flowOf(Result.success(true))
         override suspend fun updateActiveRole(userId: String, activeRole: String): Flow<Result<Boolean>> = flowOf(Result.success(true))
         override suspend fun upgradeToProvider(): Flow<Result<Boolean>> = flowOf(Result.success(true))
+        override suspend fun updateUserProfile(userId: String, data: Map<String, Any?>): Result<Unit> = Result.success(Unit)
+
     }
 
     val previewViewModel = MainViewModel(
