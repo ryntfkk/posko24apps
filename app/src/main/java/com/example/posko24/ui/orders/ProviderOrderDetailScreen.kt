@@ -26,6 +26,7 @@ fun ProviderOrderDetailScreen(
     viewModel: OrderDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.orderState.collectAsState()
+    val customerState by viewModel.customerProfileState.collectAsState()
 
     Scaffold(
         topBar = {
@@ -49,14 +50,30 @@ fun ProviderOrderDetailScreen(
                 is OrderDetailState.Error -> Text(currentState.message)
                 is OrderDetailState.Success -> {
                     val order = currentState.order
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp)
-                    ) {
-                        item { OrderInfoSection(order = order, provider = null) }
-                        item { Spacer(modifier = Modifier.height(24.dp)) }
-                        item { ProviderActionButtonsSection(order = order, viewModel = viewModel) }
+                    when (val cState = customerState) {
+                        is CustomerProfileState.Loading -> CircularProgressIndicator()
+                        is CustomerProfileState.Error -> Text(cState.message)
+                        is CustomerProfileState.Success -> {
+                            val customer = cState.profile
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp)
+                            ) {
+                                item { CustomerInfoSection(customer) }
+                                item { Spacer(modifier = Modifier.height(16.dp)) }
+                                item { OrderInfoSection(order = order, provider = null) }
+                                item { Spacer(modifier = Modifier.height(24.dp)) }
+                                item {
+                                    ProviderActionButtonsSection(
+                                        order = order,
+                                        customer = customer,
+                                        viewModel = viewModel
+                                    )
+                                }
+                            }
+                        }
+                        else -> CircularProgressIndicator()
                     }
                 }
             }

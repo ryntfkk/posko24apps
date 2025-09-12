@@ -101,6 +101,21 @@ class OrderRepositoryImpl @Inject constructor(
     }.catch {
         emit(Result.failure(it))
     }
+    override suspend fun acceptOrder(orderId: String): Flow<Result<Boolean>> {
+        return updateOrderStatus(orderId, "accepted")
+    }
+
+    override suspend fun rejectOrder(orderId: String): Flow<Result<Boolean>> {
+        return updateOrderStatus(orderId, "cancelled")
+    }
+
+    override suspend fun startOrder(orderId: String): Flow<Result<Boolean>> {
+        return updateOrderStatus(orderId, "ongoing")
+    }
+
+    override suspend fun completeOrder(orderId: String): Flow<Result<Boolean>> {
+        return updateOrderStatus(orderId, "awaiting_confirmation")
+    }
     override suspend fun updateOrderStatusAndPayment(
         orderId: String,
         newStatus: String,

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.ProviderProfile
+import com.example.posko24.data.model.User
 import com.example.posko24.data.repository.OrderRepository
 import com.example.posko24.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +31,10 @@ class OrderDetailViewModel @Inject constructor(
         MutableStateFlow<ProviderProfileState>(ProviderProfileState.Idle)
     val providerProfileState = _providerProfileState.asStateFlow()
 
+    private val _customerProfileState =
+        MutableStateFlow<CustomerProfileState>(CustomerProfileState.Idle)
+    val customerProfileState = _customerProfileState.asStateFlow()
+
     init {
         if (orderId.isNotEmpty()) {
             loadOrderDetails()
@@ -46,16 +51,11 @@ class OrderDetailViewModel @Inject constructor(
                         _orderState.value = OrderDetailState.Success(order)
                         val providerId = order.providerId
                         if (!providerId.isNullOrBlank()) {
-                            userRepository.getProviderProfile(providerId).collect { profResult ->
-                                profResult.onSuccess { profile ->
-                                    if (profile != null) {
-                                        _providerProfileState.value = ProviderProfileState.Success(profile)
-                                    } else {
-                                        _providerProfileState.value =
-                                            ProviderProfileState.Error("Profil penyedia tidak ditemukan.")
-                                    }
-                                }
-                            }
+                            loadProviderProfile(providerId)
+                        }
+                        val customerId = order.customerId
+                        if (!customerId.isNullOrBlank()) {
+                            loadCustomerProfile(customerId)
                         }
 
                     } else {
@@ -85,10 +85,59 @@ class OrderDetailViewModel @Inject constructor(
             }
         }
     }
+    private fun loadCustomerProfile(customerId: String) {
+        viewModelScope.launch {
+            _customerProfileState.value = CustomerProfileState.Loading
+            userRepository.getUserProfile(customerId).collect { result ->
+                result.onSuccess { profile ->
+                    if (profile != null) {
+                        _customerProfileState.value = CustomerProfileState.Success(profile)
+                    } else {
+                        _customerProfileState.value =
+                            CustomerProfileState.Error("Profil pelanggan tidak ditemukan.")
+                    }
+                }.onFailure {
+                    _customerProfileState.value =
+                        CustomerProfileState.Error(it.message ?: "Gagal memuat profil pelanggan.")
+                }
+            }
+        }
+    }
     fun updateStatus(newStatus: String) {
         viewModelScope.launch {
             repository.updateOrderStatus(orderId, newStatus).collect {}
         }
+    }
+    fun acceptOrder() {
+        viewModelScope.launch {
+            repository.acceptOrder(orderId).collect {}
+        }
+    }
+
+    fun rejectOrder() {
+        viewModelScope.launch {
+            repository.rejectOrder(orderId).collect {}
+        }
+    }
+
+    fun startOrder() {
+        viewModelScope.launch {
+            repository.startOrder(orderId).collect {}
+        }
+    }
+
+    fun completeOrder() {
+        viewModelScope.launch {
+            repository.completeOrder(orderId).collect {}
+        }
+    }
+
+    fun contactCustomerViaChat() {
+        // Implementation detail would integrate with chat feature
+    }
+
+    fun contactCustomerViaPhone() {
+        // Implementation detail would integrate with phone dialer
     }
 }
 
@@ -102,4 +151,11 @@ sealed class ProviderProfileState {
     object Loading : ProviderProfileState()
     data class Success(val profile: ProviderProfile) : ProviderProfileState()
     data class Error(val message: String) : ProviderProfileState()
+}
+
+sealed class CustomerProfileState {
+    object Idle : CustomerProfileState()
+    object Loading : CustomerProfileState()
+    data class Success(val profile: User) : CustomerProfileState()
+    data class Error(val message: String) : CustomerProfileState()
 }

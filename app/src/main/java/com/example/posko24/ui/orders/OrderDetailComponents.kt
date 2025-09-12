@@ -18,6 +18,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.ProviderProfile
+import com.example.posko24.data.model.User
+
 
 @Composable
 fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
@@ -64,21 +66,41 @@ fun ProviderInfoSection(provider: ProviderProfile) {
 }
 
 @Composable
-fun ProviderActionButtonsSection(order: Order, viewModel: OrderDetailViewModel) {
+fun CustomerInfoSection(customer: User) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Pelanggan", style = MaterialTheme.typography.labelMedium)
+            Text(customer.fullName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Telepon", style = MaterialTheme.typography.labelMedium)
+            Text(customer.phoneNumber, style = MaterialTheme.typography.bodyLarge)
+        }
+    }
+}
+
+@Composable
+fun ProviderActionButtonsSection(order: Order, customer: User?, viewModel: OrderDetailViewModel) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        if (customer != null) {
+            Text("Hubungi Pelanggan", style = MaterialTheme.typography.labelMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { viewModel.contactCustomerViaChat() }) { Text("Chat") }
+                OutlinedButton(onClick = { viewModel.contactCustomerViaPhone() }) { Text("Telepon") }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
         when (order.status) {
             "pending" -> {
-                Button(onClick = { viewModel.updateStatus("accepted") }) { Text("Terima Pesanan") }
+                Button(onClick = { viewModel.acceptOrder() }) { Text("Terima") }
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(onClick = { viewModel.updateStatus("cancelled") }) { Text("Tolak Pesanan") }
+                OutlinedButton(onClick = { viewModel.rejectOrder() }) { Text("Tolak") }
             }
             "accepted" -> {
-                Button(onClick = { viewModel.updateStatus("ongoing") }) { Text("Mulai Pengerjaan") }
+                Button(onClick = { viewModel.startOrder() }) { Text("Mulai") }
             }
             "ongoing" -> {
-                Button(onClick = { viewModel.updateStatus("awaiting_confirmation") }) {
-                    Text("Selesaikan Pengerjaan")
-                }
+                Button(onClick = { viewModel.completeOrder() }) { Text("Selesaikan") }
             }
         }
     }
