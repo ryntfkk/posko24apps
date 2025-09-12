@@ -63,7 +63,8 @@ data class BasicOrderUiState(
     val quantity: Int = 1,
     val serviceSelections: List<ServiceSelection> = emptyList(),
     val promoCode: String = "",
-    val discountAmount: Double = 0.0
+    val discountAmount: Double = 0.0,
+    val promoMessage: String? = null
 )
 
 @HiltViewModel
@@ -431,7 +432,7 @@ class BasicOrderViewModel @Inject constructor(
     }
 
     fun onPromoCodeChanged(code: String) {
-        _uiState.update { it.copy(promoCode = code, discountAmount = 0.0) }
+        _uiState.update { it.copy(promoCode = code, discountAmount = 0.0, promoMessage = null) }
     }
 
     fun applyPromoCode() {
@@ -452,14 +453,21 @@ class BasicOrderViewModel @Inject constructor(
                         "percentage" -> totalBefore * (promo.value / 100.0)
                         else -> promo.value
                     }.coerceAtMost(totalBefore)
-                    _uiState.update { it.copy(discountAmount = discount) }
+                    _uiState.update {
+                        it.copy(discountAmount = discount, promoMessage = "Kode promo berhasil diterapkan")
+                    }
                 }.onFailure {
-                    _uiState.update { it.copy(discountAmount = 0.0) }
+                    _uiState.update {
+                        it.copy(discountAmount = 0.0, promoMessage = "Kode promo tidak valid")
+                    }
                 }
             }
         }
     }
 
+    fun clearPromoMessage() {
+        _uiState.update { it.copy(promoMessage = null) }
+    }
     fun onAddressDetailChanged(detail: String) {
         _uiState.update { it.copy(addressDetail = detail) }
     }

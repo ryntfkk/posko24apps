@@ -113,6 +113,13 @@ fun BasicOrderScreen(
             }
         }
     }
+
+    LaunchedEffect(uiState.promoMessage) {
+        uiState.promoMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.clearPromoMessage()
+        }
+    }
     // --- UI tetap sama ---
     Scaffold(
         topBar = { TopAppBar(title = { Text("Detail Pesanan & Alamat") }) }
