@@ -1,6 +1,7 @@
 package com.example.posko24.data.repository
 
 import com.example.posko24.data.model.Order
+import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.model.User
 import kotlinx.coroutines.flow.Flow
 
@@ -13,10 +14,10 @@ interface OrderRepository {
     fun getUnassignedBasicOrders(): Flow<Result<List<Order>>>
 
     fun getOrderDetails(orderId: String): Flow<Result<Order?>>
-    suspend fun updateOrderStatus(orderId: String, newStatus: String): Flow<Result<Boolean>>
+    suspend fun updateOrderStatus(orderId: String, newStatus: OrderStatus): Flow<Result<Boolean>>
     suspend fun updateOrderStatusAndPayment(
         orderId: String,
-        newStatus: String,
+        newStatus: OrderStatus,
         paymentStatus: String
     ): Flow<Result<Boolean>>
     suspend fun acceptOrder(orderId: String): Flow<Result<Boolean>>
@@ -27,6 +28,6 @@ interface OrderRepository {
 
     fun createPaymentRequest(orderId: String, user: User): Flow<Result<String>>
 
-    fun getProviderOrdersByStatus(providerId: String, statuses: List<String>): Flow<Result<List<Order>>>
+    fun getProviderOrdersByStatus(providerId: String, statuses: List<OrderStatus>): Flow<Result<List<Order>>>
     fun claimOrder(orderId: String): Flow<Result<Boolean>>
 }

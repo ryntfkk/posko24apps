@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.Order
+import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.User
 import com.example.posko24.data.repository.OrderRepository
@@ -103,7 +104,7 @@ class OrderDetailViewModel @Inject constructor(
             }
         }
     }
-    fun updateStatus(newStatus: String) {
+    fun updateStatus(newStatus: OrderStatus) {
         viewModelScope.launch {
             repository.updateOrderStatus(orderId, newStatus).collect {}
         }

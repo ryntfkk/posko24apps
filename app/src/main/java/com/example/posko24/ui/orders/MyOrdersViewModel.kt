@@ -3,6 +3,7 @@ package com.example.posko24.ui.orders
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.Order
+import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.repository.OrderRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,15 +40,15 @@ class MyOrdersViewModel @Inject constructor(
                             _ordersState.value = OrdersState.Empty
                         } else {
                             val ongoingStatuses = listOf(
-                                "awaiting_payment",
-                                "searching_provider",
-                                "awaiting_provider_confirmation",
-                                "pending",
-                                "accepted",
-                                "ongoing",
-                                "awaiting_confirmation"
-                            )
-                            val historyStatuses = listOf("completed", "cancelled")
+                            OrderStatus.AWAITING_PAYMENT,
+                            OrderStatus.SEARCHING_PROVIDER,
+                            OrderStatus.AWAITING_PROVIDER_CONFIRMATION,
+                            OrderStatus.PENDING,
+                            OrderStatus.ACCEPTED,
+                            OrderStatus.ONGOING,
+                            OrderStatus.AWAITING_CONFIRMATION
+                            ).map { it.value }
+                            val historyStatuses = listOf(OrderStatus.COMPLETED, OrderStatus.CANCELLED).map { it.value }
                             val ongoingOrders = orders.filter { it.status in ongoingStatuses }.sortedByDescending { it.createdAt }
                             val historyOrders = orders.filter { it.status in historyStatuses }.sortedByDescending { it.createdAt }
 
@@ -64,15 +65,15 @@ class MyOrdersViewModel @Inject constructor(
                             _ordersState.value = OrdersState.Empty
                         } else {
                             val ongoingStatuses = listOf(
-                                "awaiting_payment",
-                                "searching_provider",
-                                "awaiting_provider_confirmation",
-                                "pending",
-                                "accepted",
-                                "ongoing",
-                                "awaiting_confirmation"
-                            )
-                            val historyStatuses = listOf("completed", "cancelled")
+                                OrderStatus.AWAITING_PAYMENT,
+                                OrderStatus.SEARCHING_PROVIDER,
+                                OrderStatus.AWAITING_PROVIDER_CONFIRMATION,
+                                OrderStatus.PENDING,
+                                OrderStatus.ACCEPTED,
+                                OrderStatus.ONGOING,
+                                OrderStatus.AWAITING_CONFIRMATION
+                            ).map { it.value }
+                            val historyStatuses = listOf(OrderStatus.COMPLETED, OrderStatus.CANCELLED).map { it.value }
                             val ongoingOrders = orders.filter { it.status in ongoingStatuses }.sortedByDescending { it.createdAt }
                             val historyOrders = orders.filter { it.status in historyStatuses }.sortedByDescending { it.createdAt }
 
@@ -93,7 +94,7 @@ class MyOrdersViewModel @Inject constructor(
         }
     }
 
-    fun updateOrderStatus(orderId: String, newStatus: String) {
+    fun updateOrderStatus(orderId: String, newStatus: OrderStatus) {
         viewModelScope.launch {
             orderRepository.updateOrderStatus(orderId, newStatus).collect { }
         }

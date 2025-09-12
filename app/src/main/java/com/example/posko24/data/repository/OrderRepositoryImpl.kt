@@ -1,6 +1,7 @@
 package com.example.posko24.data.repository
 
 import com.example.posko24.data.model.Order
+import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.model.User
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -51,7 +52,7 @@ class OrderRepositoryImpl @Inject constructor(
 
     override fun getUnassignedBasicOrders(): Flow<Result<List<Order>>> = flow {
         val snapshot = firestore.collection("orders")
-            .whereEqualTo("status", "searching_provider")
+            .whereEqualTo("status", OrderStatus.SEARCHING_PROVIDER.value)
             .orderBy("createdAt", Query.Direction.ASCENDING)
             .get().await()
 
@@ -94,45 +95,45 @@ class OrderRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
-    override suspend fun updateOrderStatus(orderId: String, newStatus: String): Flow<Result<Boolean>> = flow {
-        val docRef = firestore.collection("orders").document(orderId)
+    override suspend fun updateOrderStatus(orderId: String, newStatus: OrderStatus): Flow<Result<Boolean>> = flow {
+    val docRef = firestore.collection("orders").document(orderId)
         val snapshot = docRef.get().await()
         val currentStatus = snapshot.getString("status")
-        if (currentStatus == "completed" || currentStatus == "cancelled") {
+        if (currentStatus == OrderStatus.COMPLETED.value || currentStatus == OrderStatus.CANCELLED.value) {
             throw IllegalStateException("Transisi status tidak valid")
         }
-        docRef.update("status", newStatus).await()
+        docRef.update("status", newStatus.value).await()
         emit(Result.success(true))
     }.catch {
         emit(Result.failure(it))
     }
     override suspend fun acceptOrder(orderId: String): Flow<Result<Boolean>> {
-        return updateOrderStatus(orderId, "accepted")
+        return updateOrderStatus(orderId, OrderStatus.ACCEPTED)
     }
 
     override suspend fun rejectOrder(orderId: String): Flow<Result<Boolean>> {
-        return updateOrderStatus(orderId, "cancelled")
+        return updateOrderStatus(orderId, OrderStatus.CANCELLED)
     }
 
     override suspend fun startOrder(orderId: String): Flow<Result<Boolean>> {
-        return updateOrderStatus(orderId, "ongoing")
+        return updateOrderStatus(orderId, OrderStatus.ONGOING)
     }
 
     override suspend fun completeOrder(orderId: String): Flow<Result<Boolean>> {
-        return updateOrderStatus(orderId, "awaiting_confirmation")
+        return updateOrderStatus(orderId, OrderStatus.AWAITING_CONFIRMATION)
     }
 
     override suspend fun cancelOrder(orderId: String): Flow<Result<Boolean>> {
-        return updateOrderStatus(orderId, "cancelled")
+        return updateOrderStatus(orderId, OrderStatus.CANCELLED)
     }
     override suspend fun updateOrderStatusAndPayment(
         orderId: String,
-        newStatus: String,
+        newStatus: OrderStatus,
         paymentStatus: String
     ): Flow<Result<Boolean>> = flow {
         firestore.collection("orders").document(orderId)
             .update(mapOf(
-                "status" to newStatus,
+                "status" to newStatus.value,
                 "paymentStatus" to paymentStatus
             )).await()
         emit(Result.success(true))
@@ -171,10 +172,10 @@ class OrderRepositoryImpl @Inject constructor(
         emit(Result.failure(it))
     }
 
-    override fun getProviderOrdersByStatus(providerId: String, statuses: List<String>): Flow<Result<List<Order>>> = flow {
+    override fun getProviderOrdersByStatus(providerId: String, statuses: List<OrderStatus>): Flow<Result<List<Order>>> = flow {
         val snapshot = firestore.collection("orders")
             .whereEqualTo("providerId", providerId)
-            .whereIn("status", statuses)
+            .whereIn("status", statuses.map { it.value })
             .orderBy("createdAt", Query.Direction.ASCENDING)
             .get().await()
 

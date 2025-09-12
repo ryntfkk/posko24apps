@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.data.model.Order
+import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.ui.orders.MyOrderItem
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -66,9 +67,9 @@ fun MyOrdersScreen(
                                 onOrderClick = onOrderClick,
                                 onReviewClick = onReviewClick,
                                 onClaim = { viewModel.claimOrder(it) },
-                                onAccept = { viewModel.updateOrderStatus(it, "accepted") },
-                                onStart = { viewModel.updateOrderStatus(it, "ongoing") },
-                                onFinish = { viewModel.updateOrderStatus(it, "awaiting_confirmation") },
+                                onAccept = { viewModel.updateOrderStatus(it, OrderStatus.ACCEPTED) },
+                                onStart = { viewModel.updateOrderStatus(it, OrderStatus.ONGOING) },
+                                onFinish = { viewModel.updateOrderStatus(it, OrderStatus.AWAITING_CONFIRMATION) },
                                 emptyMessage = "Tidak ada pesanan yang sedang berjalan."
                             )
                             1 -> OrderList(
@@ -77,9 +78,9 @@ fun MyOrdersScreen(
                                 onOrderClick = onOrderClick,
                                 onReviewClick = onReviewClick,
                                 onClaim = { viewModel.claimOrder(it) },
-                                onAccept = { viewModel.updateOrderStatus(it, "accepted") },
-                                onStart = { viewModel.updateOrderStatus(it, "ongoing") },
-                                onFinish = { viewModel.updateOrderStatus(it, "awaiting_confirmation") },
+                                onAccept = { viewModel.updateOrderStatus(it, OrderStatus.ACCEPTED) },
+                                onStart = { viewModel.updateOrderStatus(it, OrderStatus.ONGOING) },
+                                onFinish = { viewModel.updateOrderStatus(it, OrderStatus.AWAITING_CONFIRMATION) },
                                 emptyMessage = "Belum ada riwayat pesanan."
                             )
                         }

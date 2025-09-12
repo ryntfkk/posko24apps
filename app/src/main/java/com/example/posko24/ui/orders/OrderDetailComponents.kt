@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.User
+import com.example.posko24.data.model.OrderStatus
 
 
 @Composable
@@ -96,15 +97,15 @@ fun ProviderActionButtonsSection(order: Order, customer: User?, viewModel: Order
             Spacer(modifier = Modifier.height(16.dp))
         }
         when (order.status) {
-            "pending" -> {
+            OrderStatus.PENDING.value -> {
                 Button(onClick = { viewModel.acceptOrder() }) { Text("Terima") }
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(onClick = { viewModel.rejectOrder() }) { Text("Tolak") }
             }
-            "accepted" -> {
+            OrderStatus.ACCEPTED.value -> {
                 Button(onClick = { viewModel.startOrder() }) { Text("Mulai") }
             }
-            "ongoing" -> {
+            OrderStatus.ONGOING.value -> {
                 Button(onClick = { viewModel.completeOrder() }) { Text("Selesaikan") }
             }
         }
@@ -114,7 +115,7 @@ fun ProviderActionButtonsSection(order: Order, customer: User?, viewModel: Order
 @Composable
 fun CustomerActionButtonsSection(order: Order, provider: ProviderProfile?, viewModel: OrderDetailViewModel) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        if (provider != null && order.status !in listOf("completed", "cancelled")) {
+        if (provider != null && order.status !in listOf(OrderStatus.COMPLETED.value, OrderStatus.CANCELLED.value)) {
             Text("Hubungi Penyedia", style = MaterialTheme.typography.labelMedium)
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -123,12 +124,12 @@ fun CustomerActionButtonsSection(order: Order, provider: ProviderProfile?, viewM
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
-        if (order.status !in listOf("completed", "cancelled", "awaiting_confirmation")) {
+        if (order.status !in listOf(OrderStatus.COMPLETED.value, OrderStatus.CANCELLED.value, OrderStatus.AWAITING_CONFIRMATION.value)) {
             OutlinedButton(onClick = { viewModel.cancelOrder() }) { Text("Batalkan Pesanan") }
             Spacer(modifier = Modifier.height(16.dp))
         }
-        if (order.status == "awaiting_confirmation") {
-            Button(onClick = { viewModel.updateStatus("completed") }) {
+        if (order.status == OrderStatus.AWAITING_CONFIRMATION.value) {
+            Button(onClick = { viewModel.updateStatus(OrderStatus.COMPLETED) }) {
                 Text("Konfirmasi Selesai")
             }
         }

@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.posko24.data.model.OrderStatus
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +54,7 @@ fun CustomerOrderDetailScreen(
                     val order = currentState.order
                     when {
                         order.orderType == "basic" &&
-                                order.status == "searching_provider" &&
+                                order.status == OrderStatus.SEARCHING_PROVIDER.value &&
                                 order.providerId == null -> {
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally
@@ -68,7 +69,7 @@ fun CustomerOrderDetailScreen(
                             }
                         }
                         order.orderType == "direct" &&
-                                order.status == "awaiting_provider_confirmation" -> {
+                                order.status == OrderStatus.AWAITING_PROVIDER_CONFIRMATION.value -> {
                             Text("Menunggu konfirmasi penyedia…")
                         }
                         else -> {

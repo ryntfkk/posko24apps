@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.posko24.data.model.Order
+import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.ui.components.OrderCard
 
 @Composable
@@ -27,7 +28,7 @@ fun MyOrderItem(
         .clickable { onOrderClick(order.id) }) {
         OrderCard(order = order)
         Spacer(modifier = Modifier.height(8.dp))
-        if (activeRole == "customer" && order.status == "completed") {
+        if (activeRole == "customer" && order.status == OrderStatus.COMPLETED.value) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -48,22 +49,22 @@ fun MyOrderItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 when (order.status) {
-                    "searching_provider" -> {
+                    OrderStatus.SEARCHING_PROVIDER.value -> {
                         Button(onClick = { onClaim(order.id) }) {
                             Text("Claim")
                         }
                     }
-                    "pending" -> {
+                    OrderStatus.PENDING.value -> {
                         Button(onClick = { onAccept(order.id) }) {
                             Text("Accept")
                         }
                     }
-                    "accepted" -> {
+                    OrderStatus.ACCEPTED.value -> {
                         Button(onClick = { onStart(order.id) }) {
                             Text("Start")
                         }
                     }
-                    "ongoing" -> {
+                    OrderStatus.ONGOING.value -> {
                         Button(onClick = { onFinish(order.id) }) {
                             Text("Finish")
                         }
