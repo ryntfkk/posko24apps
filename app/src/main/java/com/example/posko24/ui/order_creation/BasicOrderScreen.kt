@@ -49,6 +49,10 @@ fun BasicOrderScreen(
     var selectedService by remember { mutableStateOf<BasicService?>(null) }
     val cameraPositionState = rememberCameraPositionState { position = uiState.cameraPosition }
 
+    LaunchedEffect(uiState.cameraPosition) {
+        cameraPositionState.position = uiState.cameraPosition
+    }
+
     LaunchedEffect(providerId, serviceId) {
         if (!providerId.isNullOrBlank() && !serviceId.isNullOrBlank()) {
             viewModel.setDirectOrder(providerId, serviceId)

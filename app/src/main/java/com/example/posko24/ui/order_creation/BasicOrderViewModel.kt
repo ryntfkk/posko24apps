@@ -23,6 +23,7 @@ import com.google.firebase.firestore.GeoPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -86,6 +87,7 @@ class BasicOrderViewModel @Inject constructor(
                 result.onSuccess { user ->
                     Log.d("BasicOrderVM", "✅ Current user loaded: $user")
                     _uiState.update { it.copy(currentUser = user) }
+                    user?.uid?.let { loadDefaultAddress(it) }
                 }.onFailure {
                     Log.e("BasicOrderVM", "❌ Failed to load user: ${it.message}", it)
                 }
@@ -93,6 +95,50 @@ class BasicOrderViewModel @Inject constructor(
         }
     }
 
+    private fun loadDefaultAddress(userId: String) {
+        viewModelScope.launch {
+            addressRepository.getDefaultAddress(userId).collect { result ->
+                result.onSuccess { address ->
+                    if (address != null) {
+                        val location = address.location
+                        _uiState.update {
+                            it.copy(
+                                addressDetail = address.detail,
+                                mapCoordinates = location,
+                                cameraPosition = location?.let { loc ->
+                                    CameraPosition.fromLatLngZoom(
+                                        LatLng(loc.latitude, loc.longitude), 12f
+                                    )
+                                } ?: it.cameraPosition
+                            )
+                        }
+
+                        val provincesResult = addressRepository.getProvinces().first()
+                        provincesResult.onSuccess { provinces ->
+                            val province = provinces.find { it.name == address.province }
+                            _uiState.update { it.copy(provinces = provinces, selectedProvince = province) }
+                            province?.let { prov ->
+                                val citiesResult = addressRepository.getCities(prov.docId).first()
+                                citiesResult.onSuccess { cities ->
+                                    val city = cities.find { it.name == address.city }
+                                    _uiState.update { it.copy(cities = cities, selectedCity = city) }
+                                    city?.let { c ->
+                                        val districtsResult = addressRepository.getDistricts(prov.docId, c.docId).first()
+                                        districtsResult.onSuccess { districts ->
+                                            val district = districts.find { it.name == address.district }
+                                            _uiState.update { it.copy(districts = districts, selectedDistrict = district) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }.onFailure { e ->
+                    Log.e("BasicOrderVM", "❌ Failed to load default address: ${e.message}", e)
+                }
+            }
+        }
+    }
     fun setDirectOrder(providerId: String, serviceId: String) {
         viewModelScope.launch {
             serviceRepository.getProviderDetails(providerId).collect { providerResult ->

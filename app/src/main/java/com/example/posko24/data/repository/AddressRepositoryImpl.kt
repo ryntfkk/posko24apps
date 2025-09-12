@@ -61,6 +61,23 @@ class AddressRepositoryImpl @Inject constructor(
     }.catch {
         emit(Result.failure(it))
     }
+    override fun getDefaultAddress(userId: String): Flow<Result<UserAddress?>> = flow {
+        val snapshot = firestore.collection("users").document(userId)
+            .collection("addresses").limit(1).get().await()
+        val address = snapshot.documents.firstOrNull()?.let { doc ->
+            UserAddress(
+                id = doc.id,
+                province = doc.getString("province") ?: "",
+                city = doc.getString("city") ?: "",
+                district = doc.getString("district") ?: "",
+                detail = doc.getString("detail") ?: "",
+                location = doc.getGeoPoint("location")
+            )
+        }
+        emit(Result.success(address))
+    }.catch {
+        emit(Result.failure(it))
+    }
     override suspend fun saveAddress(userId: String, address: UserAddress): Result<Unit> {
         return try {
             val data = hashMapOf(
