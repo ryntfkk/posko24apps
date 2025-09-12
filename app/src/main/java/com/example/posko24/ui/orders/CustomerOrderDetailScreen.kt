@@ -86,7 +86,7 @@ fun CustomerOrderDetailScreen(
                                         item { Spacer(modifier = Modifier.height(16.dp)) }
                                         item { OrderInfoSection(order = order, provider = provider) }
                                         item { Spacer(modifier = Modifier.height(24.dp)) }
-                                        item { CustomerActionButtonsSection(order = order, viewModel = viewModel) }
+                                        item { CustomerActionButtonsSection(order = order, provider = provider, viewModel = viewModel) }
                                     }
                                 }
                                 else -> CircularProgressIndicator()

@@ -61,6 +61,11 @@ fun ProviderInfoSection(provider: ProviderProfile) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Penyedia Jasa", style = MaterialTheme.typography.labelMedium)
             Text(provider.fullName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            provider.location?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Lokasi", style = MaterialTheme.typography.labelMedium)
+                Text("${it.latitude}, ${it.longitude}", style = MaterialTheme.typography.bodyLarge)
+            }
         }
     }
 }
@@ -107,11 +112,24 @@ fun ProviderActionButtonsSection(order: Order, customer: User?, viewModel: Order
 }
 
 @Composable
-fun CustomerActionButtonsSection(order: Order, viewModel: OrderDetailViewModel) {
+fun CustomerActionButtonsSection(order: Order, provider: ProviderProfile?, viewModel: OrderDetailViewModel) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        if (provider != null && order.status !in listOf("completed", "cancelled")) {
+            Text("Hubungi Penyedia", style = MaterialTheme.typography.labelMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { viewModel.contactProviderViaChat() }) { Text("Chat") }
+                OutlinedButton(onClick = { viewModel.contactProviderViaPhone() }) { Text("Telepon") }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+        if (order.status !in listOf("completed", "cancelled", "awaiting_confirmation")) {
+            OutlinedButton(onClick = { viewModel.cancelOrder() }) { Text("Batalkan Pesanan") }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
         if (order.status == "awaiting_confirmation") {
             Button(onClick = { viewModel.updateStatus("completed") }) {
-                Text("Konfirmasi Pekerjaan Selesai")
+                Text("Konfirmasi Selesai")
             }
         }
     }

@@ -23,6 +23,8 @@ interface OrderRepository {
     suspend fun rejectOrder(orderId: String): Flow<Result<Boolean>>
     suspend fun startOrder(orderId: String): Flow<Result<Boolean>>
     suspend fun completeOrder(orderId: String): Flow<Result<Boolean>>
+    suspend fun cancelOrder(orderId: String): Flow<Result<Boolean>>
+
     fun createPaymentRequest(orderId: String, user: User): Flow<Result<String>>
 
     fun getProviderOrdersByStatus(providerId: String, statuses: List<String>): Flow<Result<List<Order>>>

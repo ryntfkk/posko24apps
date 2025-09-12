@@ -132,11 +132,24 @@ class OrderDetailViewModel @Inject constructor(
         }
     }
 
+    fun cancelOrder() {
+        viewModelScope.launch {
+            repository.cancelOrder(orderId).collect {}
+        }
+    }
     fun contactCustomerViaChat() {
         // Implementation detail would integrate with chat feature
     }
 
     fun contactCustomerViaPhone() {
+        // Implementation detail would integrate with phone dialer
+    }
+
+    fun contactProviderViaChat() {
+        // Implementation detail would integrate with chat feature
+    }
+
+    fun contactProviderViaPhone() {
         // Implementation detail would integrate with phone dialer
     }
 }
