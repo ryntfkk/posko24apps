@@ -35,13 +35,20 @@ class AddressSettingsViewModel @Inject constructor(
         private set
     var location = mutableStateOf<GeoPoint?>(GeoPoint(-6.9926, 110.4283))
         private set
+    private var defaultAddress: UserAddress? = null
+
     init {
         loadProvinces()
+        loadUserAddress()
     }
+
     private fun loadProvinces() {
         viewModelScope.launch {
             addressRepository.getProvinces().collect { result ->
-                result.onSuccess { list -> provinces.value = list }
+                result.onSuccess { list ->
+                    provinces.value = list
+                    applyDefaultProvince()
+                }
             }
         }
     }
@@ -49,7 +56,10 @@ class AddressSettingsViewModel @Inject constructor(
     private fun loadCities(province: Wilayah) {
         viewModelScope.launch {
             addressRepository.getCities(province.docId).collect { result ->
-                result.onSuccess { list -> cities.value = list }
+                result.onSuccess { list ->
+                    cities.value = list
+                    applyDefaultCity()
+                }
             }
         }
     }
@@ -57,7 +67,55 @@ class AddressSettingsViewModel @Inject constructor(
     private fun loadDistricts(province: Wilayah, city: Wilayah) {
         viewModelScope.launch {
             addressRepository.getDistricts(province.docId, city.docId).collect { result ->
-                result.onSuccess { list -> districts.value = list }
+                result.onSuccess { list ->
+                    districts.value = list
+                    applyDefaultDistrict()
+                }
+            }
+        }
+    }
+
+    private fun loadUserAddress() {
+        val userId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            val result = addressRepository.getUserAddress(userId)
+            result.onSuccess { address ->
+                if (address != null) {
+                    defaultAddress = address
+                    addressDetail.value = address.detail
+                    location.value = address.location
+                    applyDefaultProvince()
+                }
+            }
+        }
+    }
+
+    private fun applyDefaultProvince() {
+        val addr = defaultAddress ?: return
+        if (selectedProvince.value == null && provinces.value.isNotEmpty()) {
+            provinces.value.find { it.name == addr.province }?.let { prov ->
+                selectedProvince.value = prov
+                loadCities(prov)
+            }
+        }
+    }
+
+    private fun applyDefaultCity() {
+        val addr = defaultAddress ?: return
+        val province = selectedProvince.value ?: return
+        if (selectedCity.value == null && cities.value.isNotEmpty()) {
+            cities.value.find { it.name == addr.city }?.let { city ->
+                selectedCity.value = city
+                loadDistricts(province, city)
+            }
+        }
+    }
+
+    private fun applyDefaultDistrict() {
+        val addr = defaultAddress ?: return
+        if (selectedDistrict.value == null && districts.value.isNotEmpty()) {
+            districts.value.find { it.name == addr.district }?.let { district ->
+                selectedDistrict.value = district
             }
         }
     }

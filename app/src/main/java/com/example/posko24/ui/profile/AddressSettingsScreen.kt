@@ -17,6 +17,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -46,6 +47,14 @@ fun AddressSettingsScreen(
         val loc = viewModel.location.value
         val latLng = if (loc != null) LatLng(loc.latitude, loc.longitude) else LatLng(-6.9926, 110.4283)
         position = CameraPosition.fromLatLngZoom(latLng, 15f)
+    }
+
+    LaunchedEffect(viewModel.location.value) {
+        viewModel.location.value?.let { loc ->
+            cameraPositionState.animate(
+                CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 15f)
+            )
+        }
     }
 
     fun fetchLocation() {
