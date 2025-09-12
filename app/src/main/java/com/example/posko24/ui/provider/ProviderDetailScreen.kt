@@ -33,7 +33,7 @@ import com.example.posko24.data.model.ProviderService
 @Composable
 fun ProviderDetailScreen(
     viewModel: ProviderDetailViewModel = hiltViewModel(),
-    onSelectService: (serviceId: String) -> Unit
+    onSelectService: (serviceId: String, categoryId: String) -> Unit
 ) {
     val detailState by viewModel.providerDetailState.collectAsState()
     val servicesState by viewModel.providerServicesState.collectAsState()
@@ -78,10 +78,10 @@ fun ProviderDetailScreen(
                         item { Text("Provider ini belum menambahkan layanan.") }
                     } else {
                         items(state.services) { service ->
-                            // Panggil ServiceListItem dengan aksi klik
+                            val categoryId = (detailState as? ProviderDetailState.Success)?.provider?.primaryCategoryId ?: ""
                             ServiceListItem(
                                 service = service,
-                                onClick = { onSelectService(service.id) }
+                                onClick = { onSelectService(service.id, categoryId) }
                             )
                         }
                     }

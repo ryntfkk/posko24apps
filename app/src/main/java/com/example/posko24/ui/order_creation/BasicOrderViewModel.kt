@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.AddressComponent
 import com.example.posko24.data.model.BasicService
 import com.example.posko24.data.model.Order
+import com.example.posko24.data.model.ProviderProfile
+import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.ServiceCategory
 import com.example.posko24.data.model.User
 import com.example.posko24.data.model.Wilayah
@@ -50,7 +52,10 @@ data class BasicOrderUiState(
     val orderCreationState: OrderCreationState = OrderCreationState.Idle,
     val currentUser: User? = null,
     val orderId: String? = null,
-    val paymentStatus: String = "pending"
+    val paymentStatus: String = "pending",
+    val orderType: String = "basic",
+    val provider: ProviderProfile? = null,
+    val providerService: ProviderService? = null
 )
 
 @HiltViewModel
@@ -88,7 +93,42 @@ class BasicOrderViewModel @Inject constructor(
         }
     }
 
-    fun createOrder(selectedService: BasicService) {
+    fun setDirectOrder(providerId: String, serviceId: String) {
+        viewModelScope.launch {
+            serviceRepository.getProviderDetails(providerId).collect { providerResult ->
+                providerResult.onSuccess { provider ->
+                    if (provider != null) {
+                        serviceRepository.getProviderServices(providerId).collect { serviceResult ->
+                            serviceResult.onSuccess { services ->
+                                val service = services.find { it.id == serviceId }
+                                _uiState.update {
+                                    it.copy(
+                                        provider = provider,
+                                        providerService = service,
+                                        orderType = "direct"
+                                    )
+                                }
+                            }.onFailure { e ->
+                                _uiState.update { it.copy(orderCreationState = OrderCreationState.Error(e.message ?: "Gagal memuat layanan")) }
+                            }
+                        }
+                    } else {
+                        _uiState.update { it.copy(orderCreationState = OrderCreationState.Error("Provider tidak ditemukan")) }
+                    }
+                }.onFailure { e ->
+                    _uiState.update { it.copy(orderCreationState = OrderCreationState.Error(e.message ?: "Gagal memuat provider")) }
+                }
+            }
+        }
+    }
+
+    fun clearProvider() {
+        _uiState.update {
+            it.copy(orderType = "basic", provider = null, providerService = null)
+        }
+    }
+
+    fun createOrder(selectedService: BasicService? = null) {
         viewModelScope.launch {
             val currentState = _uiState.value
             val currentUser = currentState.currentUser
@@ -110,34 +150,80 @@ class BasicOrderViewModel @Inject constructor(
 
             _uiState.update { it.copy(orderCreationState = OrderCreationState.Loading) }
 
-            val order = Order(
-                orderType = "basic",
-                customerId = currentUser.uid,
-                status = "awaiting_payment",
-                paymentStatus = "pending",
-                addressText = currentState.addressDetail,
-                province = currentState.selectedProvince?.let { AddressComponent(it.id, it.name) },
-                city = currentState.selectedCity?.let { AddressComponent(it.id, it.name) },
-                district = currentState.selectedDistrict?.let { AddressComponent(it.id, it.name) },
-                location = currentState.mapCoordinates,
-                serviceSnapshot = mapOf(
-                    "categoryName" to (currentState.category?.name ?: "N/A"),
-                    "serviceName" to selectedService.serviceName,
-                    "basePrice" to selectedService.flatPrice.toDouble()
+            if (currentState.orderType == "direct") {
+                val provider = currentState.provider
+                val service = currentState.providerService
+                if (provider == null || service == null) {
+                    _uiState.update { it.copy(orderCreationState = OrderCreationState.Error("Data provider tidak lengkap.")) }
+                    return@launch
+                }
+
+                val order = Order(
+                    orderType = "direct",
+                    customerId = currentUser.uid,
+                    providerId = provider.uid,
+                    status = "awaiting_payment",
+                    paymentStatus = "pending",
+                    addressText = currentState.addressDetail,
+                    province = currentState.selectedProvince?.let { AddressComponent(it.id, it.name) },
+                    city = currentState.selectedCity?.let { AddressComponent(it.id, it.name) },
+                    district = currentState.selectedDistrict?.let { AddressComponent(it.id, it.name) },
+                    location = currentState.mapCoordinates,
+                    serviceSnapshot = mapOf(
+                        "categoryName" to provider.primaryCategoryId,
+                        "serviceName" to service.name,
+                        "basePrice" to service.price
+                    )
                 )
-            )
 
-            Log.d("BasicOrderVM", "📦 Creating order: $order")
+                Log.d("BasicOrderVM", "📦 Creating direct order: $order")
 
-            orderRepository.createBasicOrder(order, currentUser.activeRole).collect { result ->
-                result.onSuccess { orderId ->
-                    Log.d("BasicOrderVM", "✅ Order created with ID: $orderId")
-                    _uiState.update { it.copy(orderId = orderId) }
-                    observeOrder(orderId)
-                    requestPaymentToken(orderId, currentUser)
-                }.onFailure { throwable ->
-                    Log.e("BasicOrderVM", "❌ Failed to create order: ${throwable.message}", throwable)
-                    _uiState.update { it.copy(orderCreationState = OrderCreationState.Error(throwable.message ?: "Gagal membuat pesanan.")) }
+                orderRepository.createDirectOrder(order, currentUser.activeRole).collect { result ->
+                    result.onSuccess { orderId ->
+                        Log.d("BasicOrderVM", "✅ Direct order created with ID: $orderId")
+                        _uiState.update { it.copy(orderId = orderId) }
+                        observeOrder(orderId)
+                        requestPaymentToken(orderId, currentUser)
+                    }.onFailure { throwable ->
+                        Log.e("BasicOrderVM", "❌ Failed to create direct order: ${throwable.message}", throwable)
+                        _uiState.update { it.copy(orderCreationState = OrderCreationState.Error(throwable.message ?: "Gagal membuat pesanan.")) }
+                    }
+                }
+            } else {
+                val service = selectedService ?: run {
+                    _uiState.update { it.copy(orderCreationState = OrderCreationState.Error("Layanan belum dipilih.")) }
+                    return@launch
+                }
+
+                val order = Order(
+                    orderType = "basic",
+                    customerId = currentUser.uid,
+                    status = "awaiting_payment",
+                    paymentStatus = "pending",
+                    addressText = currentState.addressDetail,
+                    province = currentState.selectedProvince?.let { AddressComponent(it.id, it.name) },
+                    city = currentState.selectedCity?.let { AddressComponent(it.id, it.name) },
+                    district = currentState.selectedDistrict?.let { AddressComponent(it.id, it.name) },
+                    location = currentState.mapCoordinates,
+                    serviceSnapshot = mapOf(
+                        "categoryName" to (currentState.category?.name ?: "N/A"),
+                        "serviceName" to service.serviceName,
+                        "basePrice" to service.flatPrice.toDouble()
+                    )
+                )
+
+                Log.d("BasicOrderVM", "📦 Creating order: $order")
+
+                orderRepository.createBasicOrder(order, currentUser.activeRole).collect { result ->
+                    result.onSuccess { orderId ->
+                        Log.d("BasicOrderVM", "✅ Order created with ID: $orderId")
+                        _uiState.update { it.copy(orderId = orderId) }
+                        observeOrder(orderId)
+                        requestPaymentToken(orderId, currentUser)
+                    }.onFailure { throwable ->
+                        Log.e("BasicOrderVM", "❌ Failed to create order: ${throwable.message}", throwable)
+                        _uiState.update { it.copy(orderCreationState = OrderCreationState.Error(throwable.message ?: "Gagal membuat pesanan.")) }
+                    }
                 }
             }
         }

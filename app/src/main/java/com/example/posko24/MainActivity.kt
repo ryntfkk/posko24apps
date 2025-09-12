@@ -20,7 +20,6 @@ import com.example.posko24.ui.chat.ConversationScreen
 import com.example.posko24.ui.main.MainScreen
 import com.example.posko24.ui.main.MainViewModel
 import com.example.posko24.ui.order_creation.BasicOrderScreen
-import com.example.posko24.ui.order_creation.DirectOrderScreen
 import com.example.posko24.ui.orders.OrderDetailScreen
 import com.example.posko24.ui.orders.ReviewScreen
 import com.example.posko24.ui.provider.ProviderDetailScreen
@@ -108,34 +107,29 @@ class MainActivity : ComponentActivity() {
                         ) { backStackEntry ->
                             val providerId = backStackEntry.arguments?.getString("providerId") ?: ""
                             ProviderDetailScreen(
-                                onSelectService = { serviceId ->
-                                    navController.navigate("direct_order_screen/$providerId/$serviceId")
+                                onSelectService = { serviceId, categoryId ->
+                                    navController.navigate("basic_order_screen/$categoryId?providerId=$providerId&serviceId=$serviceId")
                                 }
                             )
                         }
                         composable(
-                            route = "basic_order_screen/{categoryId}",
-                            arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
-                        ) {
+                            route = "basic_order_screen/{categoryId}?providerId={providerId}&serviceId={serviceId}",
+                            arguments = listOf(
+                                navArgument("categoryId") { type = NavType.StringType },
+                                navArgument("providerId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                                navArgument("serviceId") { type = NavType.StringType; nullable = true; defaultValue = null }
+                            )
+                        ) { backStackEntry ->
+                            val providerIdArg = backStackEntry.arguments?.getString("providerId")
+                            val serviceIdArg = backStackEntry.arguments?.getString("serviceId")
                             BasicOrderScreen(
+                                providerId = providerIdArg,
+                                serviceId = serviceIdArg,
                                 onOrderSuccess = { orderId ->
                                     if (orderId.isNotBlank()) {
                                         navController.navigate("order_detail_screen/$orderId")
                                     }
 
-                                }
-                            )
-                        }
-                        composable(
-                            route = "direct_order_screen/{providerId}/{serviceId}",
-                            arguments = listOf(
-                                navArgument("providerId") { type = NavType.StringType },
-                                navArgument("serviceId") { type = NavType.StringType }
-                            )
-                        ) {
-                            DirectOrderScreen(
-                                onOrderSuccess = { orderId ->
-                                    navController.navigate("order_detail_screen/$orderId")
                                 }
                             )
                         }

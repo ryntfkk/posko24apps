@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.data.model.BasicService
+import com.example.posko24.data.model.ProviderProfile
+import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.Wilayah
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.example.posko24.ui.components.InteractiveMapView
@@ -35,6 +39,8 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BasicOrderScreen(
+    providerId: String? = null,
+    serviceId: String? = null,
     viewModel: BasicOrderViewModel = hiltViewModel(),
     onOrderSuccess: (String) -> Unit = {}
 ) {
@@ -42,6 +48,12 @@ fun BasicOrderScreen(
     val context = LocalContext.current
     var selectedService by remember { mutableStateOf<BasicService?>(null) }
     val cameraPositionState = rememberCameraPositionState { position = uiState.cameraPosition }
+
+    LaunchedEffect(providerId, serviceId) {
+        if (!providerId.isNullOrBlank() && !serviceId.isNullOrBlank()) {
+            viewModel.setDirectOrder(providerId, serviceId)
+        }
+    }
 
     LaunchedEffect(uiState.orderCreationState) {
         val state = uiState.orderCreationState
@@ -120,22 +132,36 @@ fun BasicOrderScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp)
                 ) {
-                    Text("Pilih Jenis Layanan", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Tipe Order: ${if (uiState.orderType == "direct") "Direct" else "Basic"}",
+                        style = MaterialTheme.typography.titleMedium
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
-                    uiState.category?.basicOrderServices?.forEach { service ->
-                        ServiceItem(
-                            service = service,
-                            isSelected = service == selectedService,
-                            onClick = { selectedService = service }
+                    if (uiState.provider != null && uiState.providerService != null) {
+                        SelectedProviderCard(
+                            provider = uiState.provider,
+                            service = uiState.providerService,
+                            onClear = viewModel::clearProvider
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
-                    LaunchedEffect(uiState.category) {
-                        if (selectedService == null) {
-                            selectedService = uiState.category?.basicOrderServices?.firstOrNull()
+                    if (uiState.orderType == "basic") {
+                        Text("Pilih Jenis Layanan", style = MaterialTheme.typography.titleLarge)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        uiState.category?.basicOrderServices?.forEach { service ->
+                            ServiceItem(
+                                service = service,
+                                isSelected = service == selectedService,
+                                onClick = { selectedService = service }
+                            )
                         }
+                        LaunchedEffect(uiState.category) {
+                            if (selectedService == null) {
+                                selectedService = uiState.category?.basicOrderServices?.firstOrNull()
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
-
-                    Spacer(modifier = Modifier.height(24.dp))
                     Text("Pilih Alamat Pengiriman", style = MaterialTheme.typography.titleLarge)
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -171,9 +197,13 @@ fun BasicOrderScreen(
                 }
                 Button(
                     onClick = {
-                        selectedService?.let { service ->
-                            Log.d("BasicOrderScreen", "🛒 Membuat order dengan service=$service")
-                            viewModel.createOrder(service)
+                        if (uiState.orderType == "direct") {
+                            viewModel.createOrder()
+                        } else {
+                            selectedService?.let { service ->
+                                Log.d("BasicOrderScreen", "🛒 Membuat order dengan service=$service")
+                                viewModel.createOrder(service)
+                            }
                         }
                     },
                     modifier = Modifier
@@ -181,7 +211,7 @@ fun BasicOrderScreen(
                         .padding(16.dp),
                     enabled = uiState.selectedDistrict != null &&
                             uiState.addressDetail.isNotBlank() &&
-                            selectedService != null &&
+                            (uiState.orderType == "direct" || selectedService != null) &&
                             uiState.orderCreationState !is OrderCreationState.Loading &&
                             uiState.currentUser?.activeRole != "provider"
                 ) {
@@ -199,7 +229,34 @@ fun BasicOrderScreen(
     }
 }
 
-
+@Composable
+fun SelectedProviderCard(
+    provider: ProviderProfile,
+    service: ProviderService,
+    onClear: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(provider.fullName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(service.name, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Rp ${NumberFormat.getNumberInstance(Locale("id","ID")).format(service.price.toInt())}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            IconButton(onClick = onClear) {
+                Icon(imageVector = Icons.Filled.Close, contentDescription = "Hapus Provider")
+            }
+        }
+    }
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddressDropdowns(
