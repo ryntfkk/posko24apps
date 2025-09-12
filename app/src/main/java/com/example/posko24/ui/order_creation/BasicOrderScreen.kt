@@ -51,6 +51,10 @@ fun BasicOrderScreen(
     val context = LocalContext.current
     var selectedService by remember { mutableStateOf<BasicService?>(null) }
     val cameraPositionState = rememberCameraPositionState { position = uiState.cameraPosition }
+    val selectedPrice = when (uiState.orderType) {
+        "direct" -> uiState.providerService?.price?.toDouble()
+        else -> selectedService?.flatPrice?.toDouble()
+    }
 
     LaunchedEffect(uiState.cameraPosition) {
         cameraPositionState.position = uiState.cameraPosition
@@ -185,6 +189,23 @@ fun BasicOrderScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = uiState.promoCode,
+                            onValueChange = viewModel::onPromoCodeChanged,
+                            label = { Text("Kode Promo") },
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = { selectedPrice?.let { viewModel.applyPromoCode(it) } },
+                            enabled = !uiState.promoCode.isNullOrBlank()
+                        ) {
+                            Text("Terapkan")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
                     Text("Pilih Alamat Pengiriman", style = MaterialTheme.typography.titleLarge)
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -219,15 +240,12 @@ fun BasicOrderScreen(
                     )
                 }
 
-                val selectedPrice = when (uiState.orderType) {
-                    "direct" -> uiState.providerService?.price?.toDouble()
-                    else -> selectedService?.flatPrice?.toDouble()
-                }
                 if (selectedPrice != null) {
                     val subtotal = selectedPrice * uiState.quantity
                     val adminFee = PaymentConfig.ADMIN_FEE
-                    val total = subtotal + adminFee
-                    PaymentSummary(subtotal, adminFee, total)
+                    val discount = uiState.discountAmount
+                    val total = subtotal + adminFee - discount
+                    PaymentSummary(subtotal, adminFee, discount, total)
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
@@ -435,7 +453,7 @@ fun ServiceItem(service: BasicService, isSelected: Boolean, onClick: () -> Unit)
     }
 }
 @Composable
-fun PaymentSummary(subtotal: Double, adminFee: Double, total: Double) {
+fun PaymentSummary(subtotal: Double, adminFee: Double, discount: Double, total: Double) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -452,6 +470,16 @@ fun PaymentSummary(subtotal: Double, adminFee: Double, total: Double) {
             ) {
                 Text("Biaya Admin")
                 Text("Rp ${NumberFormat.getNumberInstance(Locale("id", "ID")).format(adminFee.toInt())}")
+            }
+            if (discount > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Diskon")
+                    Text("-Rp ${NumberFormat.getNumberInstance(Locale("id", "ID")).format(discount.toInt())}")
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Divider()

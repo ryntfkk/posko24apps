@@ -100,6 +100,13 @@ object AppModule {
     ): ReviewRepository {
         return ReviewRepositoryImpl(firestore)
     }
+    @Provides
+    @Singleton
+    fun providePromoRepository(
+        firestore: FirebaseFirestore
+    ): PromoRepository {
+        return PromoRepositoryImpl(firestore)
+    }
     // Kode baru Anda sudah benar, tidak perlu diubah
     @Provides
     @Singleton

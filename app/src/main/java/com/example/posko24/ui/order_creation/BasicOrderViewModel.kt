@@ -16,6 +16,7 @@ import com.example.posko24.data.repository.AddressRepository
 import com.example.posko24.data.repository.OrderRepository
 import com.example.posko24.data.repository.ServiceRepository
 import com.example.posko24.data.repository.UserRepository
+import com.example.posko24.data.repository.PromoRepository
 import com.example.posko24.config.PaymentConfig
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -58,7 +59,9 @@ data class BasicOrderUiState(
     val orderType: String = "basic",
     val provider: ProviderProfile? = null,
     val providerService: ProviderService? = null,
-    val quantity: Int = 1
+    val quantity: Int = 1,
+    val promoCode: String = "",
+    val discountAmount: Double = 0.0
 )
 
 @HiltViewModel
@@ -67,6 +70,7 @@ class BasicOrderViewModel @Inject constructor(
     private val orderRepository: OrderRepository,
     private val addressRepository: AddressRepository,
     private val userRepository: UserRepository,
+    private val promoRepository: PromoRepository,
     private val auth: FirebaseAuth,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -210,7 +214,9 @@ class BasicOrderViewModel @Inject constructor(
                 val basePrice = service.price
                 val lineTotal = basePrice * quantity
                 val adminFee = PaymentConfig.ADMIN_FEE
-                val totalAmount = lineTotal + adminFee
+                val totalBefore = lineTotal + adminFee
+                val discount = currentState.discountAmount.coerceAtMost(totalBefore)
+                val totalAmount = totalBefore - discount
                 val order = Order(
                     orderType = "direct",
                     customerId = currentUser.uid,
@@ -224,6 +230,8 @@ class BasicOrderViewModel @Inject constructor(
                     location = currentState.mapCoordinates,
                     quantity = quantity,
                     adminFee = adminFee,
+                    discountAmount = discount,
+                    promoCode = currentState.promoCode.ifBlank { null },
                     totalAmount = totalAmount,
                     serviceSnapshot = mapOf(
                         "categoryName" to provider.primaryCategoryId,
@@ -256,7 +264,9 @@ class BasicOrderViewModel @Inject constructor(
                 val basePrice = service.flatPrice.toDouble()
                 val lineTotal = basePrice * quantity
                 val adminFee = PaymentConfig.ADMIN_FEE
-                val totalAmount = lineTotal + adminFee
+                val totalBefore = lineTotal + adminFee
+                val discount = currentState.discountAmount.coerceAtMost(totalBefore)
+                val totalAmount = totalBefore - discount
                 val order = Order(
                     orderType = "basic",
                     customerId = currentUser.uid,
@@ -269,6 +279,8 @@ class BasicOrderViewModel @Inject constructor(
                     location = currentState.mapCoordinates,
                     quantity = quantity,
                     adminFee = adminFee,
+                    discountAmount = discount,
+                    promoCode = currentState.promoCode.ifBlank { null },
                     totalAmount = totalAmount,
                     serviceSnapshot = mapOf(
                         "categoryName" to (currentState.category?.name ?: "N/A"),
@@ -392,6 +404,32 @@ class BasicOrderViewModel @Inject constructor(
 
     fun onQuantityChanged(qty: Int) {
         _uiState.update { it.copy(quantity = qty.coerceAtLeast(1)) }
+    }
+
+    fun onPromoCodeChanged(code: String) {
+        _uiState.update { it.copy(promoCode = code, discountAmount = 0.0) }
+    }
+
+    fun applyPromoCode(basePrice: Double) {
+        val code = _uiState.value.promoCode
+        if (code.isBlank()) return
+        viewModelScope.launch {
+            promoRepository.validatePromoCode(code).collect { result ->
+                result.onSuccess { promo ->
+                    val quantity = _uiState.value.quantity
+                    val adminFee = PaymentConfig.ADMIN_FEE
+                    val lineTotal = basePrice * quantity
+                    val totalBefore = lineTotal + adminFee
+                    val discount = when (promo.discountType.lowercase()) {
+                        "percentage" -> totalBefore * (promo.value / 100.0)
+                        else -> promo.value
+                    }.coerceAtMost(totalBefore)
+                    _uiState.update { it.copy(discountAmount = discount) }
+                }.onFailure {
+                    _uiState.update { it.copy(discountAmount = 0.0) }
+                }
+            }
+        }
     }
 
     fun onAddressDetailChanged(detail: String) {

@@ -29,7 +29,8 @@ fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
     val quantity = order.quantity
     val lineTotal = basePrice * quantity
     val adminFee = order.adminFee
-    val totalAmount = if (order.totalAmount > 0) order.totalAmount else lineTotal + adminFee
+    val discount = order.discountAmount
+    val totalAmount = if (order.totalAmount > 0) order.totalAmount else lineTotal + adminFee - discount
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -68,6 +69,15 @@ fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
+            if (!order.promoCode.isNullOrBlank() && discount > 0) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Promo ${order.promoCode}", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    "-Rp ${"%,d".format(discount.toInt())}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
             Spacer(modifier = Modifier.height(16.dp))
             Text("Total", style = MaterialTheme.typography.labelMedium)
             Text(

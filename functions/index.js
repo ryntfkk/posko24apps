@@ -121,7 +121,8 @@ exports.createMidtransTransaction = functions.https.onCall(
     const quantity = Number(order?.quantity || 1);
         const lineTotal = basePrice * quantity;
         const adminFee = typeof order.adminFee === 'number' ? Number(order.adminFee) : ADMIN_FEE;
-        const grossAmount = lineTotal + adminFee;
+        const discountAmount = Number(order.discountAmount || 0);
+        const grossAmount = Math.max(0, lineTotal + adminFee - discountAmount);
     if (!basePrice || basePrice <= 0 || quantity <= 0) {
       throw new functions.https.HttpsError('invalid-argument', 'Harga layanan tidak valid.');
     }
@@ -163,6 +164,7 @@ exports.createMidtransTransaction = functions.https.onCall(
       orderId,
             grossAmount,
             adminFee,
+            discountAmount,
       isProduction: resolved.isProduction,
     });
 
