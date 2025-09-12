@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -20,7 +22,8 @@ import com.example.posko24.ui.chat.ConversationScreen
 import com.example.posko24.ui.main.MainScreen
 import com.example.posko24.ui.main.MainViewModel
 import com.example.posko24.ui.order_creation.BasicOrderScreen
-import com.example.posko24.ui.orders.OrderDetailScreen
+import com.example.posko24.ui.orders.CustomerOrderDetailScreen
+import com.example.posko24.ui.orders.ProviderOrderDetailScreen
 import com.example.posko24.ui.orders.ReviewScreen
 import com.example.posko24.ui.provider.ProviderDetailScreen
 import com.example.posko24.ui.provider.ProviderListScreen
@@ -43,7 +46,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
                     val mainViewModel: MainViewModel = hiltViewModel()
-                    val startDestination = "main_screen"
+                val activeRole by mainViewModel.activeRole.collectAsState()
+                val startDestination = "main_screen"
 
                     NavHost(navController = navController, startDestination = startDestination) {
                         composable("login_screen") {
@@ -71,7 +75,11 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("conversation_screen/$orderId")
                                 },
                                 onOrderClick = { orderId ->
-                                    navController.navigate("order_detail_screen/$orderId")
+                                    if (activeRole == "provider") {
+                                        navController.navigate("provider_order_detail_screen/$orderId")
+                                    } else {
+                                        navController.navigate("customer_order_detail_screen/$orderId")
+                                    }
                                 },
                                 onReviewClick = { orderId ->
                                     navController.navigate("review_screen/$orderId")
@@ -127,17 +135,33 @@ class MainActivity : ComponentActivity() {
                                 serviceId = serviceIdArg,
                                 onOrderSuccess = { orderId ->
                                     if (orderId.isNotBlank()) {
-                                        navController.navigate("order_detail_screen/$orderId")
+                                        if (activeRole == "provider") {
+                                            navController.navigate("provider_order_detail_screen/$orderId")
+                                        } else {
+                                            navController.navigate("customer_order_detail_screen/$orderId")
+                                        }
                                     }
 
                                 }
                             )
                         }
                         composable(
-                            route = "order_detail_screen/{orderId}",
+                            route = "customer_order_detail_screen/{orderId}",
                             arguments = listOf(navArgument("orderId") { type = NavType.StringType })
                         ) {
-                            OrderDetailScreen(
+                            CustomerOrderDetailScreen(
+                                onNavigateHome = {
+                                    navController.navigate("main_screen") {
+                                        popUpTo("main_screen") { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+                        composable(
+                            route = "provider_order_detail_screen/{orderId}",
+                            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+                        ) {
+                            ProviderOrderDetailScreen(
                                 onNavigateHome = {
                                     navController.navigate("main_screen") {
                                         popUpTo("main_screen") { inclusive = true }
