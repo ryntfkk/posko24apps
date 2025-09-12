@@ -29,6 +29,7 @@ import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.Wilayah
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.example.posko24.ui.components.InteractiveMapView
+import com.example.posko24.config.PaymentConfig
 import com.midtrans.sdk.uikit.external.UiKitApi
 import com.midtrans.sdk.uikit.api.callback.Callback
 import com.midtrans.sdk.uikit.api.exception.SnapError
@@ -217,6 +218,19 @@ fun BasicOrderScreen(
                         modifier = Modifier.padding(16.dp)
                     )
                 }
+
+                val selectedPrice = when (uiState.orderType) {
+                    "direct" -> uiState.providerService?.price?.toDouble()
+                    else -> selectedService?.flatPrice?.toDouble()
+                }
+                if (selectedPrice != null) {
+                    val subtotal = selectedPrice * uiState.quantity
+                    val adminFee = PaymentConfig.ADMIN_FEE
+                    val total = subtotal + adminFee
+                    PaymentSummary(subtotal, adminFee, total)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 Button(
                     onClick = {
                         if (uiState.orderType == "direct") {
@@ -417,6 +431,41 @@ fun ServiceItem(service: BasicService, isSelected: Boolean, onClick: () -> Unit)
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold
             )
+        }
+    }
+}
+@Composable
+fun PaymentSummary(subtotal: Double, adminFee: Double, total: Double) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Subtotal")
+                Text("Rp ${NumberFormat.getNumberInstance(Locale("id", "ID")).format(subtotal.toInt())}")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Biaya Admin")
+                Text("Rp ${NumberFormat.getNumberInstance(Locale("id", "ID")).format(adminFee.toInt())}")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Divider()
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Total", fontWeight = FontWeight.Bold)
+                Text(
+                    "Rp ${NumberFormat.getNumberInstance(Locale("id", "ID")).format(total.toInt())}",
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }

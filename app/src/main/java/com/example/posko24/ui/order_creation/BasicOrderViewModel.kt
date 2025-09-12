@@ -16,6 +16,7 @@ import com.example.posko24.data.repository.AddressRepository
 import com.example.posko24.data.repository.OrderRepository
 import com.example.posko24.data.repository.ServiceRepository
 import com.example.posko24.data.repository.UserRepository
+import com.example.posko24.config.PaymentConfig
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.auth.FirebaseAuth
@@ -207,6 +208,9 @@ class BasicOrderViewModel @Inject constructor(
 
                 val quantity = currentState.quantity
                 val basePrice = service.price
+                val lineTotal = basePrice * quantity
+                val adminFee = PaymentConfig.ADMIN_FEE
+                val totalAmount = lineTotal + adminFee
                 val order = Order(
                     orderType = "direct",
                     customerId = currentUser.uid,
@@ -219,11 +223,13 @@ class BasicOrderViewModel @Inject constructor(
                     district = currentState.selectedDistrict?.let { AddressComponent(it.id, it.name) },
                     location = currentState.mapCoordinates,
                     quantity = quantity,
+                    adminFee = adminFee,
+                    totalAmount = totalAmount,
                     serviceSnapshot = mapOf(
                         "categoryName" to provider.primaryCategoryId,
                         "serviceName" to service.name,
                         "basePrice" to basePrice,
-                        "lineTotal" to basePrice * quantity
+                        "lineTotal" to lineTotal
                     )
                 )
 
@@ -248,6 +254,9 @@ class BasicOrderViewModel @Inject constructor(
 
                 val quantity = currentState.quantity
                 val basePrice = service.flatPrice.toDouble()
+                val lineTotal = basePrice * quantity
+                val adminFee = PaymentConfig.ADMIN_FEE
+                val totalAmount = lineTotal + adminFee
                 val order = Order(
                     orderType = "basic",
                     customerId = currentUser.uid,
@@ -259,11 +268,13 @@ class BasicOrderViewModel @Inject constructor(
                     district = currentState.selectedDistrict?.let { AddressComponent(it.id, it.name) },
                     location = currentState.mapCoordinates,
                     quantity = quantity,
+                    adminFee = adminFee,
+                    totalAmount = totalAmount,
                     serviceSnapshot = mapOf(
                         "categoryName" to (currentState.category?.name ?: "N/A"),
                         "serviceName" to service.serviceName,
                         "basePrice" to basePrice,
-                        "lineTotal" to basePrice * quantity
+                        "lineTotal" to lineTotal
                     )
                 )
 

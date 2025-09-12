@@ -28,6 +28,8 @@ fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
     val basePrice = order.serviceSnapshot["basePrice"] as? Double ?: 0.0
     val quantity = order.quantity
     val lineTotal = basePrice * quantity
+    val adminFee = order.adminFee
+    val totalAmount = if (order.totalAmount > 0) order.totalAmount else lineTotal + adminFee
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -53,9 +55,23 @@ fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
             Text("Jumlah", style = MaterialTheme.typography.labelMedium)
             Text(quantity.toString(), style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Total", style = MaterialTheme.typography.labelMedium)
+            Text("Subtotal", style = MaterialTheme.typography.labelMedium)
             Text(
                 "Rp ${"%,d".format(lineTotal.toInt())}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Biaya Admin", style = MaterialTheme.typography.labelMedium)
+            Text(
+                "Rp ${"%,d".format(adminFee.toInt())}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Total", style = MaterialTheme.typography.labelMedium)
+            Text(
+                "Rp ${"%,d".format(totalAmount.toInt())}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )

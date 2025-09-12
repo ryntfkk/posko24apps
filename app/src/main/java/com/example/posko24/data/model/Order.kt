@@ -19,6 +19,8 @@ data class Order(
     val createdByRole: String = "",
     val serviceSnapshot: Map<String, Any> = emptyMap(), // Salinan info layanan
     val quantity: Int = 1,
+    val adminFee: Double = 0.0,
+    val totalAmount: Double = 0.0,
     val status: String = "", // e.g., "awaiting_payment", "searching_provider"
 
     // --- ALAMAT TERSTRUKTUR (SESUAI PERMINTAAN ANDA) ---

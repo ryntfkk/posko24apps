@@ -4,6 +4,8 @@ const functions = require('firebase-functions/v2');
 const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const midtransClient = require('midtrans-client');
+const { ADMIN_FEE } = require('./config');
+
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -117,7 +119,9 @@ exports.createMidtransTransaction = functions.https.onCall(
     const order = orderDoc.data() || {};
     const basePrice = Number(order?.serviceSnapshot?.basePrice);
     const quantity = Number(order?.quantity || 1);
-    const amount = basePrice * quantity;
+        const lineTotal = basePrice * quantity;
+        const adminFee = typeof order.adminFee === 'number' ? Number(order.adminFee) : ADMIN_FEE;
+        const grossAmount = lineTotal + adminFee;
     if (!basePrice || basePrice <= 0 || quantity <= 0) {
       throw new functions.https.HttpsError('invalid-argument', 'Harga layanan tidak valid.');
     }
@@ -126,7 +130,7 @@ exports.createMidtransTransaction = functions.https.onCall(
     const lastName = rest.join(' ') || 'User';
 
     const payload = {
-      transaction_details: { order_id: orderId, gross_amount: amount },
+            transaction_details: { order_id: orderId, gross_amount: grossAmount },
       customer_details: {
         first_name: firstName || 'Customer',
         last_name: lastName,
@@ -153,10 +157,12 @@ exports.createMidtransTransaction = functions.https.onCall(
       },
       // enabled_payments: ['gopay', 'bank_transfer', 'credit_card', 'echannel', 'cstore'],
     };
+    await orderRef.set({ adminFee, totalAmount: grossAmount }, { merge: true });
 
     functions.logger.info('[CREATE_TX] Requesting Snap token', {
       orderId,
-      amount,
+            grossAmount,
+            adminFee,
       isProduction: resolved.isProduction,
     });
 
