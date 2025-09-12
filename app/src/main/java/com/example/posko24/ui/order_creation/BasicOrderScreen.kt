@@ -4,8 +4,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,12 +47,7 @@ fun BasicOrderScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var selectedService by remember { mutableStateOf<BasicService?>(null) }
     val cameraPositionState = rememberCameraPositionState { position = uiState.cameraPosition }
-    val selectedPrice = when (uiState.orderType) {
-        "direct" -> uiState.providerService?.price?.toDouble()
-        else -> selectedService?.flatPrice?.toDouble()
-    }
 
     LaunchedEffect(uiState.cameraPosition) {
         cameraPositionState.position = uiState.cameraPosition
@@ -162,32 +155,28 @@ fun BasicOrderScreen(
                         Text("Pilih Jenis Layanan", style = MaterialTheme.typography.titleLarge)
                         Spacer(modifier = Modifier.height(8.dp))
                         uiState.category?.basicOrderServices?.forEach { service ->
-                            ServiceItem(
+                            val qty = uiState.serviceSelections.firstOrNull { it.service == service }?.quantity ?: 0
+                            ServiceQuantityItem(
                                 service = service,
-                                isSelected = service == selectedService,
-                                onClick = { selectedService = service }
+                                quantity = qty,
+                                onQuantityChange = { q -> viewModel.onServiceQuantityChanged(service, q) }
                             )
                         }
-                        LaunchedEffect(uiState.category) {
-                            if (selectedService == null) {
-                                selectedService = uiState.category?.basicOrderServices?.firstOrNull()
-                            }
-                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                    } else {
+                        OutlinedTextField(
+                            value = uiState.quantity.toString(),
+                            onValueChange = { qty ->
+                                val sanitized = qty.filter { it.isDigit() }
+                                viewModel.onQuantityChanged(sanitized.toIntOrNull() ?: 1)
+                            },
+                            label = { Text("Jumlah") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
                         Spacer(modifier = Modifier.height(24.dp))
                     }
-
-                    OutlinedTextField(
-                        value = uiState.quantity.toString(),
-                        onValueChange = { qty ->
-                            val sanitized = qty.filter { it.isDigit() }
-                            viewModel.onQuantityChanged(sanitized.toIntOrNull() ?: 1)
-                        },
-                        label = { Text("Jumlah") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
@@ -198,8 +187,8 @@ fun BasicOrderScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
-                            onClick = { selectedPrice?.let { viewModel.applyPromoCode(it) } },
-                            enabled = !uiState.promoCode.isNullOrBlank()
+                            onClick = { viewModel.applyPromoCode() },
+                            enabled = uiState.promoCode.isNotBlank()
                         ) {
                             Text("Terapkan")
                         }
@@ -240,8 +229,12 @@ fun BasicOrderScreen(
                     )
                 }
 
-                if (selectedPrice != null) {
-                    val subtotal = selectedPrice * uiState.quantity
+                val subtotal = if (uiState.orderType == "direct") {
+                    (uiState.providerService?.price?.toDouble() ?: 0.0) * uiState.quantity
+                } else {
+                    uiState.serviceSelections.sumOf { it.service.flatPrice * it.quantity }
+                }
+                if (subtotal > 0) {
                     val adminFee = PaymentConfig.ADMIN_FEE
                     val discount = uiState.discountAmount
                     val total = subtotal + adminFee - discount
@@ -250,23 +243,16 @@ fun BasicOrderScreen(
                 }
 
                 Button(
-                    onClick = {
-                        if (uiState.orderType == "direct") {
-                            viewModel.createOrder()
-                        } else {
-                            selectedService?.let { service ->
-                                Log.d("BasicOrderScreen", "🛒 Membuat order dengan service=$service")
-                                viewModel.createOrder(service)
-                            }
-                        }
-                    },
+                    onClick = { viewModel.createOrder() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
                     enabled = uiState.selectedDistrict != null &&
                             uiState.addressDetail.isNotBlank() &&
-                            uiState.quantity > 0 &&
-                            (uiState.orderType == "direct" || selectedService != null) &&
+                            (
+                                    (uiState.orderType == "direct" && uiState.quantity > 0) ||
+                                            (uiState.orderType == "basic" && uiState.serviceSelections.any { it.quantity > 0 })
+                                    ) &&
                             uiState.orderCreationState !is OrderCreationState.Loading &&
                             uiState.currentUser?.activeRole != "provider"
                 ) {
@@ -422,20 +408,15 @@ private fun AddressDropdowns(
 }
 
 @Composable
-fun ServiceItem(service: BasicService, isSelected: Boolean, onClick: () -> Unit) {
+fun ServiceQuantityItem(service: BasicService, quantity: Int, onQuantityChange: (Int) -> Unit) {
     val formattedPrice = NumberFormat.getNumberInstance(Locale("id", "ID"))
         .format(service.flatPrice.toInt())
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                shape = RoundedCornerShape(12.dp)
-            )
-            .clickable(onClick = onClick),
+            .padding(vertical = 4.dp),
+
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
@@ -443,12 +424,23 @@ fun ServiceItem(service: BasicService, isSelected: Boolean, onClick: () -> Unit)
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(service.serviceName, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                "Rp $formattedPrice",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(service.serviceName, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Rp $formattedPrice",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { if (quantity > 0) onQuantityChange(quantity - 1) }) {
+                    Text("-")
+                }
+                Text(quantity.toString(), modifier = Modifier.padding(horizontal = 8.dp))
+                IconButton(onClick = { onQuantityChange(quantity + 1) }) {
+                    Text("+")
+                }
+            }
         }
     }
 }

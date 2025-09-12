@@ -10,6 +10,7 @@ import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.ServiceCategory
+import com.example.posko24.data.model.ServiceSelection
 import com.example.posko24.data.model.User
 import com.example.posko24.data.model.Wilayah
 import com.example.posko24.data.repository.AddressRepository
@@ -60,6 +61,7 @@ data class BasicOrderUiState(
     val provider: ProviderProfile? = null,
     val providerService: ProviderService? = null,
     val quantity: Int = 1,
+    val serviceSelections: List<ServiceSelection> = emptyList(),
     val promoCode: String = "",
     val discountAmount: Double = 0.0
 )
@@ -180,7 +182,7 @@ class BasicOrderViewModel @Inject constructor(
         }
     }
 
-    fun createOrder(selectedService: BasicService? = null) {
+    fun createOrder() {
         viewModelScope.launch {
             val currentState = _uiState.value
             val currentUser = currentState.currentUser
@@ -255,16 +257,16 @@ class BasicOrderViewModel @Inject constructor(
                     }
                 }
             } else {
-                val service = selectedService ?: run {
+                val selections = currentState.serviceSelections.filter { it.quantity > 0 }
+                if (selections.isEmpty()) {
                     _uiState.update { it.copy(orderCreationState = OrderCreationState.Error("Layanan belum dipilih.")) }
                     return@launch
                 }
 
-                val quantity = currentState.quantity
-                val basePrice = service.flatPrice.toDouble()
-                val lineTotal = basePrice * quantity
+                val quantity = selections.sumOf { it.quantity }
+                val subtotal = selections.sumOf { it.service.flatPrice * it.quantity }
                 val adminFee = PaymentConfig.ADMIN_FEE
-                val totalBefore = lineTotal + adminFee
+                val totalBefore = subtotal + adminFee
                 val discount = currentState.discountAmount.coerceAtMost(totalBefore)
                 val totalAmount = totalBefore - discount
                 val order = Order(
@@ -284,9 +286,14 @@ class BasicOrderViewModel @Inject constructor(
                     totalAmount = totalAmount,
                     serviceSnapshot = mapOf(
                         "categoryName" to (currentState.category?.name ?: "N/A"),
-                        "serviceName" to service.serviceName,
-                        "basePrice" to basePrice,
-                        "lineTotal" to lineTotal
+                        "items" to selections.map {
+                            mapOf(
+                                "serviceName" to it.service.serviceName,
+                                "basePrice" to it.service.flatPrice,
+                                "quantity" to it.quantity,
+                                "lineTotal" to it.service.flatPrice * it.quantity
+                            )
+                        }
                     )
                 )
 
@@ -405,21 +412,42 @@ class BasicOrderViewModel @Inject constructor(
     fun onQuantityChanged(qty: Int) {
         _uiState.update { it.copy(quantity = qty.coerceAtLeast(1)) }
     }
+    fun onServiceQuantityChanged(service: BasicService, qty: Int) {
+        _uiState.update { state ->
+            val selections = state.serviceSelections.toMutableList()
+            val index = selections.indexOfFirst { it.service == service }
+            val newQty = qty.coerceAtLeast(0)
+            if (index >= 0) {
+                if (newQty == 0) {
+                    selections.removeAt(index)
+                } else {
+                    selections[index] = selections[index].copy(quantity = newQty)
+                }
+            } else if (newQty > 0) {
+                selections.add(ServiceSelection(service, newQty))
+            }
+            state.copy(serviceSelections = selections)
+        }
+    }
 
     fun onPromoCodeChanged(code: String) {
         _uiState.update { it.copy(promoCode = code, discountAmount = 0.0) }
     }
 
-    fun applyPromoCode(basePrice: Double) {
+    fun applyPromoCode() {
         val code = _uiState.value.promoCode
         if (code.isBlank()) return
         viewModelScope.launch {
             promoRepository.validatePromoCode(code).collect { result ->
                 result.onSuccess { promo ->
-                    val quantity = _uiState.value.quantity
+                    val state = _uiState.value
+                    val subtotal = if (state.orderType == "direct") {
+                        (state.providerService?.price?.toDouble() ?: 0.0) * state.quantity
+                    } else {
+                        state.serviceSelections.sumOf { it.service.flatPrice * it.quantity }
+                    }
                     val adminFee = PaymentConfig.ADMIN_FEE
-                    val lineTotal = basePrice * quantity
-                    val totalBefore = lineTotal + adminFee
+                    val totalBefore = subtotal + adminFee
                     val discount = when (promo.discountType.lowercase()) {
                         "percentage" -> totalBefore * (promo.value / 100.0)
                         else -> promo.value
