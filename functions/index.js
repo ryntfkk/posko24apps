@@ -117,14 +117,36 @@ exports.createMidtransTransaction = functions.https.onCall(
     }
 
     const order = orderDoc.data() || {};
-    const basePrice = Number(order?.serviceSnapshot?.basePrice);
-    const quantity = Number(order?.quantity || 1);
-        const lineTotal = basePrice * quantity;
-        const adminFee = typeof order.adminFee === 'number' ? Number(order.adminFee) : ADMIN_FEE;
+        const adminFee =
+          typeof order.adminFee === 'number' ? Number(order.adminFee) : ADMIN_FEE;
         const discountAmount = Number(order.discountAmount || 0);
-        const grossAmount = Math.max(0, lineTotal + adminFee - discountAmount);
-    if (!basePrice || basePrice <= 0 || quantity <= 0) {
-      throw new functions.https.HttpsError('invalid-argument', 'Harga layanan tidak valid.');
+
+        // Determine grossAmount. Prefer detailed items, then explicit total, then fallback to basePrice * quantity.
+        const items = Array.isArray(order?.serviceSnapshot?.items)
+          ? order.serviceSnapshot.items
+          : [];
+
+        let grossAmount = 0;
+        if (items.length > 0) {
+          const itemsTotal = items.reduce(
+            (sum, item) => sum + Number(item?.lineTotal || 0),
+            0
+          );
+          grossAmount = Math.max(0, itemsTotal + adminFee - discountAmount);
+        } else if (typeof order.totalAmount === 'number' && order.totalAmount > 0) {
+          grossAmount = Math.max(0, Number(order.totalAmount));
+        } else {
+          const basePrice = Number(order?.serviceSnapshot?.basePrice);
+          const quantity = Number(order?.quantity || 1);
+          const lineTotal = basePrice * quantity;
+          grossAmount = Math.max(0, lineTotal + adminFee - discountAmount);
+        }
+
+        if (!grossAmount || grossAmount <= 0) {
+          throw new functions.https.HttpsError(
+            'invalid-argument',
+            'Harga layanan tidak valid.'
+          );
     }
 
     const [firstName, ...rest] = customerName.split(' ').filter(Boolean);
