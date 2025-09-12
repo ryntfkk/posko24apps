@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.data.model.BasicService
@@ -168,6 +170,20 @@ fun BasicOrderScreen(
                         }
                         Spacer(modifier = Modifier.height(24.dp))
                     }
+
+                    OutlinedTextField(
+                        value = uiState.quantity.toString(),
+                        onValueChange = { qty ->
+                            val sanitized = qty.filter { it.isDigit() }
+                            viewModel.onQuantityChanged(sanitized.toIntOrNull() ?: 1)
+                        },
+                        label = { Text("Jumlah") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
                     Text("Pilih Alamat Pengiriman", style = MaterialTheme.typography.titleLarge)
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -217,6 +233,7 @@ fun BasicOrderScreen(
                         .padding(16.dp),
                     enabled = uiState.selectedDistrict != null &&
                             uiState.addressDetail.isNotBlank() &&
+                            uiState.quantity > 0 &&
                             (uiState.orderType == "direct" || selectedService != null) &&
                             uiState.orderCreationState !is OrderCreationState.Loading &&
                             uiState.currentUser?.activeRole != "provider"

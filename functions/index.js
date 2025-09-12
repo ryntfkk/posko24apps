@@ -115,8 +115,10 @@ exports.createMidtransTransaction = functions.https.onCall(
     }
 
     const order = orderDoc.data() || {};
-    const amount = Number(order?.serviceSnapshot?.basePrice);
-    if (!amount || amount <= 0) {
+    const basePrice = Number(order?.serviceSnapshot?.basePrice);
+    const quantity = Number(order?.quantity || 1);
+    const amount = basePrice * quantity;
+    if (!basePrice || basePrice <= 0 || quantity <= 0) {
       throw new functions.https.HttpsError('invalid-argument', 'Harga layanan tidak valid.');
     }
 
@@ -404,8 +406,9 @@ exports.onOrderCancelled = onDocumentUpdated('orders/{orderId}', async (event) =
   const before = event.data.before.data();
 
   if (after.status === 'cancelled' && before.paymentStatus !== 'PAID' && after.paymentStatus === 'PAID') {
-    const { customerId, serviceSnapshot } = after;
-    const amount = serviceSnapshot?.basePrice;
+        const { customerId, serviceSnapshot, quantity } = after;
+        const basePrice = serviceSnapshot?.basePrice;
+        const amount = basePrice * (quantity || 1);
     if (!customerId || !amount || amount <= 0) return null;
 
     const customerRef = db.collection('users').doc(customerId);

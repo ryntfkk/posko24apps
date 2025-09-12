@@ -26,6 +26,8 @@ import com.example.posko24.data.model.OrderStatus
 fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
     val serviceName = order.serviceSnapshot["serviceName"] as? String ?: "Layanan"
     val basePrice = order.serviceSnapshot["basePrice"] as? Double ?: 0.0
+    val quantity = order.quantity
+    val lineTotal = basePrice * quantity
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -44,6 +46,16 @@ fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
             Text("Biaya Dasar", style = MaterialTheme.typography.labelMedium)
             Text(
                 "Rp ${"%,d".format(basePrice.toInt())}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Jumlah", style = MaterialTheme.typography.labelMedium)
+            Text(quantity.toString(), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Total", style = MaterialTheme.typography.labelMedium)
+            Text(
+                "Rp ${"%,d".format(lineTotal.toInt())}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )

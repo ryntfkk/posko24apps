@@ -56,7 +56,8 @@ data class BasicOrderUiState(
     val paymentStatus: String = "pending",
     val orderType: String = "basic",
     val provider: ProviderProfile? = null,
-    val providerService: ProviderService? = null
+    val providerService: ProviderService? = null,
+    val quantity: Int = 1
 )
 
 @HiltViewModel
@@ -204,6 +205,8 @@ class BasicOrderViewModel @Inject constructor(
                     return@launch
                 }
 
+                val quantity = currentState.quantity
+                val basePrice = service.price
                 val order = Order(
                     orderType = "direct",
                     customerId = currentUser.uid,
@@ -215,10 +218,12 @@ class BasicOrderViewModel @Inject constructor(
                     city = currentState.selectedCity?.let { AddressComponent(it.id, it.name) },
                     district = currentState.selectedDistrict?.let { AddressComponent(it.id, it.name) },
                     location = currentState.mapCoordinates,
+                    quantity = quantity,
                     serviceSnapshot = mapOf(
                         "categoryName" to provider.primaryCategoryId,
                         "serviceName" to service.name,
-                        "basePrice" to service.price
+                        "basePrice" to basePrice,
+                        "lineTotal" to basePrice * quantity
                     )
                 )
 
@@ -241,6 +246,8 @@ class BasicOrderViewModel @Inject constructor(
                     return@launch
                 }
 
+                val quantity = currentState.quantity
+                val basePrice = service.flatPrice.toDouble()
                 val order = Order(
                     orderType = "basic",
                     customerId = currentUser.uid,
@@ -251,10 +258,12 @@ class BasicOrderViewModel @Inject constructor(
                     city = currentState.selectedCity?.let { AddressComponent(it.id, it.name) },
                     district = currentState.selectedDistrict?.let { AddressComponent(it.id, it.name) },
                     location = currentState.mapCoordinates,
+                    quantity = quantity,
                     serviceSnapshot = mapOf(
                         "categoryName" to (currentState.category?.name ?: "N/A"),
                         "serviceName" to service.serviceName,
-                        "basePrice" to service.flatPrice.toDouble()
+                        "basePrice" to basePrice,
+                        "lineTotal" to basePrice * quantity
                     )
                 )
 
@@ -368,6 +377,10 @@ class BasicOrderViewModel @Inject constructor(
 
     fun onDistrictSelected(district: Wilayah) {
         _uiState.update { it.copy(selectedDistrict = district) }
+    }
+
+    fun onQuantityChanged(qty: Int) {
+        _uiState.update { it.copy(quantity = qty.coerceAtLeast(1)) }
     }
 
     fun onAddressDetailChanged(detail: String) {
