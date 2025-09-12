@@ -42,7 +42,7 @@ fun BasicOrderScreen(
     providerId: String? = null,
     serviceId: String? = null,
     viewModel: BasicOrderViewModel = hiltViewModel(),
-    onOrderSuccess: (String) -> Unit = {}
+    onOrderSuccess: (String) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -137,10 +137,12 @@ fun BasicOrderScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    if (uiState.provider != null && uiState.providerService != null) {
+                    val provider = uiState.provider
+                    val providerService = uiState.providerService
+                    if (provider != null && providerService != null) {
                         SelectedProviderCard(
-                            provider = uiState.provider,
-                            service = uiState.providerService,
+                            provider = provider,
+                            service = providerService,
                             onClear = viewModel::clearProvider
                         )
                         Spacer(modifier = Modifier.height(16.dp))
