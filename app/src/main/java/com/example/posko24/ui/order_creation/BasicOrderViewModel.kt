@@ -485,4 +485,3 @@ class BasicOrderViewModel @Inject constructor(
         _uiState.update { it.copy(orderCreationState = OrderCreationState.Idle) }
     }
 }
-

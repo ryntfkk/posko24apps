@@ -21,9 +21,12 @@ class PromoRepositoryImpl @Inject constructor(
         val document = docRef.get().await()
 
         val promo = if (document.exists()) {
-            // When the code is stored as the document ID, ensure the model
-            // also contains the code value.
-            document.toObject(PromoCode::class.java)?.copy(code = normalizedCode)
+            // When the code is stored as the document ID, ensure the model also
+            // contains the code value and explicitly read the active flag.
+            document.toObject(PromoCode::class.java)?.copy(
+                code = normalizedCode,
+                isActive = document.getBoolean("isActive") ?: false
+            )
         } else {
             // Fallback to querying by a `code` field for backward compatibility.
             val snapshot = firestore.collection("promo_codes")
@@ -35,9 +38,17 @@ class PromoRepositoryImpl @Inject constructor(
                 throw IllegalArgumentException("Promo code tidak ditemukan")
             }
 
-            snapshot.documents.first().toObject(PromoCode::class.java)
+            val doc = snapshot.documents.first()
+            doc.toObject(PromoCode::class.java)?.copy(
+                code = doc.getString("code") ?: normalizedCode,
+                isActive = doc.getBoolean("isActive") ?: false
+            )
         }
-        if (promo == null || !promo.isActive) {
+        if (promo == null) {
+            Log.w("PromoRepository", "❌ Promo code invalid: $normalizedCode")
+            throw IllegalArgumentException("Promo code tidak ditemukan")
+        }
+        if (!promo.isActive) {
             Log.w("PromoRepository", "❌ Promo code inactive: $normalizedCode")
 
             throw IllegalArgumentException("Promo code tidak aktif")
