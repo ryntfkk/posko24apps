@@ -14,16 +14,32 @@ class PromoRepositoryImpl @Inject constructor(
 ) : PromoRepository {
     override fun validatePromoCode(code: String): Flow<Result<PromoCode>> = flow {
         val normalizedCode = code.trim().uppercase()
-        val snapshot = firestore.collection("promo_codes")
-            .whereEqualTo("code", normalizedCode)
-            .get().await()
-        Log.w("PromoRepository", "❌ Promo code not found: $code")
-        if (snapshot.isEmpty) {
-            throw IllegalArgumentException("Promo code tidak ditemukan")
+
+        // First try to fetch the promo code by document ID. Some documents may
+        // use the code itself as the ID without storing a dedicated `code` field.
+        val docRef = firestore.collection("promo_codes").document(normalizedCode)
+        val document = docRef.get().await()
+
+        val promo = if (document.exists()) {
+            // When the code is stored as the document ID, ensure the model
+            // also contains the code value.
+            document.toObject(PromoCode::class.java)?.copy(code = normalizedCode)
+        } else {
+            // Fallback to querying by a `code` field for backward compatibility.
+            val snapshot = firestore.collection("promo_codes")
+                .whereEqualTo("code", normalizedCode)
+                .get().await()
+
+            if (snapshot.isEmpty) {
+                Log.w("PromoRepository", "❌ Promo code not found: $normalizedCode")
+                throw IllegalArgumentException("Promo code tidak ditemukan")
+            }
+
+            snapshot.documents.first().toObject(PromoCode::class.java)
         }
-        val promo = snapshot.documents.first().toObject(PromoCode::class.java)
-        Log.w("PromoRepository", "❌ Promo code inactive: $code")
         if (promo == null || !promo.isActive) {
+            Log.w("PromoRepository", "❌ Promo code inactive: $normalizedCode")
+
             throw IllegalArgumentException("Promo code tidak aktif")
         }
         emit(Result.success(promo))
