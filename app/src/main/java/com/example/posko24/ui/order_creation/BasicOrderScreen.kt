@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -172,8 +173,15 @@ fun BasicOrderScreen(
             ) {
                 item { ServiceDetailsSection(viewModel = viewModel, uiState = uiState) }
                 item { AddressSection(viewModel = viewModel, uiState = uiState) }
-                item { PaymentDetailsSection(subtotal = subtotal, adminFee = adminFee, discount = discount) }
-                item { PromoSection(viewModel = viewModel, uiState = uiState) }
+                item {
+                    PaymentAndPromoSection(
+                        viewModel = viewModel,
+                        uiState = uiState,
+                        subtotal = subtotal,
+                        adminFee = adminFee,
+                        discount = discount
+                    )
+                }
 
                 // Spacer for bottom bar
                 item { Spacer(modifier = Modifier.height(100.dp)) }
@@ -399,10 +407,55 @@ private fun AddressDropdowns(
 }
 
 @Composable
-fun PaymentDetailsSection(subtotal: Double, adminFee: Double, discount: Double) {
+fun PaymentAndPromoSection(
+    viewModel: BasicOrderViewModel,
+    uiState: BasicOrderUiState,
+    subtotal: Double,
+    adminFee: Double,
+    discount: Double
+) {
+    var promoFieldVisible by remember { mutableStateOf(false) }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             SectionHeader("Rincian Pembayaran", Icons.Default.ReceiptLong)
+
+            // Animated visibility for the trigger text
+            AnimatedVisibility(visible = !promoFieldVisible) {
+                TextButton(
+                    onClick = { promoFieldVisible = true },
+                    modifier = Modifier.padding(top = 0.dp) // Adjust padding if needed
+                ) {
+                    Icon(Icons.Default.LocalOffer, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Punya kode promo?")
+                }
+            }
+
+            // Animated visibility for the promo input field
+            AnimatedVisibility(visible = promoFieldVisible) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    ModernTextField(
+                        value = uiState.promoCode,
+                        onValueChange = viewModel::onPromoCodeChanged,
+                        label = "Masukkan Kode Promo",
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = { viewModel.applyPromoCode() },
+                        enabled = uiState.promoCode.isNotBlank()
+                    ) {
+                        Text("Cek")
+                    }
+                }
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
             PaymentDetailRow("Subtotal", subtotal)
             PaymentDetailRow("Biaya Admin", adminFee)
             if (discount > 0) {
@@ -411,6 +464,7 @@ fun PaymentDetailsSection(subtotal: Double, adminFee: Double, discount: Double) 
         }
     }
 }
+
 
 @Composable
 fun PaymentDetailRow(label: String, amount: Double, isDiscount: Boolean = false) {
@@ -427,30 +481,6 @@ fun PaymentDetailRow(label: String, amount: Double, isDiscount: Boolean = false)
             fontWeight = FontWeight.SemiBold,
             color = if (isDiscount) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
         )
-    }
-}
-
-@Composable
-fun PromoSection(viewModel: BasicOrderViewModel, uiState: BasicOrderUiState) {
-    Card(modifier = Modifier.fillMaxWidth()){
-        Column(modifier = Modifier.padding(16.dp)) {
-            SectionHeader("Promo", Icons.Default.LocalOffer)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                ModernTextField(
-                    value = uiState.promoCode,
-                    onValueChange = viewModel::onPromoCodeChanged,
-                    label = "Masukkan Kode Promo",
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = { viewModel.applyPromoCode() },
-                    enabled = uiState.promoCode.isNotBlank()
-                ) {
-                    Text("Cek")
-                }
-            }
-        }
     }
 }
 
