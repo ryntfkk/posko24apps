@@ -436,8 +436,11 @@ class BasicOrderViewModel @Inject constructor(
     }
 
     fun applyPromoCode() {
-        val code = _uiState.value.promoCode
-        if (code.isBlank()) return
+        val code = _uiState.value.promoCode.trim().uppercase()
+        if (code.isBlank()) {
+            Log.w("BasicOrderVM", "⚠️ Promo code is blank")
+            return
+        }
         viewModelScope.launch {
             promoRepository.validatePromoCode(code).collect { result ->
                 result.onSuccess { promo ->
@@ -453,12 +456,14 @@ class BasicOrderViewModel @Inject constructor(
                         "percentage" -> totalBefore * (promo.value / 100.0)
                         else -> promo.value
                     }.coerceAtMost(totalBefore)
+                    Log.d("BasicOrderVM", "✅ Promo code applied: $code with discount $discount")
                     _uiState.update {
                         it.copy(discountAmount = discount, promoMessage = "Kode promo berhasil diterapkan")
                     }
-                }.onFailure {
+                }.onFailure { e ->
+                    Log.e("BasicOrderVM", "❌ Failed to apply promo code: ${e.message}", e)
                     _uiState.update {
-                        it.copy(discountAmount = 0.0, promoMessage = "Kode promo tidak valid")
+                        it.copy(discountAmount = 0.0, promoMessage = e.message ?: "Kode promo tidak valid")
                     }
                 }
             }
