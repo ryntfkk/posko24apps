@@ -95,6 +95,14 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideCertificationRepository(
+        firestore: FirebaseFirestore
+    ): CertificationRepository {
+        return CertificationRepositoryImpl(firestore)
+    }
+
+    @Provides
+    @Singleton
     fun provideReviewRepository(
         firestore: FirebaseFirestore
     ): ReviewRepository {

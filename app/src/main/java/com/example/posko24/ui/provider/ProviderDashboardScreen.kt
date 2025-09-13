@@ -3,6 +3,7 @@ package com.example.posko24.ui.provider
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,25 +13,31 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.data.model.Order
 import com.example.posko24.ui.components.OrderCard
+import com.example.posko24.ui.components.SkillTag
+import com.example.posko24.ui.components.CertificationCard
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ProviderDashboardScreen(
     activeRole: String,
     activeJobsViewModel: ActiveJobsViewModel = hiltViewModel(),
     skillsViewModel: SkillsViewModel = hiltViewModel(),
+    certificationsViewModel: CertificationsViewModel = hiltViewModel(),
     reviewsViewModel: ReviewsViewModel = hiltViewModel(),
     balanceViewModel: BalanceViewModel = hiltViewModel(),
     onOrderClick: (String) -> Unit
 ) {
     val activeJobsState by activeJobsViewModel.state.collectAsState()
     val skillsState by skillsViewModel.state.collectAsState()
+    val certificationsState by certificationsViewModel.state.collectAsState()
     val reviewsState by reviewsViewModel.state.collectAsState()
     val balanceState by balanceViewModel.state.collectAsState()
     var selectedOrder by remember { mutableStateOf<Order?>(null) }
     LaunchedEffect(activeRole) {
         activeJobsViewModel.onActiveRoleChanged(activeRole)
         skillsViewModel.onActiveRoleChanged(activeRole)
+        certificationsViewModel.onActiveRoleChanged(activeRole)
         reviewsViewModel.onActiveRoleChanged(activeRole)
         balanceViewModel.onActiveRoleChanged(activeRole)
     }
@@ -175,12 +182,17 @@ fun ProviderDashboardScreen(
                 }
                 is SkillsState.Success -> {
                     item {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            skillState.skills.forEach { skill ->
-                                Text("• ${skill.name}")
-                            }
-                            if (skillState.skills.isEmpty()) {
-                                Text("Belum ada keahlian.")
+                        if (skillState.skills.isEmpty()) {
+                            Text("Belum ada keahlian.")
+                        } else {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                skillState.skills.forEach { skill ->
+                                    SkillTag(skill.name)
+                                }
                             }
                         }
                     }
@@ -189,7 +201,48 @@ fun ProviderDashboardScreen(
                     item { Text(skillState.message) }
                 }
             }
-
+            /** Sertifikasi */
+            item {
+                Text(
+                    "Sertifikasi",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                Divider()
+            }
+            when (val certState = certificationsState) {
+                is CertificationsState.Loading -> {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                }
+                is CertificationsState.Success -> {
+                    item {
+                        if (certState.certifications.isEmpty()) {
+                            Text("Belum ada sertifikasi.")
+                        } else {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                certState.certifications.forEach { cert ->
+                                    CertificationCard(
+                                        certification = cert,
+                                        modifier = Modifier.width(160.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                is CertificationsState.Error -> {
+                    item { Text(certState.message) }
+                }
+            }
             /** Ulasan */
             item {
                 Text(
