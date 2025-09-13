@@ -230,8 +230,23 @@ class BasicOrderViewModel @Inject constructor(
                     return@launch
                 }
 
-                val quantity = selections.sumOf { it.quantity }
-                val subtotal = selections.sumOf { it.service.price * it.quantity }
+                var quantity = 0
+                var subtotal = 0.0
+                val items = mutableListOf<Map<String, Any>>()
+                for (selection in selections) {
+                    val lineTotal = selection.service.price * selection.quantity
+                    quantity += selection.quantity
+                    subtotal += lineTotal
+                    items.add(
+                        mapOf(
+                            "serviceName" to selection.service.name,
+                            "basePrice" to selection.service.price,
+                            "quantity" to selection.quantity,
+                            "lineTotal" to lineTotal
+                        )
+                    )
+                }
+
                 val adminFee = PaymentConfig.ADMIN_FEE
                 val totalBefore = subtotal + adminFee
                 val discount = currentState.discountAmount.coerceAtMost(totalBefore)
@@ -254,14 +269,7 @@ class BasicOrderViewModel @Inject constructor(
                     totalAmount = totalAmount,
                     serviceSnapshot = mapOf(
                         "categoryName" to provider.primaryCategoryId,
-                        "items" to selections.map {
-                            mapOf(
-                                "serviceName" to it.service.name,
-                                "basePrice" to it.service.price,
-                                "quantity" to it.quantity,
-                                "lineTotal" to it.service.price * it.quantity
-                            )
-                        }
+                        "items" to items
                     )
                 )
 
