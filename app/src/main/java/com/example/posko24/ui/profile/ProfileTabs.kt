@@ -22,7 +22,8 @@ fun ProfileTabs() {
         "Portofolio",
         "Layanan",
         "Sertifikasi & Keahlian",
-        "Ulasan"
+        "Ulasan",
+        "Info"
     )
     val (selectedTab, setSelectedTab) = remember { mutableStateOf(0) }
 
@@ -42,6 +43,7 @@ fun ProfileTabs() {
             1 -> PlaceholderContent("Layanan")
             2 -> PlaceholderContent("Sertifikasi & Keahlian")
             3 -> PlaceholderContent("Ulasan")
+            4 -> InfoTabContent()
         }
     }
 }
