@@ -10,7 +10,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -23,7 +22,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.config.PaymentConfig
@@ -122,7 +120,7 @@ fun BasicOrderScreen(
     }
 
     val subtotal = if (uiState.orderType == "direct") {
-        (uiState.providerService?.price ?: 0.0) * uiState.quantity
+        uiState.providerServiceSelections.sumOf { it.service.price * it.quantity }
     } else {
         uiState.serviceSelections.sumOf { it.service.flatPrice * it.quantity }
     }
@@ -207,12 +205,9 @@ fun ServiceDetailsSection(viewModel: BasicOrderViewModel, uiState: BasicOrderUiS
             SectionHeader("Layanan", Icons.Default.Build)
 
             val provider = uiState.provider
-            val providerService = uiState.providerService
-
-            if (provider != null && providerService != null) {
+            if (provider != null) {
                 SelectedProviderCard(
                     provider = provider,
-                    service = providerService,
                     onClear = { viewModel.clearProvider() }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -231,24 +226,23 @@ fun ServiceDetailsSection(viewModel: BasicOrderViewModel, uiState: BasicOrderUiS
                     }
                 }
             } else {
-                ModernTextField(
-                    value = uiState.quantity.toString(),
-                    onValueChange = { qty ->
-                        val sanitized = qty.filter { it.isDigit() }
-                        viewModel.onQuantityChanged(sanitized.toIntOrNull() ?: 1)
-                    },
-                    label = "Jumlah",
-                    leadingIcon = Icons.Filled.FormatListNumbered,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                uiState.providerServiceSelections.forEachIndexed { index, selection ->
+                    ProviderServiceQuantityItem(
+                        service = selection.service,
+                        quantity = selection.quantity,
+                        onQuantityChange = { q -> viewModel.onProviderServiceQuantityChanged(selection.service, q) }
+                    )
+                    if (index < uiState.providerServiceSelections.size - 1) {
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun SelectedProviderCard(provider: ProviderProfile, service: ProviderService, onClear: () -> Unit) {
+fun SelectedProviderCard(provider: ProviderProfile, onClear: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
@@ -260,13 +254,6 @@ fun SelectedProviderCard(provider: ProviderProfile, service: ProviderService, on
             Column(modifier = Modifier.weight(1f)) {
                 Text("Direct Order ke:", style = MaterialTheme.typography.labelMedium)
                 Text(provider.fullName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(service.name, style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    "Rp ${NumberFormat.getNumberInstance(Locale("id","ID")).format(service.price.toInt())}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
-                )
             }
             IconButton(onClick = onClear) {
                 Icon(Icons.Filled.Close, contentDescription = "Hapus Provider")
@@ -308,226 +295,316 @@ fun ServiceQuantityItem(service: BasicService, quantity: Int, onQuantityChange: 
         }
     }
 }
-
-
 @Composable
-fun AddressSection(viewModel: BasicOrderViewModel, uiState: BasicOrderUiState) {
-    val cameraPositionState = rememberCameraPositionState {
-        uiState.mapCoordinates?.let {
-            position = CameraPosition.fromLatLngZoom(LatLng(it.latitude, it.longitude), 15f)
-        }
-    }
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            SectionHeader("Alamat", Icons.Default.LocationOn)
-            AddressDropdowns(
-                uiState = uiState,
-                onProvinceSelected = viewModel::onProvinceSelected,
-                onCitySelected = viewModel::onCitySelected,
-                onDistrictSelected = viewModel::onDistrictSelected
-            )
-            ModernTextField(
-                value = uiState.addressDetail,
-                onValueChange = viewModel::onAddressDetailChanged,
-                label = "Detail Alamat (Nama Jalan, No. Rumah, dll)",
-                leadingIcon = Icons.Filled.Home,
-                modifier = Modifier.fillMaxWidth()
-            )
-            InteractiveMapView(
-                cameraPositionState = cameraPositionState,
-                onMapCoordinatesChanged = viewModel::onMapCoordinatesChanged
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AddressDropdowns(
-    uiState: BasicOrderUiState,
-    onProvinceSelected: (Wilayah) -> Unit,
-    onCitySelected: (Wilayah) -> Unit,
-    onDistrictSelected: (Wilayah) -> Unit
-) {
-    var provinceExpanded by remember { mutableStateOf(false) }
-    var cityExpanded by remember { mutableStateOf(false) }
-    var districtExpanded by remember { mutableStateOf(false) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Province Dropdown (Full Width)
-        ExposedDropdownMenuBox(expanded = provinceExpanded, onExpandedChange = { provinceExpanded = !provinceExpanded }) {
-            ModernTextField(
-                value = uiState.selectedProvince?.name ?: "Pilih Provinsi",
-                onValueChange = {}, label = "Provinsi",
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = provinceExpanded) },
-                modifier = Modifier.menuAnchor().fillMaxWidth(), readOnly = true
-            )
-            ExposedDropdownMenu(expanded = provinceExpanded, onDismissRequest = { provinceExpanded = false }) {
-                uiState.provinces.forEach { province ->
-                    DropdownMenuItem(text = { Text(province.name) }, onClick = { onProvinceSelected(province); provinceExpanded = false })
-                }
-            }
-        }
-
-        // City and District Dropdowns (Side-by-side)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            // City Dropdown
-            Box(modifier = Modifier.weight(1f)) {
-                ExposedDropdownMenuBox(expanded = cityExpanded, onExpandedChange = { if (uiState.cities.isNotEmpty()) cityExpanded = !cityExpanded }) {
-                    ModernTextField(
-                        value = uiState.selectedCity?.name ?: "Pilih Kota", onValueChange = {}, label = "Kota/Kabupaten",
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cityExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth(), readOnly = true, enabled = uiState.selectedProvince != null
-                    )
-                    ExposedDropdownMenu(expanded = cityExpanded, onDismissRequest = { cityExpanded = false }) {
-                        uiState.cities.forEach { city ->
-                            DropdownMenuItem(text = { Text(city.name) }, onClick = { onCitySelected(city); cityExpanded = false })
-                        }
-                    }
-                }
-            }
-
-            // District Dropdown
-            Box(modifier = Modifier.weight(1f)) {
-                ExposedDropdownMenuBox(expanded = districtExpanded, onExpandedChange = { if (uiState.districts.isNotEmpty()) districtExpanded = !districtExpanded }) {
-                    ModernTextField(
-                        value = uiState.selectedDistrict?.name ?: "Pilih Kecamatan", onValueChange = {}, label = "Kecamatan",
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = districtExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth(), readOnly = true, enabled = uiState.selectedCity != null
-                    )
-                    ExposedDropdownMenu(expanded = districtExpanded, onDismissRequest = { districtExpanded = false }) {
-                        uiState.districts.forEach { district ->
-                            DropdownMenuItem(text = { Text(district.name) }, onClick = { onDistrictSelected(district); districtExpanded = false })
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun PaymentAndPromoSection(
-    viewModel: BasicOrderViewModel,
-    uiState: BasicOrderUiState,
-    subtotal: Double,
-    adminFee: Double,
-    discount: Double
-) {
-    var promoFieldVisible by remember { mutableStateOf(false) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            SectionHeader("Rincian Pembayaran", Icons.Default.ReceiptLong)
-
-            // Animated visibility for the trigger text
-            AnimatedVisibility(visible = !promoFieldVisible) {
-                TextButton(
-                    onClick = { promoFieldVisible = true },
-                    modifier = Modifier.padding(top = 0.dp) // Adjust padding if needed
-                ) {
-                    Icon(Icons.Default.LocalOffer, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Punya kode promo?")
-                }
-            }
-
-            // Animated visibility for the promo input field
-            AnimatedVisibility(visible = promoFieldVisible) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                ) {
-                    ModernTextField(
-                        value = uiState.promoCode,
-                        onValueChange = viewModel::onPromoCodeChanged,
-                        label = "Masukkan Kode Promo",
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = { viewModel.applyPromoCode() },
-                        enabled = uiState.promoCode.isNotBlank()
-                    ) {
-                        Text("Cek")
-                    }
-                }
-            }
-
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-            PaymentDetailRow("Subtotal", subtotal)
-            PaymentDetailRow("Biaya Admin", adminFee)
-            if (discount > 0) {
-                PaymentDetailRow("Diskon", discount, isDiscount = true)
-            }
-        }
-    }
-}
-
-
-@Composable
-fun PaymentDetailRow(label: String, amount: Double, isDiscount: Boolean = false) {
+fun ProviderServiceQuantityItem(service: ProviderService, quantity: Int, onQuantityChange: (Int) -> Unit) {
+    val formattedPrice =
+        NumberFormat.getNumberInstance(Locale("id", "ID")).format(service.price.toInt())
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium)
-        Text(
-            (if (isDiscount) "- " else "") + "Rp ${NumberFormat.getNumberInstance(Locale("id", "ID")).format(amount.toInt())}",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = if (isDiscount) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(service.name, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "Rp $formattedPrice",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+        ) {
+            IconButton(onClick = { if (quantity > 0) onQuantityChange(quantity - 1) }) {
+                Icon(Icons.Default.Remove, contentDescription = "Kurangi")
+            }
+            Text(
+                quantity.toString(),
+                modifier = Modifier.padding(horizontal = 8.dp),
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(onClick = { onQuantityChange(quantity + 1) }) {
+                Icon(Icons.Default.Add, contentDescription = "Tambah")
+            }
+        }
     }
 }
-
-@Composable
-fun CheckoutBottomBar(
-    totalAmount: Double,
-    isLoading: Boolean,
-    enabled: Boolean,
-    onCheckoutClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shadowElevation = 8.dp,
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text("Total Bayar", style = MaterialTheme.typography.labelMedium)
-                Text(
-                    "Rp ${NumberFormat.getNumberInstance(Locale("id", "ID")).format(totalAmount.coerceAtLeast(0.0).toInt())}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+    @Composable
+    fun AddressSection(viewModel: BasicOrderViewModel, uiState: BasicOrderUiState) {
+        val cameraPositionState = rememberCameraPositionState {
+            uiState.mapCoordinates?.let {
+                position = CameraPosition.fromLatLngZoom(LatLng(it.latitude, it.longitude), 15f)
+            }
+        }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                SectionHeader("Alamat", Icons.Default.LocationOn)
+                AddressDropdowns(
+                    uiState = uiState,
+                    onProvinceSelected = viewModel::onProvinceSelected,
+                    onCitySelected = viewModel::onCitySelected,
+                    onDistrictSelected = viewModel::onDistrictSelected
+                )
+                ModernTextField(
+                    value = uiState.addressDetail,
+                    onValueChange = viewModel::onAddressDetailChanged,
+                    label = "Detail Alamat (Nama Jalan, No. Rumah, dll)",
+                    leadingIcon = Icons.Filled.Home,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                InteractiveMapView(
+                    cameraPositionState = cameraPositionState,
+                    onMapCoordinatesChanged = viewModel::onMapCoordinatesChanged
                 )
             }
-            Button(
-                onClick = onCheckoutClick,
-                enabled = enabled && !isLoading,
-                modifier = Modifier.height(48.dp)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(Icons.Filled.ShoppingCartCheckout, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text("Bayar")
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    private fun AddressDropdowns(
+        uiState: BasicOrderUiState,
+        onProvinceSelected: (Wilayah) -> Unit,
+        onCitySelected: (Wilayah) -> Unit,
+        onDistrictSelected: (Wilayah) -> Unit
+    ) {
+        var provinceExpanded by remember { mutableStateOf(false) }
+        var cityExpanded by remember { mutableStateOf(false) }
+        var districtExpanded by remember { mutableStateOf(false) }
+
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Province Dropdown (Full Width)
+            ExposedDropdownMenuBox(
+                expanded = provinceExpanded,
+                onExpandedChange = { provinceExpanded = !provinceExpanded }) {
+                ModernTextField(
+                    value = uiState.selectedProvince?.name ?: "Pilih Provinsi",
+                    onValueChange = {}, label = "Provinsi",
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = provinceExpanded) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(), readOnly = true
+                )
+                ExposedDropdownMenu(
+                    expanded = provinceExpanded,
+                    onDismissRequest = { provinceExpanded = false }) {
+                    uiState.provinces.forEach { province ->
+                        DropdownMenuItem(
+                            text = { Text(province.name) },
+                            onClick = { onProvinceSelected(province); provinceExpanded = false })
+                    }
+                }
+            }
+
+            // City and District Dropdowns (Side-by-side)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // City Dropdown
+                Box(modifier = Modifier.weight(1f)) {
+                    ExposedDropdownMenuBox(
+                        expanded = cityExpanded,
+                        onExpandedChange = {
+                            if (uiState.cities.isNotEmpty()) cityExpanded = !cityExpanded
+                        }) {
+                        ModernTextField(
+                            value = uiState.selectedCity?.name ?: "Pilih Kota",
+                            onValueChange = {},
+                            label = "Kota/Kabupaten",
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cityExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            readOnly = true,
+                            enabled = uiState.selectedProvince != null
+                        )
+                        ExposedDropdownMenu(
+                            expanded = cityExpanded,
+                            onDismissRequest = { cityExpanded = false }) {
+                            uiState.cities.forEach { city ->
+                                DropdownMenuItem(
+                                    text = { Text(city.name) },
+                                    onClick = { onCitySelected(city); cityExpanded = false })
+                            }
+                        }
+                    }
+                }
+
+                // District Dropdown
+                Box(modifier = Modifier.weight(1f)) {
+                    ExposedDropdownMenuBox(
+                        expanded = districtExpanded,
+                        onExpandedChange = {
+                            if (uiState.districts.isNotEmpty()) districtExpanded = !districtExpanded
+                        }) {
+                        ModernTextField(
+                            value = uiState.selectedDistrict?.name ?: "Pilih Kecamatan",
+                            onValueChange = {},
+                            label = "Kecamatan",
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = districtExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            readOnly = true,
+                            enabled = uiState.selectedCity != null
+                        )
+                        ExposedDropdownMenu(
+                            expanded = districtExpanded,
+                            onDismissRequest = { districtExpanded = false }) {
+                            uiState.districts.forEach { district ->
+                                DropdownMenuItem(
+                                    text = { Text(district.name) },
+                                    onClick = {
+                                        onDistrictSelected(district); districtExpanded = false
+                                    })
+                            }
+                        }
+                    }
                 }
             }
         }
     }
-}
+
+    @Composable
+    fun PaymentAndPromoSection(
+        viewModel: BasicOrderViewModel,
+        uiState: BasicOrderUiState,
+        subtotal: Double,
+        adminFee: Double,
+        discount: Double
+    ) {
+        var promoFieldVisible by remember { mutableStateOf(false) }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                SectionHeader("Rincian Pembayaran", Icons.Default.ReceiptLong)
+
+                // Animated visibility for the trigger text
+                AnimatedVisibility(visible = !promoFieldVisible) {
+                    TextButton(
+                        onClick = { promoFieldVisible = true },
+                        modifier = Modifier.padding(top = 0.dp) // Adjust padding if needed
+                    ) {
+                        Icon(
+                            Icons.Default.LocalOffer,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Punya kode promo?")
+                    }
+                }
+
+                // Animated visibility for the promo input field
+                AnimatedVisibility(visible = promoFieldVisible) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        ModernTextField(
+                            value = uiState.promoCode,
+                            onValueChange = viewModel::onPromoCodeChanged,
+                            label = "Masukkan Kode Promo",
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = { viewModel.applyPromoCode() },
+                            enabled = uiState.promoCode.isNotBlank()
+                        ) {
+                            Text("Cek")
+                        }
+                    }
+                }
+
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                PaymentDetailRow("Subtotal", subtotal)
+                PaymentDetailRow("Biaya Admin", adminFee)
+                if (discount > 0) {
+                    PaymentDetailRow("Diskon", discount, isDiscount = true)
+                }
+            }
+        }
+    }
+
+
+    @Composable
+    fun PaymentDetailRow(label: String, amount: Double, isDiscount: Boolean = false) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                (if (isDiscount) "- " else "") + "Rp ${
+                    NumberFormat.getNumberInstance(
+                        Locale(
+                            "id",
+                            "ID"
+                        )
+                    ).format(amount.toInt())
+                }",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isDiscount) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+
+    @Composable
+    fun CheckoutBottomBar(
+        totalAmount: Double,
+        isLoading: Boolean,
+        enabled: Boolean,
+        onCheckoutClick: () -> Unit
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shadowElevation = 8.dp,
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Total Bayar", style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        "Rp ${
+                            NumberFormat.getNumberInstance(Locale("id", "ID"))
+                                .format(totalAmount.coerceAtLeast(0.0).toInt())
+                        }",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Button(
+                    onClick = onCheckoutClick,
+                    enabled = enabled && !isLoading,
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Filled.ShoppingCartCheckout,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text("Bayar")
+                    }
+                }
+            }
+        }
+    }
+
 
