@@ -59,7 +59,7 @@ fun BasicOrderScreen(
     }
 
     LaunchedEffect(providerId, serviceId) {
-        if (!providerId.isNullOrBlank() && !serviceId.isNullOrBlank()) {
+        if (!providerId.isNullOrBlank()) {
             viewModel.setDirectOrder(providerId, serviceId)
         }
     }
@@ -120,7 +120,7 @@ fun BasicOrderScreen(
     }
 
     val subtotal = if (uiState.orderType == "direct") {
-        uiState.providerServiceSelections.sumOf { it.service.price * it.quantity }
+        uiState.providerSelections.sumOf { it.service.price * it.quantity }
     } else {
         uiState.serviceSelections.sumOf { it.service.flatPrice * it.quantity }
     }
@@ -226,13 +226,14 @@ fun ServiceDetailsSection(viewModel: BasicOrderViewModel, uiState: BasicOrderUiS
                     }
                 }
             } else {
-                uiState.providerServiceSelections.forEachIndexed { index, selection ->
+                uiState.providerServices.forEachIndexed { index, service ->
+                    val qty = uiState.providerSelections.firstOrNull { it.service == service }?.quantity ?: 0
                     ProviderServiceQuantityItem(
-                        service = selection.service,
-                        quantity = selection.quantity,
-                        onQuantityChange = { q -> viewModel.onProviderServiceQuantityChanged(selection.service, q) }
+                        service = service,
+                        quantity = qty,
+                        onQuantityChange = { q -> viewModel.onProviderServiceQuantityChanged(service, q) }
                     )
-                    if (index < uiState.providerServiceSelections.size - 1) {
+                    if (index < uiState.providerServices.size - 1) {
                         Divider(modifier = Modifier.padding(vertical = 8.dp))
                     }
                 }

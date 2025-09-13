@@ -60,7 +60,8 @@ data class BasicOrderUiState(
     val paymentStatus: String = "pending",
     val orderType: String = "basic",
     val provider: ProviderProfile? = null,
-    val providerServiceSelections: List<ProviderServiceSelection> = emptyList(),
+    val providerServices: List<ProviderService> = emptyList(),
+    val providerSelections: List<ProviderServiceSelection> = emptyList(),
     val serviceSelections: List<ServiceSelection> = emptyList(),
     val promoCode: String = "",
     val discountAmount: Double = 0.0,
@@ -148,35 +149,41 @@ class BasicOrderViewModel @Inject constructor(
             }
         }
     }
-    fun setDirectOrder(providerId: String, serviceId: String) {
+    fun setDirectOrder(providerId: String, serviceId: String? = null) {
         viewModelScope.launch {
             serviceRepository.getProviderDetails(providerId).collect { providerResult ->
                 providerResult.onSuccess { provider ->
                     if (provider != null) {
                         serviceRepository.getProviderServices(providerId).collect { serviceResult ->
                             serviceResult.onSuccess { services ->
-                                val selections = services.map { svc ->
-                                    ProviderServiceSelection(
-                                        service = svc,
-                                        quantity = if (svc.id == serviceId) 1 else 0
-                                    )
-                                }
+                                val initialSelection = serviceId?.let { id ->
+                                    services.firstOrNull { it.id == id }?.let { svc ->
+                                        listOf(ProviderServiceSelection(svc, 1))
+                                    }
+                                } ?: emptyList()
                                 _uiState.update {
                                     it.copy(
                                         provider = provider,
-                                        providerServiceSelections = selections,
+                                        providerServices = services,
+                                        providerSelections = initialSelection,
                                         orderType = "direct"
                                     )
                                 }
                             }.onFailure { e ->
-                                _uiState.update { it.copy(orderCreationState = OrderCreationState.Error(e.message ?: "Gagal memuat layanan")) }
+                                _uiState.update {
+                                    it.copy(orderCreationState = OrderCreationState.Error(e.message ?: "Gagal memuat layanan"))
+                                }
                             }
                         }
                     } else {
-                        _uiState.update { it.copy(orderCreationState = OrderCreationState.Error("Provider tidak ditemukan")) }
+                        _uiState.update {
+                            it.copy(orderCreationState = OrderCreationState.Error("Provider tidak ditemukan"))
+                        }
                     }
                 }.onFailure { e ->
-                    _uiState.update { it.copy(orderCreationState = OrderCreationState.Error(e.message ?: "Gagal memuat provider")) }
+                    _uiState.update {
+                        it.copy(orderCreationState = OrderCreationState.Error(e.message ?: "Gagal memuat provider"))
+                    }
                 }
             }
         }
@@ -184,7 +191,12 @@ class BasicOrderViewModel @Inject constructor(
 
     fun clearProvider() {
         _uiState.update {
-            it.copy(orderType = "basic", provider = null, providerServiceSelections = emptyList())
+            it.copy(
+                orderType = "basic",
+                provider = null,
+                providerServices = emptyList(),
+                providerSelections = emptyList()
+            )
         }
     }
 
@@ -212,7 +224,7 @@ class BasicOrderViewModel @Inject constructor(
 
             if (currentState.orderType == "direct") {
                 val provider = currentState.provider
-                val selections = currentState.providerServiceSelections.filter { it.quantity > 0 }
+                val selections = currentState.providerSelections.filter { it.quantity > 0 }
                 if (provider == null || selections.isEmpty()) {
                     _uiState.update { it.copy(orderCreationState = OrderCreationState.Error("Data provider atau layanan tidak lengkap.")) }
                     return@launch
@@ -421,7 +433,7 @@ class BasicOrderViewModel @Inject constructor(
 
     fun onProviderServiceQuantityChanged(service: ProviderService, qty: Int) {
         _uiState.update { state ->
-            val selections = state.providerServiceSelections.toMutableList()
+            val selections = state.providerSelections.toMutableList()
             val index = selections.indexOfFirst { it.service == service }
             val newQty = qty.coerceAtLeast(0)
             if (index >= 0) {
@@ -436,7 +448,7 @@ class BasicOrderViewModel @Inject constructor(
 
             // Reset promo-related state whenever service selections change
             state.copy(
-                providerServiceSelections = selections,
+                providerSelections = selections,
                 discountAmount = 0.0,
                 promoMessage = null
             )
@@ -491,7 +503,7 @@ class BasicOrderViewModel @Inject constructor(
                 result.onSuccess { promo ->
                     val state = _uiState.value
                     val subtotal = if (state.orderType == "direct") {
-                        state.providerServiceSelections.sumOf { it.service.price * it.quantity }
+                        state.providerSelections.sumOf { it.service.price * it.quantity }
                     } else {
                         state.serviceSelections.sumOf { it.service.flatPrice * it.quantity }
                     }
