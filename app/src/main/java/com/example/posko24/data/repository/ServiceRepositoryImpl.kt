@@ -6,6 +6,7 @@ import com.example.posko24.data.model.ServiceCategory
 import com.example.posko24.data.model.User
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
+import com.google.firebase.firestore.DocumentSnapshot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
@@ -155,6 +156,28 @@ class ServiceRepositoryImpl @Inject constructor(
             doc.toObject(ProviderService::class.java)?.copy(id = doc.id)
         }
         emit(Result.success(services))
+    }.catch { exception ->
+        emit(Result.failure(exception))
+    }
+
+    override fun getProviderServicesPaged(
+        providerId: String,
+        pageSize: Long,
+        startAfter: DocumentSnapshot?
+    ): Flow<Result<ProviderServicePage>> = flow {
+        var query = firestore.collection("provider_profiles").document(providerId)
+            .collection("services")
+            .orderBy("name")
+            .limit(pageSize)
+
+        startAfter?.let { query = query.startAfter(it) }
+
+        val snapshot = query.get().await()
+        val services = snapshot.documents.mapNotNull { doc ->
+            doc.toObject(ProviderService::class.java)?.copy(id = doc.id)
+        }
+        val lastDoc = snapshot.documents.lastOrNull()
+        emit(Result.success(ProviderServicePage(services, lastDoc)))
     }.catch { exception ->
         emit(Result.failure(exception))
     }
