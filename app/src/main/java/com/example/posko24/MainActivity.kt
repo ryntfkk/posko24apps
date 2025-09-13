@@ -115,9 +115,11 @@ class MainActivity : ComponentActivity() {
                         ) { backStackEntry ->
                             val providerId = backStackEntry.arguments?.getString("providerId") ?: ""
                             ProviderDetailScreen(
-                                onSelectService = { serviceId, categoryId ->
-                                    navController.navigate("basic_order_screen/$categoryId?providerId=$providerId&serviceId=$serviceId")
-                                }
+                                onOrderClick = { id, categoryId ->
+                                    navController.navigate("basic_order_screen/$categoryId?providerId=$id")
+                                },
+                                onFavoriteClick = { _ -> },
+                                onShareClick = { _ -> }
                             )
                         }
                         composable(

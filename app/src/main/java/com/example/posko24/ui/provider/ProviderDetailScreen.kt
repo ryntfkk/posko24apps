@@ -2,18 +2,14 @@ package com.example.posko24.ui.provider
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.posko24.data.model.ProviderProfile
-import com.example.posko24.data.model.ProviderService
 import com.example.posko24.ui.components.ProfileHeader
+import com.example.posko24.ui.profile.ProfileTabs
 
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -21,11 +17,11 @@ import com.example.posko24.ui.components.ProfileHeader
 @Composable
 fun ProviderDetailScreen(
     viewModel: ProviderDetailViewModel = hiltViewModel(),
-    onSelectService: (serviceId: String, categoryId: String) -> Unit
+    onOrderClick: (providerId: String, categoryId: String) -> Unit,
+    onFavoriteClick: (providerId: String) -> Unit,
+    onShareClick: (providerId: String) -> Unit
 ) {
     val detailState by viewModel.providerDetailState.collectAsState()
-    val servicesState by viewModel.providerServicesState.collectAsState()
-    val isLoadingMore by viewModel.isLoadingMore.collectAsState()
 
     Scaffold(
         topBar = {
@@ -38,92 +34,54 @@ fun ProviderDetailScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Bagian 1: Detail Profil
-            item {
-                when (val state = detailState) {
-                    is ProviderDetailState.Loading -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                    is ProviderDetailState.Success -> ProviderInfoSection(provider = state.provider)
-                    is ProviderDetailState.Error -> Text(state.message)
+            when (val state = detailState) {
+                is ProviderDetailState.Loading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-            }
-
-            // Bagian 2: Daftar Layanan
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                Text("Daftar Layanan (Direct Order)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-            }
-
-            when (val state = servicesState) {
-                is ProviderServicesState.Loading -> item { Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
-                is ProviderServicesState.Success -> {
-                    if (state.services.isEmpty()) {
-                        item { Text("Provider ini belum menambahkan layanan.") }
-                    } else {
-                        itemsIndexed(state.services) { index, service ->
-                            val categoryId = (detailState as? ProviderDetailState.Success)?.provider?.primaryCategoryId ?: ""
-                            ServiceListItem(
-                                service = service,
-                                onOrder = { onSelectService(service.id, categoryId) }
-                            )
-                            if (index == state.services.lastIndex && state.canLoadMore) {
-                                LaunchedEffect(Unit) { viewModel.loadMoreServices() }
-                            }
+                is ProviderDetailState.Success -> {
+                    val provider = state.provider
+                    ProfileHeader(
+                        photoUrl = provider.profilePictureUrl,
+                        name = provider.fullName,
+                        bio = provider.bio,
+                        rating = provider.averageRating,
+                        completedOrders = provider.totalReviews,
+                        favorites = 0
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Button(onClick = { onOrderClick(provider.uid, provider.primaryCategoryId) }) {
+                            Text("Order")
                         }
-                        if (isLoadingMore) {
-                            item { Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+                        Button(onClick = { onFavoriteClick(provider.uid) }) {
+                            Text("Favorit")
+                        }
+                        Button(onClick = { onShareClick(provider.uid) }) {
+                            Text("Bagikan")
                         }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        ProfileTabs()
+                    }
                 }
-                is ProviderServicesState.Error -> item { Text(state.message) }
-            }
-        }
-    }
-}
+                is ProviderDetailState.Error -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(state.message)
+                }
 
-@Composable
-fun ProviderInfoSection(provider: ProviderProfile) {
-    ProfileHeader(
-        photoUrl = provider.profilePictureUrl,
-        name = provider.fullName,
-        bio = provider.bio,
-        rating = provider.averageRating,
-        completedOrders = provider.totalReviews,
-        favorites = 0
-    )
-}
-
-@Composable
-fun ServiceListItem(
-    service: ProviderService,
-    onOrder: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(service.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(service.description, style = MaterialTheme.typography.bodyMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Rp ${"%,d".format(service.price.toInt())}",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = onOrder, modifier = Modifier.align(Alignment.End)) {
-                Text("Order")
             }
         }
     }
