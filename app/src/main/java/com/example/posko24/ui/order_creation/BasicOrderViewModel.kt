@@ -427,7 +427,18 @@ class BasicOrderViewModel @Inject constructor(
             } else if (newQty > 0) {
                 selections.add(ServiceSelection(service, newQty))
             }
-            state.copy(serviceSelections = selections)
+
+            // Reset promo-related state whenever service selections change
+            state.copy(
+                serviceSelections = selections,
+                discountAmount = 0.0,
+                promoMessage = null
+            )
+        }
+
+        // Re-evaluate promo code if one is currently entered
+        if (_uiState.value.promoCode.isNotBlank()) {
+            applyPromoCode()
         }
     }
 
