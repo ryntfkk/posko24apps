@@ -1,6 +1,7 @@
 package com.example.posko24.di
 
 import com.example.posko24.data.repository.*
+import com.example.posko24.data.remote.ReviewApiService
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.Module
@@ -11,6 +12,8 @@ import javax.inject.Singleton
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.ktx.functions
 import com.google.firebase.ktx.Firebase
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -127,6 +130,23 @@ object AppModule {
     @Provides
     @Singleton
     fun provideFirebaseFunctions(): FirebaseFunctions = Firebase.functions("us-central1")
+    @Provides
+    @Singleton
+    fun provideRetrofit(): Retrofit = Retrofit.Builder()
+        .baseUrl("https://dummyjson.com/")
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    @Provides
+    @Singleton
+    fun provideReviewApiService(retrofit: Retrofit): ReviewApiService =
+        retrofit.create(ReviewApiService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideRemoteReviewRepository(
+        api: ReviewApiService
+    ): RemoteReviewRepository = RemoteReviewRepository(api)
 
 }
 
