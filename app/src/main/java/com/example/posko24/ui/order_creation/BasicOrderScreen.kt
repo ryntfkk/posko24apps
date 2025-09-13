@@ -10,11 +10,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalOffer
+import androidx.compose.material.icons.filled.LocationCity
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.KeyboardOptions
@@ -27,6 +32,7 @@ import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.Wilayah
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.example.posko24.ui.components.InteractiveMapView
+import com.example.posko24.ui.components.ModernTextField
 import com.example.posko24.config.PaymentConfig
 import com.midtrans.sdk.uikit.external.UiKitApi
 import com.midtrans.sdk.uikit.api.callback.Callback
@@ -34,7 +40,6 @@ import com.midtrans.sdk.uikit.api.exception.SnapError
 import com.midtrans.sdk.uikit.api.model.TransactionResult
 import java.text.NumberFormat
 import java.util.Locale
-
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -122,114 +127,147 @@ fun BasicOrderScreen(
     }
     // --- UI tetap sama ---
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Detail Pesanan & Alamat") }) }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            if (uiState.serviceDetailsLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        "Tipe Order: ${if (uiState.orderType == "direct") "Direct" else "Basic"}",
-                        style = MaterialTheme.typography.titleMedium
+        topBar = { TopAppBar(title = { Text("Detail Pesanan & Alamat") }) },
+        bottomBar = {
+            Button(
+                onClick = { viewModel.createOrder() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                enabled = uiState.selectedDistrict != null &&
+                        uiState.addressDetail.isNotBlank() &&
+                        ((uiState.orderType == "direct" && uiState.quantity > 0) ||
+                                (uiState.orderType == "basic" && uiState.serviceSelections.any { it.quantity > 0 })) &&
+                        uiState.orderCreationState !is OrderCreationState.Loading &&
+                        uiState.currentUser?.activeRole != "provider"
+            ) {
+                if (uiState.orderCreationState is OrderCreationState.Loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val provider = uiState.provider
-                    val providerService = uiState.providerService
-                    if (provider != null && providerService != null) {
-                        SelectedProviderCard(
-                            provider = provider,
-                            service = providerService,
-                            onClear = viewModel::clearProvider
+                } else {
+                    Text("Lanjutkan ke Pembayaran")
+                }
+            }
+        }
+    ) { paddingValues ->
+        if (uiState.serviceDetailsLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Detail Pesanan", style = MaterialTheme.typography.headlineSmall)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Tipe Order: ${if (uiState.orderType == "direct") "Direct" else "Basic"}",
+                            style = MaterialTheme.typography.titleMedium
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                    }
-                    if (uiState.orderType == "basic") {
-                        Text("Pilih Jenis Layanan", style = MaterialTheme.typography.titleLarge)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        uiState.category?.basicOrderServices?.forEach { service ->
-                            val qty = uiState.serviceSelections.firstOrNull { it.service == service }?.quantity ?: 0
-                            ServiceQuantityItem(
-                                service = service,
-                                quantity = qty,
-                                onQuantityChange = { q -> viewModel.onServiceQuantityChanged(service, q) }
+                        val provider = uiState.provider
+                        val providerService = uiState.providerService
+                        if (provider != null && providerService != null) {
+                            SelectedProviderCard(
+                                provider = provider,
+                                service = providerService,
+                                onClear = viewModel::clearProvider
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                        if (uiState.orderType == "basic") {
+                            Text("Pilih Jenis Layanan", style = MaterialTheme.typography.titleLarge)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            uiState.category?.basicOrderServices?.forEach { service ->
+                                val qty = uiState.serviceSelections.firstOrNull { it.service == service }?.quantity ?: 0
+                                ServiceQuantityItem(
+                                    service = service,
+                                    quantity = qty,
+                                    onQuantityChange = { q -> viewModel.onServiceQuantityChanged(service, q) }
+                                )
+                            }
+                        } else {
+                            ModernTextField(
+                                value = uiState.quantity.toString(),
+                                onValueChange = { qty ->
+                                    val sanitized = qty.filter { it.isDigit() }
+                                    viewModel.onQuantityChanged(sanitized.toIntOrNull() ?: 1)
+                                },
+                                label = "Jumlah",
+                                leadingIcon = Icons.Filled.FormatListNumbered,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
-                        Spacer(modifier = Modifier.height(24.dp))
-                    } else {
-                        OutlinedTextField(
-                            value = uiState.quantity.toString(),
-                            onValueChange = { qty ->
-                                val sanitized = qty.filter { it.isDigit() }
-                                viewModel.onQuantityChanged(sanitized.toIntOrNull() ?: 1)
-                            },
-                            label = { Text("Jumlah") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(modifier = Modifier.height(24.dp))
                     }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = uiState.promoCode,
-                            onValueChange = viewModel::onPromoCodeChanged,
-                            label = { Text("Kode Promo") },
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = { viewModel.applyPromoCode() },
-                            enabled = uiState.promoCode.isNotBlank()
-                        ) {
-                            Text("Terapkan")
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Promo", style = MaterialTheme.typography.headlineSmall)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            ModernTextField(
+                                value = uiState.promoCode,
+                                onValueChange = viewModel::onPromoCodeChanged,
+                                label = "Kode Promo",
+                                leadingIcon = Icons.Filled.LocalOffer,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = { viewModel.applyPromoCode() },
+                                enabled = uiState.promoCode.isNotBlank()
+                            ) {
+                                Text("Terapkan")
+                            }
                         }
                     }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text("Pilih Alamat Pengiriman", style = MaterialTheme.typography.titleLarge)
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    AddressDropdowns(
-                        uiState = uiState,
-                        onProvinceSelected = viewModel::onProvinceSelected,
-                        onCitySelected = viewModel::onCitySelected,
-                        onDistrictSelected = viewModel::onDistrictSelected
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    OutlinedTextField(
-                        value = uiState.addressDetail,
-                        onValueChange = viewModel::onAddressDetailChanged,
-                        label = { Text("Detail Alamat (Nama Jalan, No. Rumah, dll)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Tentukan Titik di Peta", style = MaterialTheme.typography.titleMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    InteractiveMapView(
-                        cameraPositionState = cameraPositionState,
-                        onMapCoordinatesChanged = viewModel::onMapCoordinatesChanged
-                    )
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Alamat Pengiriman", style = MaterialTheme.typography.headlineSmall)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        AddressDropdowns(
+                            uiState = uiState,
+                            onProvinceSelected = viewModel::onProvinceSelected,
+                            onCitySelected = viewModel::onCitySelected,
+                            onDistrictSelected = viewModel::onDistrictSelected
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        ModernTextField(
+                            value = uiState.addressDetail,
+                            onValueChange = viewModel::onAddressDetailChanged,
+                            label = "Detail Alamat (Nama Jalan, No. Rumah, dll)",
+                            leadingIcon = Icons.Filled.Home,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Tentukan Titik di Peta", style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        InteractiveMapView(
+                            cameraPositionState = cameraPositionState,
+                            onMapCoordinatesChanged = viewModel::onMapCoordinatesChanged
+                        )
+                    }
                 }
                 if (uiState.currentUser?.activeRole == "provider") {
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Provider tidak dapat membuat pesanan",
                         modifier = Modifier.padding(16.dp)
@@ -242,35 +280,12 @@ fun BasicOrderScreen(
                     uiState.serviceSelections.sumOf { it.service.flatPrice * it.quantity }
                 }
                 if (subtotal > 0) {
+                    Spacer(modifier = Modifier.height(16.dp))
                     val adminFee = PaymentConfig.ADMIN_FEE
                     val discount = uiState.discountAmount
                     val total = subtotal + adminFee - discount
                     PaymentSummary(subtotal, adminFee, discount, total)
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
 
-                Button(
-                    onClick = { viewModel.createOrder() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    enabled = uiState.selectedDistrict != null &&
-                            uiState.addressDetail.isNotBlank() &&
-                            (
-                                    (uiState.orderType == "direct" && uiState.quantity > 0) ||
-                                            (uiState.orderType == "basic" && uiState.serviceSelections.any { it.quantity > 0 })
-                                    ) &&
-                            uiState.orderCreationState !is OrderCreationState.Loading &&
-                            uiState.currentUser?.activeRole != "provider"
-                ) {
-                    if (uiState.orderCreationState is OrderCreationState.Loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else {
-                        Text("Lanjutkan ke Pembayaran")
-                    }
                 }
             }
         }
@@ -321,15 +336,16 @@ private fun AddressDropdowns(
         expanded = provinceExpanded,
         onExpandedChange = { provinceExpanded = !provinceExpanded }
     ) {
-        OutlinedTextField(
+        ModernTextField(
             value = uiState.selectedProvince?.name ?: "",
             onValueChange = {},
-            readOnly = true,
-            label = { Text("Provinsi") },
+            label = "Provinsi",
+            leadingIcon = Icons.Filled.Public,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = provinceExpanded) },
             modifier = Modifier
                 .menuAnchor()
-                .fillMaxWidth()
+                .fillMaxWidth(),
+            readOnly = true
         )
         ExposedDropdownMenu(
             expanded = provinceExpanded,
@@ -353,16 +369,17 @@ private fun AddressDropdowns(
         expanded = cityExpanded,
         onExpandedChange = { if (uiState.cities.isNotEmpty()) cityExpanded = !cityExpanded },
     ) {
-        OutlinedTextField(
+        ModernTextField(
             value = uiState.selectedCity?.name ?: "",
             onValueChange = {},
-            readOnly = true,
-            enabled = uiState.selectedProvince != null,
-            label = { Text("Kota/Kabupaten") },
+            label = "Kota/Kabupaten",
+            leadingIcon = Icons.Filled.LocationCity,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cityExpanded) },
             modifier = Modifier
                 .menuAnchor()
-                .fillMaxWidth()
+                .fillMaxWidth(),
+            readOnly = true,
+            enabled = uiState.selectedProvince != null
         )
         ExposedDropdownMenu(
             expanded = cityExpanded,
@@ -386,16 +403,17 @@ private fun AddressDropdowns(
         expanded = districtExpanded,
         onExpandedChange = { if (uiState.districts.isNotEmpty()) districtExpanded = !districtExpanded }
     ) {
-        OutlinedTextField(
+        ModernTextField(
             value = uiState.selectedDistrict?.name ?: "",
             onValueChange = {},
-            readOnly = true,
-            enabled = uiState.selectedCity != null,
-            label = { Text("Kecamatan") },
+            label = "Kecamatan",
+            leadingIcon = Icons.Filled.LocationOn,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = districtExpanded) },
             modifier = Modifier
                 .menuAnchor()
-                .fillMaxWidth()
+                .fillMaxWidth(),
+            readOnly = true,
+            enabled = uiState.selectedCity != null
         )
         ExposedDropdownMenu(
             expanded = districtExpanded,
