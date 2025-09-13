@@ -38,7 +38,7 @@ fun ProfileTabs() {
         }
 
         when (selectedTab) {
-            0 -> PlaceholderContent("Portofolio")
+            0 -> PortfolioTabContent()
             1 -> PlaceholderContent("Layanan")
             2 -> PlaceholderContent("Sertifikasi & Keahlian")
             3 -> PlaceholderContent("Ulasan")
