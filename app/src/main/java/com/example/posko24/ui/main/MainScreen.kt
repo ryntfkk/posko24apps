@@ -1,32 +1,24 @@
 package com.example.posko24.ui.main
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FabPosition
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -35,6 +27,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.posko24.data.model.ProviderProfile
+import com.example.posko24.data.model.User
+import com.example.posko24.data.repository.UserRepository
 import com.example.posko24.navigation.BottomNavItem
 import com.example.posko24.navigation.SOS_ROUTE
 import com.example.posko24.ui.chat.ChatListScreen
@@ -45,12 +40,8 @@ import com.example.posko24.ui.provider.ProviderDashboardScreen
 import com.example.posko24.ui.theme.Posko24Theme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.example.posko24.data.repository.UserRepository
-import com.example.posko24.data.model.User
-import com.example.posko24.data.model.ProviderProfile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
-
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
@@ -71,7 +62,6 @@ fun MainScreen(
     val userState by mainViewModel.userState.collectAsState()
     val activeRole by mainViewModel.activeRole.collectAsState()
 
-    // Efek untuk navigasi otomatis setelah login berhasil
     LaunchedEffect(userState) {
         if (userState is UserState.Authenticated && mainViewModel.intendedRoute.value != null) {
             val route = mainViewModel.intendedRoute.value
@@ -85,9 +75,10 @@ fun MainScreen(
                     }
                 }
             }
-            mainViewModel.intendedRoute.value = null // Reset rute tujuan
+            mainViewModel.intendedRoute.value = null
         }
     }
+
     LaunchedEffect(activeRole) {
         val startRoute = if (activeRole == "provider") {
             BottomNavItem.ProviderDashboard.route
@@ -118,11 +109,9 @@ fun MainScreen(
         )
     }
 
-    val fab: (@Composable () -> Unit)? = if (activeRole != "provider") {
-        {
-            Box(
-                modifier = Modifier.offset(y = 42.dp)
-            ) {
+    Scaffold(
+        floatingActionButton = {
+            if (activeRole != "provider") {
                 FloatingActionButton(
                     onClick = {
                         if (userState !is UserState.Authenticated) {
@@ -132,7 +121,9 @@ fun MainScreen(
                             onNavigateToConversation("admin")
                         }
                     },
-                    modifier = Modifier.size(72.dp),
+                    modifier = Modifier
+                        .size(72.dp)
+                        .offset(y = 32.dp),
                     shape = CircleShape,
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError
@@ -145,49 +136,47 @@ fun MainScreen(
                     )
                 }
             }
-        }
-    } else {
-        null
-    }
-
-    Scaffold(
-        floatingActionButton = fab ?: {},
+        },
         floatingActionButtonPosition = FabPosition.Center,
         bottomBar = {
-            NavigationBar(
-                containerColor = Color(0xFFF8DAD2),
-                modifier = Modifier.clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            BottomAppBar(
+                containerColor = MaterialTheme.colorScheme.surface,
             ) {
-                navigationItems.forEach { item ->
-                    val isProtected = item.route in listOf("my_orders", "chats", "profile", "provider_dashboard")
-                    NavigationBarItem(
-                        selected = currentRoute == item.route,
-                        onClick = {
-                            if (isProtected && userState !is UserState.Authenticated) {
-                                // Jika rute dilindungi dan belum login, simpan tujuan dan arahkan ke login
-                                mainViewModel.intendedRoute.value = item.route
-                                mainNavController.navigate("login_screen")
-                            } else {
-                                // Jika tidak, navigasi seperti biasa
-                                bottomNavController.navigate(item.route) {
-                                    popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    navigationItems.forEach { item ->
+                        val isSelected = currentRoute == item.route
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .clickable {
+                                    val isProtected = item.route in listOf("my_orders", "chats", "profile", "provider_dashboard")
+                                    if (isProtected && userState !is UserState.Authenticated) {
+                                        mainViewModel.intendedRoute.value = item.route
+                                        mainNavController.navigate("login_screen")
+                                    } else {
+                                        bottomNavController.navigate(item.route) {
+                                            popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    }
                                 }
-                            }
-                        },
-                        icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
-                        label = { Text(text = item.title) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color.Black,
-                            selectedTextColor = Color.Black,
-                            unselectedIconColor = Color.Black.copy(alpha = 0.6f),
-                            unselectedTextColor = Color.Black.copy(alpha = 0.6f),
-                            indicatorColor = Color(0xFFF2B6B6)
-                        )
-                    )
-                    if (item == BottomNavItem.MyOrders && fab != null) {
-                        Spacer(modifier = Modifier.width(36.dp))
+                        ) {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = item.title,
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = item.title,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
             }
@@ -250,7 +239,6 @@ fun MainScreenPreview() {
         override suspend fun updateActiveRole(userId: String, activeRole: String): Flow<Result<Boolean>> = flowOf(Result.success(true))
         override suspend fun upgradeToProvider(): Flow<Result<Boolean>> = flowOf(Result.success(true))
         override suspend fun updateUserProfile(userId: String, data: Map<String, Any?>): Result<Unit> = Result.success(Unit)
-
     }
 
     val previewViewModel = MainViewModel(
