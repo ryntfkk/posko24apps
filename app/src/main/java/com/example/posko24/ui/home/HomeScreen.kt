@@ -171,6 +171,7 @@ fun CategoryListScreen(
 
     LaunchedEffect(Unit) {
         viewModel.loadNearbyProviders(GeoPoint(0.0, 0.0))
+        viewModel.loadActiveOrder()
     }
 
     var query by remember { mutableStateOf("") }

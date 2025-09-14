@@ -50,7 +50,7 @@ class HomeViewModel @Inject constructor(
         loadActiveOrder()
     }
 
-    private fun loadActiveOrder() {
+    fun loadActiveOrder() {
         Log.d(TAG, "Mencoba memuat order aktif...")
         val uid = FirebaseAuth.getInstance().currentUser?.uid
         if (uid == null) {
