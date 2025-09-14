@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -11,6 +12,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Payment
 import com.example.posko24.ui.home.ActiveOrderDetails
 
 @Composable
@@ -43,6 +46,14 @@ fun ActiveOrderBanner(
                         // Ikon sinyal untuk pencarian provider
                         AnimatedSignalIcon(modifier = Modifier.fillMaxSize())
                     }
+                    "awaiting_payment" -> {
+                        // Ikon pembayaran untuk menunggu pembayaran
+                        Icon(
+                            imageVector = Icons.Default.Payment,
+                            contentDescription = "Menunggu Pembayaran",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                     "pending", "accepted", "on_the_way", "in_progress" -> {
                         // Ikon gear untuk status pesanan aktif lainnya
                         AnimatedGearIcon(modifier = Modifier.fillMaxSize())
@@ -64,6 +75,14 @@ fun ActiveOrderBanner(
                     text = serviceName,
                     style = MaterialTheme.typography.bodySmall
                 )
+                when (order.status) {
+                    "awaiting_payment" -> {
+                        Text(
+                            text = "Menunggu Pembayaran",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             }
         }
     }
