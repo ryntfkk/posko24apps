@@ -547,6 +547,11 @@ class BasicOrderViewModel @Inject constructor(
     }
 
     fun resetOrderState() {
+        orderListenerJob?.cancel()
         _uiState.update { it.copy(orderCreationState = OrderCreationState.Idle) }
+    }
+    override fun onCleared() {
+        super.onCleared()
+        orderListenerJob?.cancel()
     }
 }
