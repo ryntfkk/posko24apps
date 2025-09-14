@@ -75,8 +75,12 @@ class HomeViewModel @Inject constructor(
                     if (order != null && !order.providerId.isNullOrEmpty()) {
                         // Jika order ditemukan dan ada providerId, cari nama provider
                         fetchProviderName(order)
-                    } else {
+                    } else if (order != null) {
+                        // Order ada tetapi belum memiliki provider, gunakan nama default
                         Log.d(TAG, "Order ditemukan tapi tanpa provider ID.")
+                        _activeOrderDetails.value = ActiveOrderDetails(order, "Teknisi")
+                    } else {
+                        Log.d(TAG, "Dokumen order tidak dapat dikonversi.")
                         _activeOrderDetails.value = null
                     }
                 }
