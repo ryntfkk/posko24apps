@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,7 +50,8 @@ fun BasicOrderScreen(
     serviceId: String? = null,
     viewModel: BasicOrderViewModel = hiltViewModel(),
     onOrderSuccess: (String) -> Unit = {},
-) {
+    onSelectTechnician: () -> Unit = {},
+    ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val cameraPositionState = rememberCameraPositionState { position = uiState.cameraPosition }
@@ -169,7 +171,13 @@ fun BasicOrderScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                item { ServiceDetailsSection(viewModel = viewModel, uiState = uiState) }
+                item {
+                    ServiceDetailsSection(
+                        viewModel = viewModel,
+                        uiState = uiState,
+                        onSelectTechnician = onSelectTechnician
+                    )
+                }
                 item { AddressSection(viewModel = viewModel, uiState = uiState) }
                 item {
                     PaymentAndPromoSection(
@@ -199,7 +207,11 @@ fun SectionHeader(title: String, icon: ImageVector) {
 }
 
 @Composable
-fun ServiceDetailsSection(viewModel: BasicOrderViewModel, uiState: BasicOrderUiState) {
+fun ServiceDetailsSection(
+    viewModel: BasicOrderViewModel,
+    uiState: BasicOrderUiState,
+    onSelectTechnician: () -> Unit,
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             SectionHeader("Layanan", Icons.Default.Build)
@@ -210,6 +222,9 @@ fun ServiceDetailsSection(viewModel: BasicOrderViewModel, uiState: BasicOrderUiS
                     provider = provider,
                     onClear = { viewModel.clearProvider() }
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+            } else if (uiState.orderType == "basic") {
+                SelectTechnicianCard(onSelect = onSelectTechnician)
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
@@ -242,6 +257,28 @@ fun ServiceDetailsSection(viewModel: BasicOrderViewModel, uiState: BasicOrderUiS
     }
 }
 
+@Composable
+fun SelectTechnicianCard(onSelect: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect() },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Pilih Teknisi",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(Icons.Default.Search, contentDescription = "Pilih Teknisi")
+        }
+    }
+}
 @Composable
 fun SelectedProviderCard(provider: ProviderProfile, onClear: () -> Unit) {
     Card(

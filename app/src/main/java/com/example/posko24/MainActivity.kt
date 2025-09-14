@@ -130,6 +130,7 @@ class MainActivity : ComponentActivity() {
                                 navArgument("serviceId") { type = NavType.StringType; nullable = true; defaultValue = null }
                             )
                         ) { backStackEntry ->
+                            val categoryIdArg = backStackEntry.arguments?.getString("categoryId") ?: ""
                             val providerIdArg = backStackEntry.arguments?.getString("providerId")
                             val serviceIdArg = backStackEntry.arguments?.getString("serviceId")
                             BasicOrderScreen(
@@ -144,6 +145,9 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
 
+                                },
+                                onSelectTechnician = {
+                                    navController.navigate("provider_list_screen/$categoryIdArg")
                                 }
                             )
                         }

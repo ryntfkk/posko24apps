@@ -77,7 +77,7 @@ fun ProviderDetailScreen(
                             rating = provider.averageRating,
                             completedOrders = provider.totalReviews,
                             favorites = 0,
-                            modifier = Modifier.padding(bottom = 8.dp) // Add padding only at the bottom
+                            modifier = Modifier.padding(bottom = 2.dp) // Add padding only at the bottom
                         )
                     }
 
@@ -107,16 +107,8 @@ fun ProviderDetailScreen(
 
                     // Skills and Certifications Section - With horizontal padding
                     item {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
+                            Column(modifier = Modifier.padding(12.dp)) {
                                 if (skills.isNotEmpty()) {
-                                    Text("Keahlian", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                    Spacer(modifier = Modifier.height(8.dp))
                                     FlowRow(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -127,14 +119,6 @@ fun ProviderDetailScreen(
                                     }
                                 }
 
-                                if (certifications.isNotEmpty()) {
-                                    if (skills.isNotEmpty()) {
-                                        Divider(modifier = Modifier.padding(vertical = 16.dp))
-                                    }
-                                    Text("Sertifikasi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                }
-                            }
                         }
                     }
 
