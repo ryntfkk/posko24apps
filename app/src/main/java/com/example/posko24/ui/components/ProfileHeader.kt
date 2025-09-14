@@ -1,24 +1,18 @@
 package com.example.posko24.ui.components
 
-import android.content.Intent
-import android.widget.Toast
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -26,7 +20,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.posko24.R
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileHeader(
     photoUrl: String?,
@@ -35,49 +28,9 @@ fun ProfileHeader(
     rating: Double,
     completedOrders: Int,
     favorites: Int,
-    modifier: Modifier = Modifier,
-    onOrderClick: () -> Unit = {},
-    onFavoriteClick: () -> Unit = {},
-    onShareClick: () -> Unit = {}
-) {
-    val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
-    var isFavorite by remember { mutableStateOf(false) }
-    var showShareSheet by remember { mutableStateOf(false) }
-    val shareText = "Lihat profil $name di Posko24"
+    modifier: Modifier = Modifier
 
-    if (showShareSheet) {
-        ModalBottomSheet(onDismissRequest = { showShareSheet = false }) {
-            ListItem(
-                headlineContent = { Text("WhatsApp") },
-                leadingContent = { Icon(Icons.Default.Message, contentDescription = null) },
-                modifier = Modifier.clickable {
-                    val sendIntent = Intent().apply {
-                        action = Intent.ACTION_SEND
-                        putExtra(Intent.EXTRA_TEXT, shareText)
-                        type = "text/plain"
-                        setPackage("com.whatsapp")
-                    }
-                    try {
-                        context.startActivity(sendIntent)
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "WhatsApp tidak terpasang", Toast.LENGTH_SHORT).show()
-                    }
-                    showShareSheet = false
-                }
-            )
-            ListItem(
-                headlineContent = { Text("Salin Tautan") },
-                leadingContent = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
-                modifier = Modifier.clickable {
-                    clipboardManager.setText(AnnotatedString(shareText))
-                    Toast.makeText(context, "Tautan disalin", Toast.LENGTH_SHORT).show()
-                    showShareSheet = false
-                }
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
+) {
 
     Column(
         modifier = modifier
@@ -116,27 +69,7 @@ fun ProfileHeader(
             completedOrders = completedOrders,
             favorites = favorites
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        ActionButtonBar(
-            isFavorite = isFavorite,
-            onOrderClick = {
-                onOrderClick()
-                Toast.makeText(context, "Memulai pemesanan", Toast.LENGTH_SHORT).show()
-            },
-            onFavoriteClick = {
-                isFavorite = !isFavorite
-                onFavoriteClick()
-                Toast.makeText(
-                    context,
-                    if (isFavorite) "Ditambahkan ke favorit" else "Dihapus dari favorit",
-                    Toast.LENGTH_SHORT
-                ).show()
-            },
-            onShareClick = {
-                showShareSheet = true
-                onShareClick()
-            }
-        )
+
     }
 }
 
@@ -169,38 +102,5 @@ private fun MetricItem(icon: ImageVector, value: String) {
         Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.height(4.dp))
         Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun ActionButtonBar(
-    isFavorite: Boolean,
-    onOrderClick: () -> Unit,
-    onFavoriteClick: () -> Unit,
-    onShareClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Button(onClick = onOrderClick) {
-            Icon(imageVector = Icons.Default.ShoppingCart, contentDescription = null)
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("Order")
-        }
-        Button(onClick = onFavoriteClick) {
-            Icon(
-                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
-                contentDescription = null
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("Favorit")
-        }
-        Button(onClick = onShareClick) {
-            Icon(imageVector = Icons.Default.Share, contentDescription = null)
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("Bagikan")
-        }
     }
 }
