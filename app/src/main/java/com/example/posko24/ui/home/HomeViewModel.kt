@@ -59,7 +59,15 @@ class HomeViewModel @Inject constructor(
             return
         }
 
-        val activeStatuses = listOf("awaiting_payment", "pending", "accepted", "on_the_way", "in_progress")
+        val activeStatuses = listOf(
+            "awaiting_payment",
+            "pending",
+            "searching_provider",
+            "awaiting_provider_confirmation",
+            "accepted",
+            "on_the_way",
+            "in_progress"
+        )
 
         firestore.collection("orders")
             .whereEqualTo("customerId", uid)
