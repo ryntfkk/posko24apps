@@ -83,10 +83,7 @@ fun ProfileHeader(
                 completedOrders = completedOrders,
                 favorites = favorites,
                 modifier = Modifier.constrainAs(metrics) {
-                    // --- PERBAIKAN KUNCI DI SINI ---
-                    // Posisi top sejajar dengan bagian bawah banner + margin
                     top.linkTo(banner.bottom, margin = 8.dp)
-                    // Dimulai dari kanan foto profil
                     start.linkTo(profileImage.end, margin = 16.dp)
                     end.linkTo(parent.end, margin = 16.dp)
                     width = Dimension.fillToConstraints
@@ -99,6 +96,11 @@ fun ProfileHeader(
                     .constrainAs(nameAndBio) {
                         top.linkTo(profileImage.bottom, margin = 8.dp)
                         start.linkTo(profileImage.start)
+                        // --- PERBAIKAN KUNCI DI SINI ---
+                        // Memberi batas kanan agar teks tidak tembus
+                        end.linkTo(parent.end, margin = 16.dp)
+                        // Mengatur lebar agar mengisi ruang antar batas
+                        width = Dimension.fillToConstraints
                     }
             ) {
                 Text(

@@ -2,6 +2,7 @@ package com.example.posko24.ui.provider
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -47,76 +48,87 @@ fun ProviderDetailScreen(
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when (val state = detailState) {
-                is ProviderDetailState.Loading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-                is ProviderDetailState.Success -> {
-                    val provider = state.provider
-                    ProfileHeader(
-                        photoUrl = provider.profilePictureUrl,
-                        name = provider.fullName,
-                        bio = provider.bio,
-                        rating = provider.averageRating,
-                        completedOrders = provider.totalReviews,
-                        favorites = 0
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        Button(onClick = { onOrderClick(provider.uid, provider.primaryCategoryId) }) {
-                            Text("Order")
-                        }
-                        Button(onClick = { onFavoriteClick(provider.uid) }) {
-                            Text("Favorit")
-                        }
-                        Button(onClick = { onShareClick(provider.uid) }) {
-                            Text("Bagikan")
-                        }
+        when (val state = detailState) {
+            is ProviderDetailState.Loading -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+            is ProviderDetailState.Error -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(state.message)
+            }
+            is ProviderDetailState.Success -> {
+                val provider = state.provider
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        ProfileHeader(
+                            photoUrl = provider.profilePictureUrl,
+                            name = provider.fullName,
+                            bio = provider.bio,
+                            rating = provider.averageRating,
+                            completedOrders = provider.totalReviews,
+                            favorites = 0
+                        )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    if (certifications.isNotEmpty()) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp)
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            items(certifications) { cert ->
-                                CertificationCard(
-                                    certification = cert,
-                                    modifier = Modifier.width(160.dp)
-                                )
+                            Button(onClick = { onOrderClick(provider.uid, provider.primaryCategoryId) }) {
+                                Text("Order")
+                            }
+                            Button(onClick = { onFavoriteClick(provider.uid) }) {
+                                Text("Favorit")
+                            }
+                            Button(onClick = { onShareClick(provider.uid) }) {
+                                Text("Bagikan")
                             }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                    if (certifications.isNotEmpty()) {
+                        item {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp)
+                            ) {
+                                items(certifications) { cert ->
+                                    CertificationCard(
+                                        certification = cert,
+                                        modifier = Modifier.width(160.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                     if (skills.isNotEmpty()) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp)
-                        ) {
-                            items(skills) { skill ->
-                                SkillTag(skill.name)
+                        item {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp)
+                            ) {
+                                items(skills) { skill ->
+                                    SkillTag(skill.name)
+                                }
                             }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
                     }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                    ) {
-                        ProfileTabs()
+                    item {
+                    ProfileTabs()
                     }
-                }
-                is ProviderDetailState.Error -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(state.message)
                 }
 
             }

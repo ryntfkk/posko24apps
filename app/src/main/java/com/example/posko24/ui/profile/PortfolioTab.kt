@@ -44,8 +44,11 @@ fun PortfolioTabContent() {
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(8.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 600.dp),
+        contentPadding = PaddingValues(8.dp),
+        userScrollEnabled = false
     ) {
         if (bestItems.isNotEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
