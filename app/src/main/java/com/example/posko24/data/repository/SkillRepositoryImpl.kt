@@ -12,22 +12,17 @@ class SkillRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : SkillRepository {
     override fun getProviderSkills(providerId: String): Flow<Result<List<Skill>>> = flow {
-        val doc = firestore.collection("provider_profiles").document(providerId).get().await()
-        val rawSkills = doc.get("skills")
-        val skills = when (rawSkills) {
-            is List<*> -> {
-                if (rawSkills.all { it is String }) {
-                    rawSkills.filterIsInstance<String>().map { Skill(it) }
-                } else {
-                    rawSkills.filterIsInstance<Map<String, Any>>().mapNotNull { map ->
-                        (map["name"] as? String)?.let { Skill(it) }
-                    }
-                }
+        val snapshot = firestore
+            .collection("provider_profiles")
+            .document(providerId)
+            .collection("services")
+            .get()
+            .await()
+        val skills = snapshot.documents.mapNotNull { doc ->
+            doc.getString("name")?.let { Skill(it) }
             }
-            else -> emptyList()
-        }
         emit(Result.success(skills))
-    }.catch {
-        emit(Result.failure(it))
+        }.catch { e ->
+            emit(Result.failure(e))
     }
 }

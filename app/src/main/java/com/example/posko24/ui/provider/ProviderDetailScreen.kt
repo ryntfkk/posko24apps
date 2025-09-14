@@ -2,14 +2,19 @@ package com.example.posko24.ui.provider
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.util.Log
 import com.example.posko24.ui.components.ProfileHeader
 import com.example.posko24.ui.profile.ProfileTabs
+import com.example.posko24.ui.components.CertificationCard
+import com.example.posko24.ui.components.SkillTag
 
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -22,7 +27,15 @@ fun ProviderDetailScreen(
     onShareClick: (providerId: String) -> Unit
 ) {
     val detailState by viewModel.providerDetailState.collectAsState()
+    val skills by viewModel.skills.collectAsState()
+    val certifications by viewModel.certifications.collectAsState()
 
+    LaunchedEffect(detailState, skills, certifications) {
+        Log.d(
+            "ProviderDetailScreen",
+            "state=$detailState skills=${skills.size} certs=${certifications.size}"
+        )
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -70,6 +83,31 @@ fun ProviderDetailScreen(
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
+                    if (certifications.isNotEmpty()) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp)
+                        ) {
+                            items(certifications) { cert ->
+                                CertificationCard(
+                                    certification = cert,
+                                    modifier = Modifier.width(160.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                    if (skills.isNotEmpty()) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp)
+                        ) {
+                            items(skills) { skill ->
+                                SkillTag(skill.name)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
