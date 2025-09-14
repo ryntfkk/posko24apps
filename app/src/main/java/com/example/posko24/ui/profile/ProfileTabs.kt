@@ -20,9 +20,8 @@ import androidx.compose.ui.Modifier
 fun ProfileTabs() {
     val tabs = listOf(
         "Portofolio",
-        "Layanan",
-        "Sertifikasi & Keahlian",
-        "Ulasan"
+        "Layanan"
+
     )
     val (selectedTab, setSelectedTab) = remember { mutableStateOf(0) }
 
@@ -40,8 +39,6 @@ fun ProfileTabs() {
         when (selectedTab) {
             0 -> PortfolioTabContent()
             1 -> PlaceholderContent("Layanan")
-            2 -> PlaceholderContent("Sertifikasi & Keahlian")
-            3 -> PlaceholderContent("Ulasan")
         }
     }
 }
