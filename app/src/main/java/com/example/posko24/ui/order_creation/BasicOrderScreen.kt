@@ -107,7 +107,10 @@ fun BasicOrderScreen(
 
     LaunchedEffect(uiState.paymentStatus) {
         when (uiState.paymentStatus.lowercase(Locale.ROOT)) {
-            "paid", "pending" -> uiState.orderId?.takeIf { it.isNotBlank() }?.let(onOrderSuccess)
+            "paid" -> uiState.orderId?.takeIf { it.isNotBlank() }?.let(onOrderSuccess)
+            "pending" -> {
+                Toast.makeText(context, "Menunggu pembayaran", Toast.LENGTH_LONG).show()
+            }
             "failed", "expire" -> {
                 Toast.makeText(context, "Pembayaran gagal atau kedaluwarsa", Toast.LENGTH_LONG).show()
             }
