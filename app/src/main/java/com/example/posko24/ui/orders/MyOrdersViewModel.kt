@@ -5,16 +5,19 @@ import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.repository.OrderRepository
+import com.example.posko24.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class MyOrdersViewModel @Inject constructor(
     private val orderRepository: OrderRepository,
+    private val userRepository: UserRepository,
     private val auth: FirebaseAuth
 ) : ViewModel() {
 
@@ -22,6 +25,9 @@ class MyOrdersViewModel @Inject constructor(
     val ordersState = _ordersState.asStateFlow()
 
     private var currentRole: String? = null
+    private val _paymentToken = MutableStateFlow<String?>(null)
+    val paymentToken = _paymentToken.asStateFlow()
+
 
     fun loadOrders(role: String) {
         val userId = auth.currentUser?.uid
@@ -108,6 +114,23 @@ class MyOrdersViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun continuePayment(orderId: String) {
+        val userId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            val userResult = userRepository.getUserProfile(userId).first()
+            val currentUser = userResult.getOrNull() ?: return@launch
+            orderRepository.createPaymentRequest(orderId, currentUser).collect { result ->
+                result.onSuccess { token ->
+                    _paymentToken.value = token
+                }
+            }
+        }
+    }
+
+    fun clearPaymentToken() {
+        _paymentToken.value = null
     }
 }
 

@@ -18,6 +18,7 @@ fun MyOrderItem(
     activeRole: String,
     onOrderClick: (String) -> Unit,
     onReviewClick: (String) -> Unit,
+    onPay: (String) -> Unit,
     onClaim: (String) -> Unit,
     onAccept: (String) -> Unit,
     onStart: (String) -> Unit,
@@ -28,15 +29,31 @@ fun MyOrderItem(
         .clickable { onOrderClick(order.id) }) {
         OrderCard(order = order)
         Spacer(modifier = Modifier.height(8.dp))
-        if (activeRole == "customer" && order.status == OrderStatus.COMPLETED.value) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                Button(onClick = { onReviewClick(order.id) }) {
-                    Text("Review")
+        if (activeRole == "customer") {
+            when (order.status) {
+                OrderStatus.COMPLETED.value -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(onClick = { onReviewClick(order.id) }) {
+                            Text("Review")
+                        }
+                    }
+                }
+                OrderStatus.AWAITING_PAYMENT.value -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(onClick = { onPay(order.id) }) {
+                            Text("Bayar")
+                        }
+                    }
                 }
             }
         }
