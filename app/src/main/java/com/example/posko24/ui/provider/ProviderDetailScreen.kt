@@ -5,21 +5,23 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import android.util.Log
 import com.example.posko24.ui.components.ProfileHeader
 import com.example.posko24.ui.profile.ProfileTabs
 import com.example.posko24.ui.components.CertificationCard
 import com.example.posko24.ui.components.SkillTag
 
-
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProviderDetailScreen(
     viewModel: ProviderDetailViewModel = hiltViewModel(),
@@ -31,12 +33,6 @@ fun ProviderDetailScreen(
     val skills by viewModel.skills.collectAsState()
     val certifications by viewModel.certifications.collectAsState()
 
-    LaunchedEffect(detailState, skills, certifications) {
-        Log.d(
-            "ProviderDetailScreen",
-            "state=$detailState skills=${skills.size} certs=${certifications.size}"
-        )
-    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -70,9 +66,9 @@ fun ProviderDetailScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(paddingValues)
                 ) {
+                    // Profile Header (Banner) - No horizontal padding
                     item {
                         ProfileHeader(
                             photoUrl = provider.profilePictureUrl,
@@ -80,57 +76,91 @@ fun ProviderDetailScreen(
                             bio = provider.bio,
                             rating = provider.averageRating,
                             completedOrders = provider.totalReviews,
-                            favorites = 0
+                            favorites = 0,
+                            modifier = Modifier.padding(bottom = 8.dp) // Add padding only at the bottom
                         )
                     }
+
+                    // Action Buttons - With horizontal padding
                     item {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Button(onClick = { onOrderClick(provider.uid, provider.primaryCategoryId) }) {
-                                Text("Order")
+                            Button(
+                                onClick = { onOrderClick(provider.uid, provider.primaryCategoryId) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Order Sekarang")
                             }
-                            Button(onClick = { onFavoriteClick(provider.uid) }) {
-                                Text("Favorit")
+                            IconButton(onClick = { onFavoriteClick(provider.uid) }) {
+                                Icon(Icons.Default.FavoriteBorder, contentDescription = "Favorit")
                             }
-                            Button(onClick = { onShareClick(provider.uid) }) {
-                                Text("Bagikan")
+                            IconButton(onClick = { onShareClick(provider.uid) }) {
+                                Icon(Icons.Default.Share, contentDescription = "Bagikan")
                             }
                         }
                     }
+
+                    // Skills and Certifications Section - With horizontal padding
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                if (skills.isNotEmpty()) {
+                                    Text("Keahlian", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        skills.forEach { skill ->
+                                            SkillTag(skill.name)
+                                        }
+                                    }
+                                }
+
+                                if (certifications.isNotEmpty()) {
+                                    if (skills.isNotEmpty()) {
+                                        Divider(modifier = Modifier.padding(vertical = 16.dp))
+                                    }
+                                    Text("Sertifikasi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                            }
+                        }
+                    }
+
                     if (certifications.isNotEmpty()) {
                         item {
                             LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp)
                             ) {
                                 items(certifications) { cert ->
                                     CertificationCard(
                                         certification = cert,
-                                        modifier = Modifier.width(160.dp)
+                                        modifier = Modifier.width(200.dp)
                                     )
                                 }
                             }
                         }
                     }
-                    if (skills.isNotEmpty()) {
-                        item {
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp)
-                            ) {
-                                items(skills) { skill ->
-                                    SkillTag(skill.name)
-                                }
-                            }
+
+                    // Portfolio and Services Tabs - With horizontal padding
+                    item {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)){
+                            ProfileTabs()
                         }
                     }
-                    item {
-                    ProfileTabs()
-                    }
                 }
-
             }
         }
     }
