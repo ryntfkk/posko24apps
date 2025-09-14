@@ -367,6 +367,26 @@ class BasicOrderViewModel @Inject constructor(
             }
         }
     }
+
+    fun continuePayment() {
+        val currentState = _uiState.value
+        val orderId = currentState.orderId ?: return
+        val user = currentState.currentUser ?: return
+        requestPaymentToken(orderId, user)
+    }
+
+    fun cancelOrder() {
+        val orderId = _uiState.value.orderId ?: return
+        viewModelScope.launch {
+            orderRepository.cancelOrder(orderId).collect {}
+            resetOrderState()
+        }
+    }
+
+    fun clearOrderCreationState() {
+        _uiState.update { it.copy(orderCreationState = OrderCreationState.Idle) }
+    }
+
     private fun observeOrder(orderId: String) {
         orderListenerJob?.cancel()
         orderListenerJob = viewModelScope.launch {

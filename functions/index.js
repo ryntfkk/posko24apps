@@ -460,7 +460,30 @@ exports.onOrderCancelled = onDocumentUpdated('orders/{orderId}', async (event) =
   }
   return null;
 });
+/**
+ * ============================================================
+ * 8) CANCEL EXPIRED ORDERS (Scheduler v2)
+ * ============================================================
+ */
+exports.cancelExpiredOrders = functions.scheduler.onSchedule('every 60 minutes', async () => {
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000);
+  const snapshot = await db
+    .collection('orders')
+    .where('status', '==', 'awaiting_payment')
+    .where('createdAt', '<', cutoff)
+    .get();
 
+  if (snapshot.empty) {
+    return null;
+  }
+
+  const batch = db.batch();
+  snapshot.docs.forEach((doc) => {
+    batch.update(doc.ref, { status: 'cancelled', paymentStatus: 'EXPIRE' });
+  });
+  await batch.commit();
+  return null;
+});
 /* =========================
    Helper: Create chat room
    ========================= */
