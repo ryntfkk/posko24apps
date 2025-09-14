@@ -57,7 +57,7 @@ data class BasicOrderUiState(
     val orderCreationState: OrderCreationState = OrderCreationState.Idle,
     val currentUser: User? = null,
     val orderId: String? = null,
-    val paymentStatus: String = "pending",
+    val paymentStatus: String = "",
     val orderType: String = "basic",
     val provider: ProviderProfile? = null,
     val providerServices: List<ProviderService> = emptyList(),
@@ -572,7 +572,7 @@ class BasicOrderViewModel @Inject constructor(
             it.copy(
                 orderCreationState = OrderCreationState.Idle,
                 orderId = null,
-                paymentStatus = "pending"
+                paymentStatus = ""
             )
         }
     }

@@ -55,8 +55,6 @@ fun BasicOrderScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val cameraPositionState = rememberCameraPositionState { position = uiState.cameraPosition }
-    var showPendingDialog by remember { mutableStateOf(false) }
-    var dialogShown by remember { mutableStateOf(false) }
     LaunchedEffect(uiState.cameraPosition) {
         cameraPositionState.position = uiState.cameraPosition
     }
@@ -107,27 +105,18 @@ fun BasicOrderScreen(
         }
     }
 
-    LaunchedEffect(uiState.paymentStatus, uiState.orderCreationState) {
-        if (uiState.orderCreationState is OrderCreationState.Idle &&
-            uiState.paymentStatus.lowercase(Locale.ROOT) == "pending" &&
-            !uiState.orderId.isNullOrBlank() &&
-            !dialogShown
-        ) {
-            showPendingDialog = true
-            dialogShown = true
-        } else {
-            when (uiState.paymentStatus.lowercase(Locale.ROOT)) {
-                "paid" -> uiState.orderId?.takeIf { it.isNotBlank() }?.let(onOrderSuccess)
-                "pending" -> {
-                    Toast.makeText(context, "Menunggu pembayaran", Toast.LENGTH_LONG).show()
-                }
-                "failed", "expire" -> {
+    LaunchedEffect(uiState.paymentStatus, uiState.orderId) {
+        val orderId = uiState.orderId
+        when (uiState.paymentStatus.lowercase(Locale.ROOT)) {
+            "paid" -> orderId?.let(onOrderSuccess)
+            "pending" -> if (orderId != null) {
+                Toast.makeText(context, "Menunggu pembayaran", Toast.LENGTH_LONG).show()
+            }
+            "failed", "expire" -> {
+                if (orderId != null) {
                     Toast.makeText(context, "Pembayaran gagal atau kedaluwarsa", Toast.LENGTH_LONG).show()
                 }
             }
-        }
-        if (uiState.orderId.isNullOrBlank()) {
-            dialogShown = false
         }
     }
 
@@ -146,29 +135,7 @@ fun BasicOrderScreen(
     val adminFee = PaymentConfig.ADMIN_FEE
     val discount = uiState.discountAmount
     val total = subtotal + adminFee - discount
-    if (showPendingDialog) {
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text("Pembayaran Tertunda") },
-            text = { Text("Pesanan Anda belum dibayar. Lanjutkan pembayaran?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showPendingDialog = false
-                    viewModel.continuePayment()
-                }) {
-                    Text("Lanjutkan Pembayaran")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showPendingDialog = false
-                    viewModel.cancelOrder()
-                }) {
-                    Text("Batalkan")
-                }
-            }
-        )
-    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
