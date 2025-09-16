@@ -353,16 +353,25 @@ exports.midtransWebhookHandler = functions.https.onRequest(
       const transactionStatus = statusResponse.transaction_status;
       const fraudStatus = statusResponse.fraud_status;
 
-      functions.logger.info('[WEBHOOK]', { orderId, transactionStatus, fraudStatus });
+            const normalizedTransactionStatus = String(transactionStatus || '').toLowerCase();
+            const normalizedFraudStatus = String(fraudStatus || '').toLowerCase();
+
+            functions.logger.info('[WEBHOOK]', {
+              orderId,
+              transactionStatus,
+              fraudStatus,
+              normalizedTransactionStatus,
+              normalizedFraudStatus,
+            });
 
       const orderRef = db.collection('orders').doc(orderId);
 
-      let newPaymentStatus = 'PENDING_PAYMENT';
+      let newPaymentStatus = 'pending';
       let newOrderStatus = null;
 
-      if (transactionStatus === 'capture' || transactionStatus === 'settlement') {
-        if (fraudStatus === 'accept') {
-          newPaymentStatus = 'PAID';
+      if (['capture', 'settlement'].includes(normalizedTransactionStatus)) {
+              if (normalizedFraudStatus === 'accept') {
+                newPaymentStatus = 'paid';
           const snap = await orderRef.get();
           if (snap.exists) {
             const data = snap.data();
@@ -376,8 +385,8 @@ exports.midtransWebhookHandler = functions.https.onRequest(
             }
           }
         }
-      } else if (['cancel', 'deny', 'expire'].includes(transactionStatus)) {
-        newPaymentStatus = transactionStatus.toUpperCase();
+      } else if (['cancel', 'deny', 'expire'].includes(normalizedTransactionStatus)) {
+             newPaymentStatus = normalizedTransactionStatus;
         newOrderStatus = 'cancelled';
       }
 
@@ -435,7 +444,11 @@ exports.onOrderCancelled = onDocumentUpdated('orders/{orderId}', async (event) =
   const after = event.data.after.data();
   const before = event.data.before.data();
 
-  if (after.status === 'cancelled' && before.paymentStatus !== 'PAID' && after.paymentStatus === 'PAID') {
+   if (
+      after.status === 'cancelled' &&
+      before.paymentStatus !== 'paid' &&
+      after.paymentStatus === 'paid'
+    ) {
         const { customerId, serviceSnapshot, quantity } = after;
         const basePrice = serviceSnapshot?.basePrice;
         const amount = basePrice * (quantity || 1);
@@ -479,7 +492,7 @@ exports.cancelExpiredOrders = functions.scheduler.onSchedule('every 60 minutes',
 
   const batch = db.batch();
   snapshot.docs.forEach((doc) => {
-    batch.update(doc.ref, { status: 'cancelled', paymentStatus: 'EXPIRE' });
+    batch.update(doc.ref, { status: 'cancelled', paymentStatus: 'expire' });
   });
   await batch.commit();
   return null;

@@ -15,7 +15,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import com.google.firebase.functions.FirebaseFunctions
 import android.util.Log
-
+import java.util.Locale
 
 class OrderRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
@@ -131,10 +131,11 @@ class OrderRepositoryImpl @Inject constructor(
         newStatus: OrderStatus,
         paymentStatus: String
     ): Flow<Result<Boolean>> = flow {
+        val normalizedPaymentStatus = paymentStatus.trim().lowercase(Locale.ROOT)
         firestore.collection("orders").document(orderId)
             .update(mapOf(
                 "status" to newStatus.value,
-                "paymentStatus" to paymentStatus
+                "paymentStatus" to normalizedPaymentStatus
             )).await()
         emit(Result.success(true))
     }.catch {

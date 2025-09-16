@@ -34,8 +34,16 @@ data class Order(
 
 
     // --- FIELD BARU UNTUK PEMBAYARAN ---
-    val paymentStatus: String = "pending", // "pending", "paid", "failed", "refunded"
-    val midtransTransactionId: String? = null, // ID Transaksi dari Midtrans
+    /**
+     * Status pembayaran sinkron dengan webhook Midtrans.
+     * Nilai resmi:
+     * - `pending`
+     * - `paid`
+     * - `cancel`
+     * - `deny`
+     * - `expire`
+     */
+    val paymentStatus: String = "pending",    val midtransTransactionId: String? = null, // ID Transaksi dari Midtrans
     val paymentGatewayInfo: Map<String, Any>? = null,
 
 
