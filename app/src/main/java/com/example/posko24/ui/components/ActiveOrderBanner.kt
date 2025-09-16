@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Payment
+import com.example.posko24.data.model.serviceItems
 import com.example.posko24.ui.home.ActiveOrderDetails
 
 @Composable
@@ -70,7 +71,12 @@ fun ActiveOrderBanner(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                val serviceName = order.serviceSnapshot["serviceName"] as? String ?: "Layanan"
+                val serviceItems = order.serviceItems()
+                val serviceName = when {
+                    serviceItems.isEmpty() -> "Layanan"
+                    serviceItems.size == 1 -> serviceItems.first().name
+                    else -> serviceItems.joinToString(", ") { it.name }
+                }
                 Text(
                     text = serviceName,
                     style = MaterialTheme.typography.bodySmall

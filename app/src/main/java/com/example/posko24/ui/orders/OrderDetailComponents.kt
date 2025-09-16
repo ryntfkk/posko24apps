@@ -17,25 +17,47 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.posko24.data.model.Order
+import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.User
-import com.example.posko24.data.model.OrderStatus
+import com.example.posko24.data.model.serviceItems
+import kotlin.math.roundToLong
 
 
 @Composable
 fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
-    val serviceName = order.serviceSnapshot["serviceName"] as? String ?: "Layanan"
-    val basePrice = order.serviceSnapshot["basePrice"] as? Double ?: 0.0
-    val quantity = order.quantity
-    val lineTotal = basePrice * quantity
+    val items = order.serviceItems()
+    val subtotal = items.sumOf { it.lineTotal }
     val adminFee = order.adminFee
     val discount = order.discountAmount
-    val totalAmount = if (order.totalAmount > 0) order.totalAmount else lineTotal + adminFee - discount
+    val totalAmount = if (order.totalAmount > 0) order.totalAmount else subtotal + adminFee - discount
+    val totalQuantity = items.sumOf { it.quantity }.takeIf { it > 0 } ?: order.quantity
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Layanan", style = MaterialTheme.typography.labelMedium)
-            Text(serviceName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            if (items.isEmpty()) {
+                Text(
+                    "Layanan",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            } else {
+                items.forEachIndexed { index, item ->
+                    if (index > 0) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    Text(
+                        item.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "${item.quantity} x ${formatCurrency(item.basePrice)} = ${formatCurrency(item.lineTotal)}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
             Text("Status", style = MaterialTheme.typography.labelMedium)
             Text(
@@ -46,26 +68,19 @@ fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
             Text("Alamat", style = MaterialTheme.typography.labelMedium)
             Text(order.addressText, style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Biaya Dasar", style = MaterialTheme.typography.labelMedium)
-            Text(
-                "Rp ${"%,d".format(basePrice.toInt())}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Jumlah", style = MaterialTheme.typography.labelMedium)
-            Text(quantity.toString(), style = MaterialTheme.typography.titleMedium)
+            Text("Jumlah Item", style = MaterialTheme.typography.labelMedium)
+            Text(totalQuantity.toString(), style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(16.dp))
             Text("Subtotal", style = MaterialTheme.typography.labelMedium)
             Text(
-                "Rp ${"%,d".format(lineTotal.toInt())}",
+                formatCurrency(subtotal),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text("Biaya Admin", style = MaterialTheme.typography.labelMedium)
             Text(
-                "Rp ${"%,d".format(adminFee.toInt())}",
+                formatCurrency(adminFee),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -73,7 +88,7 @@ fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Promo ${order.promoCode}", style = MaterialTheme.typography.labelMedium)
                 Text(
-                    "-Rp ${"%,d".format(discount.toInt())}",
+                    "-${formatCurrency(discount)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -81,7 +96,7 @@ fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
             Spacer(modifier = Modifier.height(16.dp))
             Text("Total", style = MaterialTheme.typography.labelMedium)
             Text(
-                "Rp ${"%,d".format(totalAmount.toInt())}",
+                formatCurrency(totalAmount),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -192,4 +207,7 @@ fun AnimatedSignalIcon(modifier: Modifier = Modifier) {
         tint = MaterialTheme.colorScheme.primary.copy(alpha = alpha),
         modifier = modifier.size(48.dp)
     )
+}
+private fun formatCurrency(amount: Double): String {
+    return "Rp ${"%,d".format(amount.roundToLong())}"
 }
