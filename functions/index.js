@@ -5,7 +5,7 @@ const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const midtransClient = require('midtrans-client');
 const { ADMIN_FEE } = require('./config');
-
+const { calculateRefundBreakdown } = require('./refund');
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -445,25 +445,49 @@ exports.onOrderCancelled = onDocumentUpdated('orders/{orderId}', async (event) =
   const before = event.data.before.data();
 
    if (
-      after.status === 'cancelled' &&
-      before.paymentStatus !== 'paid' &&
-      after.paymentStatus === 'paid'
-    ) {
-        const { customerId, serviceSnapshot, quantity } = after;
-        const basePrice = serviceSnapshot?.basePrice;
-        const amount = basePrice * (quantity || 1);
-    if (!customerId || !amount || amount <= 0) return null;
+     after.status === 'cancelled' &&
+     before.paymentStatus !== 'paid' &&
+     after.paymentStatus === 'paid'
+   ) {
+     const orderId = event.params.orderId;
+     const { amount, source, adjustments, policy } = calculateRefundBreakdown(after);
+     const customerId = after.customerId;
+
+     if (!customerId || !(amount > 0)) {
+       functions.logger.warn('[REFUND_SKIPPED]', {
+         orderId,
+         customerId: customerId || '(missing)',
+         source,
+         adjustments,
+         policy,
+       });
+       return null;
+     }
+
+     functions.logger.info('[REFUND_CALCULATED]', {
+       orderId,
+       customerId,
+       amount,
+       source,
+       adjustments,
+       policy,
+     });
 
     const customerRef = db.collection('users').doc(customerId);
     await db.runTransaction(async (tx) => {
       const customerDoc = await tx.get(customerRef);
       if (!customerDoc.exists) throw new Error('User tidak ditemukan.');
-      const newBalance = (customerDoc.data().balance || 0) + amount;
+
+      const currentBalanceRaw = Number(customerDoc.data().balance || 0);
+            const currentBalance = Number.isFinite(currentBalanceRaw) ? currentBalanceRaw : 0;
+            const newBalance = currentBalance + amount;
+
       tx.update(customerRef, { balance: newBalance });
+
       const refundRef = db.collection('transactions').doc();
       tx.set(refundRef, {
         userId: customerId,
-        orderId: event.params.orderId,
+        orderId,
         type: 'REFUND_IN',
         amount,
         description: 'Pengembalian dana dari pesanan yang dibatalkan',
