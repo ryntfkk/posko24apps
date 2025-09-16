@@ -96,13 +96,25 @@ class OrderRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateOrderStatus(orderId: String, newStatus: OrderStatus): Flow<Result<Boolean>> = flow {
-    val docRef = firestore.collection("orders").document(orderId)
+        val docRef = firestore.collection("orders").document(orderId)
         val snapshot = docRef.get().await()
         val currentStatus = snapshot.getString("status")
         if (currentStatus == OrderStatus.COMPLETED.value || currentStatus == OrderStatus.CANCELLED.value) {
             throw IllegalStateException("Transisi status tidak valid")
         }
-        docRef.update("status", newStatus.value).await()
+
+        val normalizedPaymentStatus = snapshot.getString("paymentStatus")?.lowercase(Locale.ROOT)
+        if (newStatus == OrderStatus.CANCELLED && normalizedPaymentStatus == "paid") {
+            docRef.update(
+                mapOf(
+                    "status" to newStatus.value,
+                    "paymentStatus" to "paid"
+                )
+            ).await()
+        } else {
+            docRef.update("status", newStatus.value).await()
+        }
+
         emit(Result.success(true))
     }.catch {
         emit(Result.failure(it))

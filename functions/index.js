@@ -440,15 +440,15 @@ exports.onProviderAssigned = onDocumentUpdated('orders/{orderId}', async (event)
  * 7) REFUND ON CANCELLATION (Firestore Trigger v2)
  * ============================================================
  */
-exports.onOrderCancelled = onDocumentUpdated('orders/{orderId}', async (event) => {
-  const after = event.data.after.data();
-  const before = event.data.before.data();
+async function handleOrderCancelled(event) {
+  const after = event?.data?.after?.data?.();
 
-   if (
-     after.status === 'cancelled' &&
-     before.paymentStatus !== 'paid' &&
-     after.paymentStatus === 'paid'
-   ) {
+  if (!after) {
+    return null;
+  }
+
+     if (after.status === 'cancelled' && after.paymentStatus === 'paid') {
+
      const orderId = event.params.orderId;
      const { amount, source, adjustments, policy } = calculateRefundBreakdown(after);
      const customerId = after.customerId;
@@ -496,7 +496,10 @@ exports.onOrderCancelled = onDocumentUpdated('orders/{orderId}', async (event) =
     });
   }
   return null;
-});
+}
+
+exports.onOrderCancelled = onDocumentUpdated('orders/{orderId}', handleOrderCancelled);
+exports.__testHandleOrderCancelled = handleOrderCancelled;
 /**
  * ============================================================
  * 8) CANCEL EXPIRED ORDERS (Scheduler v2)
