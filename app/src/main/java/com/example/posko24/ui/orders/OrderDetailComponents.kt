@@ -150,7 +150,7 @@ fun ProviderActionButtonsSection(order: Order, customer: User?, viewModel: Order
             Spacer(modifier = Modifier.height(16.dp))
         }
         when (order.status) {
-            OrderStatus.PENDING.value -> {
+            OrderStatus.PENDING.value, OrderStatus.AWAITING_PROVIDER_CONFIRMATION.value -> {
                 Button(onClick = { viewModel.acceptOrder() }) { Text("Terima") }
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(onClick = { viewModel.rejectOrder() }) { Text("Tolak") }

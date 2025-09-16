@@ -71,6 +71,17 @@ fun MyOrderItem(
                             Text("Claim")
                         }
                     }
+                    OrderStatus.AWAITING_PROVIDER_CONFIRMATION.value -> {
+                        if (order.providerId.isNullOrBlank()) {
+                            Button(onClick = { onClaim(order.id) }) {
+                                Text("Claim")
+                            }
+                        } else {
+                            Button(onClick = { onAccept(order.id) }) {
+                                Text("Accept")
+                            }
+                        }
+                    }
                     OrderStatus.PENDING.value -> {
                         Button(onClick = { onAccept(order.id) }) {
                             Text("Accept")
