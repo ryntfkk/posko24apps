@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -18,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.OrderStatus
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -68,34 +70,71 @@ fun CustomerOrderDetailScreen(
                                 }
                             }
                         }
-                        order.orderType == "direct" &&
-                                order.status == OrderStatus.AWAITING_PROVIDER_CONFIRMATION.value -> {
-                            Text("Menunggu konfirmasi penyedia…")
-                        }
                         else -> {
-                            when (val pState = providerState) {
-                                is ProviderProfileState.Loading -> CircularProgressIndicator()
-                                is ProviderProfileState.Error -> Text(pState.message)
-                                is ProviderProfileState.Success -> {
-                                    val provider = pState.profile
-                                    LazyColumn(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(16.dp)
-                                    ) {
-                                        item { ProviderInfoSection(provider) }
-                                        item { Spacer(modifier = Modifier.height(16.dp)) }
-                                        item { OrderInfoSection(order = order, provider = provider) }
-                                        item { Spacer(modifier = Modifier.height(24.dp)) }
-                                        item { CustomerActionButtonsSection(order = order, provider = provider, viewModel = viewModel) }
-                                    }
-                                }
-                                else -> CircularProgressIndicator()
+                            val infoMessage = if (
+                                order.orderType == "direct" &&
+                                order.status == OrderStatus.AWAITING_PROVIDER_CONFIRMATION.value
+                            ) {
+                                "Menunggu konfirmasi penyedia…"
+                            } else {
+                                null
                             }
+                            CustomerOrderDetailContent(
+                                order = order,
+                                providerState = providerState,
+                                viewModel = viewModel,
+                                infoMessage = infoMessage
+                            )
                         }
                     }
                 }
             }
         }
+    }
+}
+@Composable
+private fun CustomerOrderDetailContent(
+    order: Order,
+    providerState: ProviderProfileState,
+    viewModel: OrderDetailViewModel,
+    infoMessage: String? = null
+) {
+    when (providerState) {
+        is ProviderProfileState.Loading -> CircularProgressIndicator()
+        is ProviderProfileState.Error -> Text(providerState.message)
+        is ProviderProfileState.Success -> {
+            val provider = providerState.profile
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                infoMessage?.let { message ->
+                    item {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = message,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    }
+                    item { Spacer(modifier = Modifier.height(16.dp)) }
+                }
+
+                item { ProviderInfoSection(provider) }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+                item { OrderInfoSection(order = order, provider = provider) }
+                item { Spacer(modifier = Modifier.height(24.dp)) }
+                item {
+                    CustomerActionButtonsSection(
+                        order = order,
+                        provider = provider,
+                        viewModel = viewModel
+                    )
+                }
+            }
+        }
+        else -> CircularProgressIndicator()
     }
 }
