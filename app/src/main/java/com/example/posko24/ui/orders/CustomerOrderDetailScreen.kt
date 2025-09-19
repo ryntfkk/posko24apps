@@ -17,11 +17,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.OrderStatus
-
+import com.example.posko24.data.model.serviceItems
+import kotlin.math.roundToLong
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,12 +62,19 @@ fun CustomerOrderDetailScreen(
                                 order.status == OrderStatus.SEARCHING_PROVIDER.value &&
                                 order.providerId == null -> {
                             Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                modifier = Modifier
+                                    .padding(horizontal = 24.dp)
+                                    .widthIn(max = 480.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 AnimatedSignalIcon()
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Sedang mencari penyedia jasa…")
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "Sedang mencari penyedia jasa…",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    textAlign = TextAlign.Center
+                                )
+                                BasicOrderWaitingSummary(order = order)
                                 Button(onClick = onNavigateHome) {
                                     Text("Kembali ke Home")
                                 }
@@ -137,4 +147,67 @@ private fun CustomerOrderDetailContent(
         }
         else -> CircularProgressIndicator()
     }
+}
+@Composable
+private fun BasicOrderWaitingSummary(order: Order) {
+    val items = order.serviceItems()
+    val serviceLabel = when {
+        items.isEmpty() -> "Layanan"
+        items.size == 1 -> items.first().name
+        else -> items.joinToString(", ") { it.name }
+    }
+    val subtotal = items.sumOf { it.lineTotal }
+    val totalQuantity = items.sumOf { it.quantity }.takeIf { it > 0 } ?: order.quantity
+    val discount = order.discountAmount
+    val totalAmount = if (order.totalAmount > 0) {
+        order.totalAmount
+    } else {
+        subtotal + order.adminFee - discount
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Ringkasan Pesanan",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            SummaryItem(label = "Layanan", value = serviceLabel)
+            if (order.addressText.isNotBlank()) {
+                SummaryItem(label = "Alamat", value = order.addressText)
+            }
+            SummaryItem(label = "Jumlah Item", value = totalQuantity.toString())
+            SummaryItem(
+                label = "Total Pembayaran",
+                value = formatCurrency(totalAmount),
+                emphasizeValue = true
+            )
+        }
+    }
+}
+
+@Composable
+private fun SummaryItem(label: String, value: String, emphasizeValue: Boolean = false) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium
+        )
+        Text(
+            text = value,
+            style = if (emphasizeValue) {
+                MaterialTheme.typography.titleMedium
+            } else {
+                MaterialTheme.typography.bodyLarge
+            },
+            fontWeight = if (emphasizeValue) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}
+
+private fun formatCurrency(amount: Double): String {
+    return "Rp ${"%,d".format(amount.roundToLong())}"
 }
