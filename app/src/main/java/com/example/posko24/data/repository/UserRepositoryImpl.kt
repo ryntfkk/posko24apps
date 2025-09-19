@@ -75,5 +75,10 @@ private fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
         ?.filterIsInstance<String>()
         ?: profile.availableDates
     val resolvedUid = if (profile.uid.isEmpty()) id else profile.uid
-    return profile.copy(uid = resolvedUid, availableDates = availableDates)
+    val isAvailable = (getBoolean("available") ?: getBoolean("isAvailable")) ?: profile.isAvailable
+    return profile.copy(
+        uid = resolvedUid,
+        availableDates = availableDates,
+        isAvailable = isAvailable
+    )
 }

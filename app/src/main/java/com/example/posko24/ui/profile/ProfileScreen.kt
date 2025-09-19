@@ -457,7 +457,7 @@ fun AvailabilityBottomSheet(
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
-                    items(datesInMonth, key = { it }) { date ->
+                    items(datesInMonth, key = { it.toString() }) { date ->
                         AvailabilityDateItem(
                             date = date,
                             isSelected = selectedDates.contains(date),
