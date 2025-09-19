@@ -32,7 +32,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import javax.inject.Inject
-
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 sealed class OrderCreationState {
     object Idle : OrderCreationState()
     object Loading : OrderCreationState()
@@ -65,7 +67,9 @@ data class BasicOrderUiState(
     val serviceSelections: List<ServiceSelection> = emptyList(),
     val promoCode: String = "",
     val discountAmount: Double = 0.0,
-    val promoMessage: String? = null
+    val promoMessage: String? = null,
+    val selectedDate: LocalDate? = null,
+    val availableDates: List<LocalDate> = emptyList()
 )
 
 @HiltViewModel
@@ -161,12 +165,30 @@ class BasicOrderViewModel @Inject constructor(
                                         listOf(ProviderServiceSelection(svc, 1))
                                     }
                                 } ?: emptyList()
-                                _uiState.update {
-                                    it.copy(
+                                val parsedDates = provider.availableDates.mapNotNull { rawDate ->
+                                    try {
+                                        LocalDate.parse(rawDate, DateTimeFormatter.ISO_LOCAL_DATE)
+                                    } catch (_: DateTimeParseException) {
+                                        null
+                                    }
+                                }.distinct().sorted()
+                                _uiState.update { current ->
+                                    val resolvedSelection = when {
+                                        parsedDates.isEmpty() -> null
+                                        current.selectedDate != null && parsedDates.contains(current.selectedDate) -> current.selectedDate
+                                        else -> {
+                                            val today = LocalDate.now()
+                                            parsedDates.firstOrNull { date -> !date.isBefore(today) }
+                                                ?: parsedDates.firstOrNull()
+                                        }
+                                    }
+                                    current.copy(
                                         provider = provider,
                                         providerServices = services,
                                         providerSelections = initialSelection,
-                                        orderType = "direct"
+                                        orderType = "direct",
+                                        availableDates = parsedDates,
+                                        selectedDate = resolvedSelection
                                     )
                                 }
                             }.onFailure { e ->
@@ -195,7 +217,9 @@ class BasicOrderViewModel @Inject constructor(
                 orderType = "basic",
                 provider = null,
                 providerServices = emptyList(),
-                providerSelections = emptyList()
+                providerSelections = emptyList(),
+                selectedDate = null,
+                availableDates = emptyList()
             )
         }
     }
@@ -227,6 +251,14 @@ class BasicOrderViewModel @Inject constructor(
                 val selections = currentState.providerSelections.filter { it.quantity > 0 }
                 if (provider == null || selections.isEmpty()) {
                     _uiState.update { it.copy(orderCreationState = OrderCreationState.Error("Data provider atau layanan tidak lengkap.")) }
+                    return@launch
+                }
+
+                val selectedDate = currentState.selectedDate
+                if (selectedDate == null) {
+                    _uiState.update {
+                        it.copy(orderCreationState = OrderCreationState.Error("Harap pilih tanggal kunjungan."))
+                    }
                     return@launch
                 }
 
@@ -267,6 +299,7 @@ class BasicOrderViewModel @Inject constructor(
                     discountAmount = discount,
                     promoCode = currentState.promoCode.ifBlank { null },
                     totalAmount = totalAmount,
+                    scheduledDate = selectedDate.toString(),
                     serviceSnapshot = mapOf(
                         "categoryName" to provider.primaryCategoryId,
                         "items" to items
@@ -566,6 +599,9 @@ class BasicOrderViewModel @Inject constructor(
         _uiState.update { it.copy(mapCoordinates = geoPoint) }
     }
 
+    fun onDateSelected(date: LocalDate) {
+        _uiState.update { it.copy(selectedDate = date) }
+    }
     fun resetOrderState() {
         orderListenerJob?.cancel()
         _uiState.update {

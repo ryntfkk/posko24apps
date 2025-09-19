@@ -12,6 +12,7 @@ import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.User
+import com.example.posko24.data.model.formattedScheduledDate
 import com.example.posko24.data.model.serviceItems
 import kotlin.math.roundToLong
 
@@ -56,6 +57,11 @@ fun OrderInfoSection(order: Order, provider: ProviderProfile?) {
                 order.status.replaceFirstChar { it.uppercase() }.replace('_', ' '),
                 style = MaterialTheme.typography.titleMedium
             )
+            order.formattedScheduledDate()?.let { schedule ->
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Jadwal Kunjungan", style = MaterialTheme.typography.labelMedium)
+                Text(schedule, style = MaterialTheme.typography.bodyLarge)
+            }
             Spacer(modifier = Modifier.height(16.dp))
             Text("Alamat", style = MaterialTheme.typography.labelMedium)
             Text(order.addressText, style = MaterialTheme.typography.bodyLarge)

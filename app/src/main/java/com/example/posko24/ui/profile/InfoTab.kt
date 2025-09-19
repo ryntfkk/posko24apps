@@ -1,75 +1,102 @@
 package com.example.posko24.ui.profile
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Help
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Policy
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Work
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import com.example.posko24.data.model.ProviderProfile
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import java.util.Locale
 
 /**
- * Tab content displaying social links, experience, availability and FAQ.
+ * Tab content displaying provider bio, status, and availability schedule.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun InfoTabContent() {
-    val uriHandler = LocalUriHandler.current
+fun InfoTabContent(provider: ProviderProfile) {
+    val parsedDates = remember(provider.availableDates) {
+        provider.availableDates.mapNotNull { raw ->
+            try {
+                LocalDate.parse(raw, DateTimeFormatter.ISO_LOCAL_DATE)
+            } catch (_: DateTimeParseException) {
+                null
+            }
+        }.sorted()
+    }
+    val chipFormatter = remember {
+        DateTimeFormatter.ofPattern("dd MMM", Locale("id", "ID"))
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Sosial Media", style = MaterialTheme.typography.titleMedium)
-        InfoRow(icon = Icons.Default.Link, text = "LinkedIn") {
-            uriHandler.openUri("https://www.linkedin.com")
+        if (provider.bio.isNotBlank()) {
+            Text("Deskripsi", style = MaterialTheme.typography.titleMedium)
+            Text(
+                provider.bio,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
-        InfoRow(icon = Icons.Default.Link, text = "Instagram") {
-            uriHandler.openUri("https://www.instagram.com")
+        Text("Status Operasional", style = MaterialTheme.typography.titleMedium)
+        val statusIcon = if (provider.isAvailable) Icons.Default.CheckCircle else Icons.Default.Block
+        val statusLabel = if (provider.isAvailable) {
+            "Aktif menerima order"
+        } else {
+            "Tidak tersedia"
         }
+        InfoRow(icon = statusIcon, text = statusLabel)
 
-        Text("Pengalaman & Pendidikan", style = MaterialTheme.typography.titleMedium)
-        InfoRow(icon = Icons.Default.Work, text = "3 thn pengalaman")
-        InfoRow(icon = Icons.Default.School, text = "S1 Informatika")
-
-        Text("Ketersediaan", style = MaterialTheme.typography.titleMedium)
-        InfoRow(icon = Icons.Default.CheckCircle, text = "Tersedia")
-        InfoRow(icon = Icons.Default.Schedule, text = "Sedang Sibuk")
-        InfoRow(icon = Icons.Default.Block, text = "Cuti")
-
-        Text("FAQ & Syarat", style = MaterialTheme.typography.titleMedium)
-        InfoRow(icon = Icons.Default.Help, text = "Pengerjaan 2-3 hari")
-        InfoRow(icon = Icons.Default.Policy, text = "Maks 2 revisi")
+        if (parsedDates.isNotEmpty()) {
+            Text("Jadwal Tersedia", style = MaterialTheme.typography.titleMedium)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                parsedDates.forEach { date ->
+                    AssistChip(
+                        onClick = {},
+                        enabled = false,
+                        label = { Text(chipFormatter.format(date)) }
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
 private fun InfoRow(
     icon: ImageVector,
-    text: String,
-    onClick: (() -> Unit)? = null
+    text: String
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Icon(icon, contentDescription = null)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text)
+        Text(text, style = MaterialTheme.typography.bodyMedium)
     }
 }

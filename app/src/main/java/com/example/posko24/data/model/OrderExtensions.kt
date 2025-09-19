@@ -1,5 +1,11 @@
 package com.example.posko24.data.model
 
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import java.util.Locale
+
+
 /**
  * Represents a single item stored in an [Order.serviceSnapshot].
  */
@@ -49,3 +55,19 @@ fun Order.serviceItems(): List<ServiceItemSnapshot> {
         )
     )
 }
+
+private val friendlyDateFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEE, dd MMM yyyy", Locale("id", "ID"))
+
+/** Returns the scheduled service date as a [LocalDate] if available and valid. */
+fun Order.scheduledLocalDate(): LocalDate? {
+    val raw = scheduledDate ?: return null
+    return try {
+        LocalDate.parse(raw, DateTimeFormatter.ISO_LOCAL_DATE)
+    } catch (_: DateTimeParseException) {
+        null
+    }
+}
+
+/** Formats the scheduled service date into a user-friendly label. */
+fun Order.formattedScheduledDate(): String? = scheduledLocalDate()?.let { friendlyDateFormatter.format(it) }

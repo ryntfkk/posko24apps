@@ -141,7 +141,7 @@ fun ProviderDetailScreen(
                     // Portfolio and Services Tabs - With horizontal padding
                     item {
                         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)){
-                            ProfileTabs()
+                            ProfileTabs(provider = provider)
                         }
                     }
                 }

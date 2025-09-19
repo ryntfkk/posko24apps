@@ -76,7 +76,12 @@ class OrderRepositoryImpl @Inject constructor(
     override fun createDirectOrder(order: Order, activeRole: String): Flow<Result<String>> = flow {
         val documentReference = firestore.collection("orders").document()
         documentReference.set(order.copy(createdByRole = activeRole, quantity = order.quantity)).await()
-        documentReference.set(mapOf("providerId" to order.providerId), SetOptions.merge()).await()
+        val updates = mutableMapOf<String, Any>()
+        order.providerId?.let { updates["providerId"] = it }
+        order.scheduledDate?.let { updates["scheduledDate"] = it }
+        if (updates.isNotEmpty()) {
+            documentReference.set(updates, SetOptions.merge()).await()
+        }
         emit(Result.success(documentReference.id))
     }.catch { exception ->
         emit(Result.failure(exception))

@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Payment
+import com.example.posko24.data.model.formattedScheduledDate
 import com.example.posko24.data.model.serviceItems
 import com.example.posko24.ui.home.ActiveOrderDetails
 
@@ -81,6 +82,12 @@ fun ActiveOrderBanner(
                     text = serviceName,
                     style = MaterialTheme.typography.bodySmall
                 )
+                order.formattedScheduledDate()?.let { schedule ->
+                    Text(
+                        text = "Jadwal: $schedule",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 when (order.status) {
                     "awaiting_payment" -> {
                         Text(

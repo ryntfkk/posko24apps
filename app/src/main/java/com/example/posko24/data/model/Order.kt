@@ -31,6 +31,7 @@ data class Order(
     val district: AddressComponent? = null,
     val addressText: String = "", // Untuk detail jalan, nomor rumah, dll.
     val location: GeoPoint? = null,
+    val scheduledDate: String? = null,
 
 
     // --- FIELD BARU UNTUK PEMBAYARAN ---

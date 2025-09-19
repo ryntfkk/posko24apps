@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,6 +41,8 @@ import com.midtrans.sdk.uikit.api.exception.SnapError
 import com.midtrans.sdk.uikit.api.model.TransactionResult
 import com.midtrans.sdk.uikit.external.UiKitApi
 import java.text.NumberFormat
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -135,7 +138,13 @@ fun BasicOrderScreen(
     val adminFee = PaymentConfig.ADMIN_FEE
     val discount = uiState.discountAmount
     val total = subtotal + adminFee - discount
-
+    val canCheckout = uiState.selectedDistrict != null &&
+            uiState.addressDetail.isNotBlank() &&
+            uiState.currentUser?.activeRole != "provider" &&
+            (
+                    uiState.orderType != "direct" ||
+                            (uiState.availableDates.isNotEmpty() && uiState.selectedDate != null)
+                    )
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -156,9 +165,7 @@ fun BasicOrderScreen(
                 CheckoutBottomBar(
                     totalAmount = total,
                     isLoading = uiState.orderCreationState is OrderCreationState.Loading,
-                    enabled = uiState.selectedDistrict != null &&
-                            uiState.addressDetail.isNotBlank() &&
-                            uiState.currentUser?.activeRole != "provider",
+                    enabled = canCheckout,
                     onCheckoutClick = { viewModel.createOrder() }
                 )
             }
@@ -227,6 +234,12 @@ fun ServiceDetailsSection(
                 SelectedProviderCard(
                     provider = provider,
                     onClear = { viewModel.clearProvider() }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                DateSelectionSection(
+                    availableDates = uiState.availableDates,
+                    selectedDate = uiState.selectedDate,
+                    onSelect = viewModel::onDateSelected
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             } else if (uiState.orderType == "basic") {
@@ -306,6 +319,45 @@ fun SelectedProviderCard(provider: ProviderProfile, onClear: () -> Unit) {
     }
 }
 
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun DateSelectionSection(
+    availableDates: List<LocalDate>,
+    selectedDate: LocalDate?,
+    onSelect: (LocalDate) -> Unit
+) {
+    val locale = remember { Locale("id", "ID") }
+    val chipFormatter = remember(locale) { DateTimeFormatter.ofPattern("dd MMM", locale) }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            "Pilih Tanggal Kunjungan",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+        if (availableDates.isEmpty()) {
+            Text(
+                text = "Provider tidak menerima order saat ini.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error
+            )
+        } else {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                availableDates.forEach { date ->
+                    val label = chipFormatter.format(date)
+                    FilterChip(
+                        selected = date == selectedDate,
+                        onClick = { onSelect(date) },
+                        label = { Text(label) }
+                    )
+                }
+            }
+        }
+    }
+}
 @Composable
 fun ServiceQuantityItem(service: BasicService, quantity: Int, onQuantityChange: (Int) -> Unit) {
     val formattedPrice = NumberFormat.getNumberInstance(Locale("id", "ID")).format(service.flatPrice.toInt())

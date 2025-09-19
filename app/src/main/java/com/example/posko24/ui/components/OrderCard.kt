@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.posko24.data.model.Order
+import com.example.posko24.data.model.formattedScheduledDate
 import com.example.posko24.data.model.serviceItems
 import java.text.SimpleDateFormat
 import java.util.*
@@ -30,7 +31,8 @@ fun OrderCard(
         else -> serviceItems.joinToString(", ") { it.name }
     }
     val categoryName = order.serviceSnapshot["categoryName"] as? String ?: "Kategori"
-    val formattedDate = order.createdAt?.toDate()?.let {
+    val scheduledLabel = order.formattedScheduledDate()
+    val createdAtLabel = order.createdAt?.toDate()?.let {
         SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(it)
     } ?: "Baru saja"
 
@@ -52,7 +54,13 @@ fun OrderCard(
             Text(text = categoryName, style = MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = "Status: ${order.status.replace('_', ' ').capitalize(Locale.ROOT)}")
-            Text(text = "Tanggal: $formattedDate")
+            Text(
+                text = if (scheduledLabel != null) {
+                    "Jadwal: $scheduledLabel"
+                } else {
+                    "Dibuat: $createdAtLabel"
+                }
+            )
 
             if (onTakeOrderClick != null) {
                 Spacer(modifier = Modifier.height(8.dp))
