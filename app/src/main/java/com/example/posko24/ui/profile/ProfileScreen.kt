@@ -341,41 +341,49 @@ fun RoleSwitcher(
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Ringkasan Jadwal", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                        if (availabilityDates.isEmpty()) {
-                            Text(
-                                text = "Belum ada jadwal dipilih.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            val sortedDates = availabilityDates.sorted()
-                            val maxVisible = 4
-                            val visibleDates = sortedDates.take(maxVisible)
-                            val remainingCount = (sortedDates.size - maxVisible).coerceAtLeast(0)
+                        if (isAvailable) {
+                            if (availabilityDates.isEmpty()) {
+                                Text(
+                                    text = "Belum ada jadwal dipilih.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                val sortedDates = availabilityDates.sorted()
+                                val maxVisible = 4
+                                val visibleDates = sortedDates.take(maxVisible)
+                                val remainingCount = (sortedDates.size - maxVisible).coerceAtLeast(0)
 
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(visibleDates) { date ->
-                                    AssistChip(
-                                        onClick = {},
-                                        enabled = false,
-                                        label = {
-                                            Text(date.toSummaryLabel())
-                                        }
-                                    )
-                                }
-                                if (remainingCount > 0) {
-                                    item {
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    items(visibleDates) { date ->
                                         AssistChip(
                                             onClick = {},
                                             enabled = false,
-                                            label = { Text("+${remainingCount}") }
+                                            label = {
+                                                Text(date.toSummaryLabel())
+                                            }
                                         )
+                                    }
+                                    if (remainingCount > 0) {
+                                        item {
+                                            AssistChip(
+                                                onClick = {},
+                                                enabled = false,
+                                                label = { Text("+${remainingCount}") }
+                                            )
+                                        }
                                     }
                                 }
                             }
+                        } else {
+                            Text(
+                                text = "Aktifkan status tersedia untuk mengatur dan melihat jadwal Anda.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
-                    OutlinedButton(onClick = onManageAvailability) {
+                    OutlinedButton(onClick = onManageAvailability, enabled = isAvailable) {
                         Text("Atur Jadwal")
                     }
                 }
