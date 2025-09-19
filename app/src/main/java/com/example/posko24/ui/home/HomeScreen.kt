@@ -154,6 +154,7 @@ fun CategoryListScreen(
     val categoriesState by viewModel.categoriesState.collectAsState()
     val providersState by viewModel.nearbyProvidersState.collectAsState()
     val bannerImageUrls by viewModel.bannerUrls.collectAsState()
+    val bottomBannerUrl by viewModel.bottomBannerUrl.collectAsState()
     val activeOrderDetails by viewModel.activeOrderDetails.collectAsState()
     val pagerState = rememberPagerState(initialPage = 0)
 
@@ -400,7 +401,24 @@ fun CategoryListScreen(
                     }
                 }
             }
-
+            item {
+                bottomBannerUrl?.takeIf { it.isNotBlank() }?.let { bannerUrl ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                            .padding(horizontal = 16.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    ) {
+                        Image(
+                            painter = rememberAsyncImagePainter(bannerUrl),
+                            contentDescription = "Banner promosi",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
             item {
                 Text(
                     text = "Layanan Populer",

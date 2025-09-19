@@ -39,6 +39,8 @@ class HomeViewModel @Inject constructor(
 
     private val _bannerUrls = MutableStateFlow<List<String>>(emptyList())
     val bannerUrls: StateFlow<List<String>> = _bannerUrls
+    private val _bottomBannerUrl = MutableStateFlow<String?>(null)
+    val bottomBannerUrl: StateFlow<String?> = _bottomBannerUrl
 
     // --- State diubah untuk menampung detail order yang lebih lengkap ---
     private val _activeOrderDetails = MutableStateFlow<ActiveOrderDetails?>(null)
@@ -123,17 +125,38 @@ class HomeViewModel @Inject constructor(
                     if (result.isEmpty) {
                         Log.w(TAG, "Koleksi 'banners' kosong atau tidak ditemukan.")
                         _bannerUrls.value = emptyList()
+                        _bottomBannerUrl.value = null
                         return@addOnSuccessListener
                     }
-                    val urls = result.map { document ->
+
+                    val topBanners = mutableListOf<String>()
+                    var bottomBanner: String? = null
+
+                    result.forEach { document ->
                         Log.d(TAG, "Dokumen ditemukan: ID=${document.id}, Data=${document.data}")
-                        document.getString("imageUrl") ?: ""
-                    }.filter { it.isNotEmpty() }
-                    Log.d(TAG, "Berhasil memuat banners. Jumlah URL: ${urls.size}, URLs: $urls")
-                    _bannerUrls.value = urls
+                        val url = document.getString("imageUrl") ?: ""
+                        if (url.isBlank()) {
+                            return@forEach
+                        }
+
+                        when (document.getString("position")?.lowercase()) {
+                            "bottom" -> if (bottomBanner == null) {
+                                bottomBanner = url
+                            } else {
+                                topBanners.add(url)
+                            }
+                            else -> topBanners.add(url)
+                        }
+                    }
+
+                    Log.d(TAG, "Berhasil memuat banners. Top=${topBanners.size}, Bottom=${bottomBanner != null}")
+                    _bannerUrls.value = topBanners
+                    _bottomBannerUrl.value = bottomBanner
                 }
                 .addOnFailureListener { exception ->
                     Log.e(TAG, "Gagal memuat banner dari Firestore!", exception)
+                    _bannerUrls.value = emptyList()
+                    _bottomBannerUrl.value = null
                 }
         }
     }
