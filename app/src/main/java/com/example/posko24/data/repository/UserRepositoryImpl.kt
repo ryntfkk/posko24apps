@@ -32,20 +32,6 @@ class UserRepositoryImpl @Inject constructor(
         emit(Result.failure(it))
     }
 
-
-    override suspend fun updateProviderAvailability(
-        providerId: String,
-        dates: List<String>,
-        isActive: Boolean
-    ): Flow<Result<Boolean>> = flow {
-        firestore.collection("provider_profiles").document(providerId)
-            .update(mapOf("available" to isActive, "availableDates" to dates)).await()
-
-        emit(Result.success(true))
-    }.catch {
-        emit(Result.failure(it))
-    }
-
     override suspend fun upgradeToProvider(): Flow<Result<Boolean>> = flow {
         FirebaseFunctions.getInstance().getHttpsCallable("upgradeToProvider").call().await()
         emit(Result.success(true))

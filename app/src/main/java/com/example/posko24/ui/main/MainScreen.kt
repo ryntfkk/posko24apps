@@ -235,11 +235,6 @@ fun MainScreenPreview() {
     val fakeRepository = object : UserRepository {
         override fun getUserProfile(userId: String): Flow<Result<User?>> = flowOf(Result.success(null))
         override fun getProviderProfile(providerId: String): Flow<Result<ProviderProfile?>> = flowOf(Result.success(null))
-        override suspend fun updateProviderAvailability(
-            providerId: String,
-            dates: List<String>,
-            isActive: Boolean
-        ): Flow<Result<Boolean>> = flowOf(Result.success(true))
         override suspend fun updateActiveRole(userId: String, activeRole: String): Flow<Result<Boolean>> = flowOf(Result.success(true))
         override suspend fun upgradeToProvider(): Flow<Result<Boolean>> = flowOf(Result.success(true))
         override suspend fun updateUserProfile(userId: String, data: Map<String, Any?>): Result<Unit> = Result.success(Unit)

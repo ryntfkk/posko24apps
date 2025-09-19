@@ -145,8 +145,6 @@ fun ProfileScreen(
                                 RoleSwitcher(
                                     activeRole = activeRole,
                                     onRoleChange = mainViewModel::setActiveRole,
-                                    isAvailable = providerProfile?.isAvailable ?: true,
-                                    onAvailabilityChange = { newStatus -> viewModel.updateAvailability(newStatus) },
                                     availabilityDates = availability,
                                     onManageAvailability = { showAvailabilitySheet = true }
                                 )
@@ -304,8 +302,6 @@ fun MenuItem(icon: ImageVector, title: String, onClick: () -> Unit) {
 fun RoleSwitcher(
     activeRole: String,
     onRoleChange: (String) -> Unit,
-    isAvailable: Boolean,
-    onAvailabilityChange: (Boolean) -> Unit,
     availabilityDates: List<LocalDate>,
     onManageAvailability: () -> Unit
 ) {
@@ -331,59 +327,45 @@ fun RoleSwitcher(
             if (activeRole == "provider") {
                 Divider(modifier = Modifier.padding(vertical = 12.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Status Tersedia", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                        Switch(checked = isAvailable, onCheckedChange = onAvailabilityChange)
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Ringkasan Jadwal", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                        if (isAvailable) {
-                            if (availabilityDates.isEmpty()) {
-                                Text(
-                                    text = "Belum ada jadwal dipilih.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            } else {
-                                val sortedDates = availabilityDates.sorted()
-                                val maxVisible = 4
-                                val visibleDates = sortedDates.take(maxVisible)
-                                val remainingCount = (sortedDates.size - maxVisible).coerceAtLeast(0)
+                    Text(
+                        "Jadwal Tersedia",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (availabilityDates.isEmpty()) {
+                        Text(
+                            text = "Belum ada jadwal dipilih.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        val sortedDates = availabilityDates.sorted()
+                        val maxVisible = 4
+                        val visibleDates = sortedDates.take(maxVisible)
+                        val remainingCount = (sortedDates.size - maxVisible).coerceAtLeast(0)
 
-                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    items(visibleDates) { date ->
-                                        AssistChip(
-                                            onClick = {},
-                                            enabled = false,
-                                            label = {
-                                                Text(date.toSummaryLabel())
-                                            }
-                                        )
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(visibleDates) { date ->
+                                AssistChip(
+                                    onClick = {},
+                                    enabled = false,
+                                    label = {
+                                        Text(date.toSummaryLabel())
                                     }
-                                    if (remainingCount > 0) {
-                                        item {
-                                            AssistChip(
-                                                onClick = {},
-                                                enabled = false,
-                                                label = { Text("+${remainingCount}") }
-                                            )
-                                        }
-                                    }
+                                )
+                            }
+                            if (remainingCount > 0) {
+                                item {
+                                    AssistChip(
+                                        onClick = {},
+                                        enabled = false,
+                                        label = { Text("+${remainingCount}") }
+                                    )
                                 }
                             }
-                        } else {
-                            Text(
-                                text = "Aktifkan status tersedia untuk mengatur dan melihat jadwal Anda.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
                     }
-                    OutlinedButton(onClick = onManageAvailability, enabled = isAvailable) {
+                    OutlinedButton(onClick = onManageAvailability) {
                         Text("Atur Jadwal")
                     }
                 }

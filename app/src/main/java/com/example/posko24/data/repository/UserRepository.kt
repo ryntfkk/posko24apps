@@ -12,14 +12,7 @@ interface UserRepository {
      */
     fun getProviderProfile(providerId: String): Flow<Result<ProviderProfile?>>
 
-    /**
-     * Memperbarui status ketersediaan provider.
-     */
-    suspend fun updateProviderAvailability(
-        providerId: String,
-        dates: List<String>,
-        isActive: Boolean
-    ): Flow<Result<Boolean>>
+
     /**
      * Menyimpan peran aktif pengguna (provider atau customer).
      */

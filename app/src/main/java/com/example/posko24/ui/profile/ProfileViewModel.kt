@@ -113,16 +113,6 @@ class ProfileViewModel @Inject constructor(
             }
         }
     }
-    fun updateAvailability(isAvailable: Boolean) {
-        val userId = auth.currentUser?.uid ?: return
-        val dates = _availability.value.map { it.toString() }
-        viewModelScope.launch {
-            userRepository.updateProviderAvailability(userId, dates, isAvailable).collect {
-                // Muat ulang data untuk memastikan UI terupdate
-                loadUserProfile()
-            }
-        }
-    }
     fun upgradeToProvider(mainViewModel: MainViewModel) {
         viewModelScope.launch {
             userRepository.upgradeToProvider().collect { result ->
