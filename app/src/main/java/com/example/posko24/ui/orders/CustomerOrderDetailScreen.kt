@@ -24,6 +24,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.model.serviceItems
+import com.example.posko24.ui.components.AnimatedSignalIcon
 import kotlin.math.roundToLong
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)

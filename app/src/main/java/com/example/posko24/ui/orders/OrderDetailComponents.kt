@@ -1,17 +1,9 @@
 package com.example.posko24.ui.orders
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -189,25 +181,6 @@ fun CustomerActionButtonsSection(order: Order, provider: ProviderProfile?, viewM
     }
 }
 
-@Composable
-fun AnimatedSignalIcon(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "")
-    val alpha by transition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-    Icon(
-        imageVector = Icons.Filled.SignalCellularAlt,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.primary.copy(alpha = alpha),
-        modifier = modifier.size(48.dp)
-    )
-}
 private fun formatCurrency(amount: Double): String {
     return "Rp ${"%,d".format(amount.roundToLong())}"
 }
