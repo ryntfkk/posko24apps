@@ -69,8 +69,9 @@ class ProfileViewModel @Inject constructor(
 
     fun updateAvailability(isAvailable: Boolean) {
         val userId = auth.currentUser?.uid ?: return
+        val dates = (_profileState.value as? ProfileState.Success)?.providerProfile?.availableDates ?: emptyList()
         viewModelScope.launch {
-            userRepository.updateProviderAvailability(userId, isAvailable).collect {
+            userRepository.updateProviderAvailability(userId, dates, isAvailable).collect {
                 // Muat ulang data untuk memastikan UI terupdate
                 loadUserProfile()
             }

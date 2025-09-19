@@ -19,6 +19,8 @@ data class ProviderProfile(
     @get:PropertyName("available")
     val isAvailable: Boolean = true,
 
+    val availableDates: List<String> = emptyList(),
+
     val acceptsBasicOrders: Boolean = true,
     val averageRating: Double = 0.0,
     val totalReviews: Int = 0,

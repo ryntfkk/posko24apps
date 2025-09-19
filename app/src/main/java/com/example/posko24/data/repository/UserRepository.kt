@@ -15,8 +15,11 @@ interface UserRepository {
     /**
      * Memperbarui status ketersediaan provider.
      */
-    suspend fun updateProviderAvailability(providerId: String, isAvailable: Boolean): Flow<Result<Boolean>>
-
+    suspend fun updateProviderAvailability(
+        providerId: String,
+        dates: List<String>,
+        isActive: Boolean
+    ): Flow<Result<Boolean>>
     /**
      * Menyimpan peran aktif pengguna (provider atau customer).
      */

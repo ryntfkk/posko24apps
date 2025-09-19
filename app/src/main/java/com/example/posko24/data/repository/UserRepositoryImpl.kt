@@ -2,6 +2,7 @@ package com.example.posko24.data.repository
 
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.User
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.Flow
@@ -25,18 +26,21 @@ class UserRepositoryImpl @Inject constructor(
 
     override fun getProviderProfile(providerId: String): Flow<Result<ProviderProfile?>> = flow {
         val documentSnapshot = firestore.collection("provider_profiles").document(providerId).get().await()
-        val providerProfile = documentSnapshot.toObject(ProviderProfile::class.java)
+        val providerProfile = documentSnapshot.toProviderProfileWithDefaults()
         emit(Result.success(providerProfile))
     }.catch {
         emit(Result.failure(it))
     }
 
 
-    override suspend fun updateProviderAvailability(providerId: String, isAvailable: Boolean): Flow<Result<Boolean>> = flow {
-
+    override suspend fun updateProviderAvailability(
+        providerId: String,
+        dates: List<String>,
+        isActive: Boolean
+    ): Flow<Result<Boolean>> = flow {
         firestore.collection("provider_profiles").document(providerId)
-            .update("available", isAvailable).await()
-        // --- AKHIR PERBAIKAN ---
+            .update(mapOf("available" to isActive, "availableDates" to dates)).await()
+
         emit(Result.success(true))
     }.catch {
         emit(Result.failure(it))
@@ -64,4 +68,12 @@ class UserRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+}
+private fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
+    val profile = toObject(ProviderProfile::class.java) ?: return null
+    val availableDates = (get("availableDates") as? List<*>)
+        ?.filterIsInstance<String>()
+        ?: profile.availableDates
+    val resolvedUid = if (profile.uid.isEmpty()) id else profile.uid
+    return profile.copy(uid = resolvedUid, availableDates = availableDates)
 }

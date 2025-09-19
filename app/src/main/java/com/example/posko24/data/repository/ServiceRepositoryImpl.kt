@@ -38,7 +38,7 @@ class ServiceRepositoryImpl @Inject constructor(
             .get().await()
 
         val providerProfiles = profilesSnapshot.documents.mapNotNull { doc ->
-            doc.toObject(ProviderProfile::class.java)?.copy(uid = doc.id)
+            doc.toProviderProfileWithDefaults()
         }
 
         val userIds = providerProfiles.map { it.uid }
@@ -84,7 +84,7 @@ class ServiceRepositoryImpl @Inject constructor(
             val profileDoc = firestore.collection("provider_profiles")
                 .document(user.uid)
                 .get().await()
-            profileDoc.toObject(ProviderProfile::class.java)?.copy(uid = profileDoc.id)?.let { profile ->
+            profileDoc.toProviderProfileWithDefaults()?.let { profile ->
                 profile.copy(
                     fullName = user.fullName,
                     profilePictureUrl = user.profilePictureUrl
@@ -123,7 +123,7 @@ class ServiceRepositoryImpl @Inject constructor(
     override fun getProviderDetails(providerId: String): Flow<Result<ProviderProfile?>> = flow {
         // 1. Ambil data dari 'provider_profiles'
         val profileDoc = firestore.collection("provider_profiles").document(providerId).get().await()
-        val providerProfile = profileDoc.toObject(ProviderProfile::class.java)?.copy(uid = profileDoc.id)
+        val providerProfile = profileDoc.toProviderProfileWithDefaults()
 
         if (providerProfile == null) {
             emit(Result.success(null))
@@ -181,4 +181,12 @@ class ServiceRepositoryImpl @Inject constructor(
     }.catch { exception ->
         emit(Result.failure(exception))
     }
+}
+private fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
+    val profile = toObject(ProviderProfile::class.java) ?: return null
+    val availableDates = (get("availableDates") as? List<*>)
+        ?.filterIsInstance<String>()
+        ?: profile.availableDates
+    val resolvedUid = if (profile.uid.isEmpty()) id else profile.uid
+    return profile.copy(uid = resolvedUid, availableDates = availableDates)
 }
