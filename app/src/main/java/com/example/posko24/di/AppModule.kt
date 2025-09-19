@@ -75,6 +75,14 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideProviderAvailabilityRepository(
+        firestore: FirebaseFirestore
+    ): ProviderAvailabilityRepository {
+        return ProviderAvailabilityRepositoryImpl(firestore)
+    }
+
+    @Provides
+    @Singleton
     fun provideTransactionRepository(
         firestore: FirebaseFirestore
     ): TransactionRepository {

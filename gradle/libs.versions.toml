@@ -39,6 +39,7 @@ googleMapsCompose = "4.3.3"
 playServicesMaps = "18.2.0"
 playServicesLocation = "21.3.0"
 retrofit = "2.9.0"
+kotlinxDatetime = "0.6.0"
 
 [libraries]
 # AndroidX & Compose
@@ -83,6 +84,7 @@ midtrans-sdk = { group = "com.midtrans", name = "uikit", version.ref = "midtrans
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
+kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinxDatetime" }
 
 # Lainnya
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
