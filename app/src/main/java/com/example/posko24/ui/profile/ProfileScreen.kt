@@ -391,7 +391,7 @@ fun AvailabilityBottomSheet(
     onDismiss: () -> Unit,
     onSave: (List<LocalDate>) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState()
     val coroutineScope = rememberCoroutineScope()
     val selectedDates = remember { mutableStateListOf<LocalDate>() }
 
