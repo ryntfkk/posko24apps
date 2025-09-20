@@ -20,7 +20,6 @@ composeCompiler = "1.5.8" # Versi compiler yang cocok untuk Kotlin 1.9.22
 junit = "4.13.2"
 junitVersion = "1.1.5"
 espressoCore = "3.5.1"
-
 # Firebase
 googleGmsGoogleServices = "4.4.2"
 firebaseBom = "33.1.2"
