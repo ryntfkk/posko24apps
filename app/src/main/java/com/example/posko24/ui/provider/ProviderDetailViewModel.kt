@@ -162,7 +162,7 @@ class ProviderDetailViewModel @Inject constructor(
         updateScheduleState(busyDates = dates)
     }
 
-    fun updateBusyDates(rawDates: List<String>) {
+    fun updateBusyDatesFromStrings(rawDates: List<String>) {
         val parsed = rawDates.mapNotNull { raw ->
             runCatching { LocalDate.parse(raw) }.getOrNull()
         }
