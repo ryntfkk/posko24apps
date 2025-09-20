@@ -17,6 +17,7 @@ import javax.inject.Inject
 import com.example.posko24.data.model.Skill
 import com.example.posko24.data.model.Certification
 import android.util.Log
+import kotlinx.datetime.LocalDate
 
 @HiltViewModel
 class ProviderDetailViewModel @Inject constructor(
@@ -41,6 +42,9 @@ class ProviderDetailViewModel @Inject constructor(
     private val _certifications = MutableStateFlow<List<Certification>>(emptyList())
     val certifications = _certifications.asStateFlow()
 
+    private val _providerScheduleState = MutableStateFlow(ProviderScheduleUiState())
+    val providerScheduleState = _providerScheduleState.asStateFlow()
+
     private var currentProviderId: String? = null
     private var lastDocument: DocumentSnapshot? = null
     private val pageSize = 10L
@@ -64,15 +68,26 @@ class ProviderDetailViewModel @Inject constructor(
                         "Loaded provider details for ${provider.fullName}"
                     )
                     _providerDetailState.value = ProviderDetailState.Success(provider)
+                    _providerScheduleState.value = ProviderScheduleUiState(
+                        availableDates = parseAvailableDates(provider.availableDates)
+                    )
                 } else {
                     Log.e("ProviderDetailViewModel", "Provider not found")
                     _providerDetailState.value = ProviderDetailState.Error("Provider tidak ditemukan")
+                    _providerScheduleState.value = ProviderScheduleUiState()
                 }
             }.onFailure {
                 Log.e("ProviderDetailViewModel", "Failed to load provider details", it)
                 _providerDetailState.value = ProviderDetailState.Error(it.message ?: "Gagal memuat detail")
+                _providerScheduleState.value = ProviderScheduleUiState()
             }
         }
+    }
+
+    private fun parseAvailableDates(dates: List<String>): List<LocalDate> {
+        return dates.mapNotNull { raw ->
+            runCatching { LocalDate.parse(raw) }.getOrNull()
+        }.distinct().sorted()
     }
 
     private suspend fun loadProviderServices(providerId: String) {
@@ -143,3 +158,8 @@ sealed class ProviderServicesState {
     data class Success(val services: List<ProviderService>, val canLoadMore: Boolean) : ProviderServicesState()
     data class Error(val message: String) : ProviderServicesState()
 }
+
+data class ProviderScheduleUiState(
+    val availableDates: List<LocalDate> = emptyList(),
+    val busyDates: List<LocalDate> = emptyList()
+)

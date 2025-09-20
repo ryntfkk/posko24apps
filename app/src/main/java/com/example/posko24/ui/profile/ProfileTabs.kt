@@ -12,13 +12,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.example.posko24.data.model.ProviderProfile
+import com.example.posko24.ui.provider.ProviderScheduleUiState
 
 /**
  * Simple tab component for profile related sections.
  * Currently shows placeholder content for each tab.
  */
 @Composable
-fun ProfileTabs(provider: ProviderProfile) {
+fun ProfileTabs(
+    provider: ProviderProfile,
+    scheduleState: ProviderScheduleUiState,
+    onShowSchedule: () -> Unit
+) {
     val tabs = listOf(
         "Info",
         "Portofolio",
@@ -39,7 +44,11 @@ fun ProfileTabs(provider: ProviderProfile) {
         }
 
         when (selectedTab) {
-            0 -> InfoTabContent(provider)
+            0 -> InfoTabContent(
+                provider = provider,
+                scheduleState = scheduleState,
+                onShowSchedule = onShowSchedule
+            )
             1 -> PortfolioTabContent()
             2 -> PlaceholderContent("Layanan")
         }
