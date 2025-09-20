@@ -11,8 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.posko24.data.model.Transaction
-import java.text.SimpleDateFormat
-import java.util.*
+import com.example.posko24.util.appSimpleDateFormat
 
 @Composable
 fun TransactionListItem(transaction: Transaction) {
@@ -20,7 +19,7 @@ fun TransactionListItem(transaction: Transaction) {
     val amountPrefix = if (transaction.amount >= 0) "+ Rp" else "- Rp"
     val formattedAmount = "%,d".format(Math.abs(transaction.amount).toInt())
     val formattedDate = transaction.createdAt?.toDate()?.let {
-        SimpleDateFormat("dd MMMM yyyy", Locale.getDefault()).format(it)
+        appSimpleDateFormat("dd MMMM yyyy").format(it)
     } ?: ""
 
     Card(modifier = Modifier

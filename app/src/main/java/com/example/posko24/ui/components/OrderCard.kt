@@ -15,8 +15,8 @@ import androidx.compose.ui.unit.dp
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.formattedScheduledDate
 import com.example.posko24.data.model.serviceItems
-import java.text.SimpleDateFormat
-import java.util.*
+import com.example.posko24.util.appSimpleDateFormat
+import java.util.Locale
 
 @Composable
 fun OrderCard(
@@ -33,7 +33,7 @@ fun OrderCard(
     val categoryName = order.serviceSnapshot["categoryName"] as? String ?: "Kategori"
     val scheduledLabel = order.formattedScheduledDate()
     val createdAtLabel = order.createdAt?.toDate()?.let {
-        SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(it)
+        appSimpleDateFormat("dd MMMM yyyy, HH:mm").format(it)
     } ?: "Baru saja"
 
     val cardModifier = Modifier

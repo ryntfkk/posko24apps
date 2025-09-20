@@ -14,8 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.posko24.data.model.Certification
+import com.example.posko24.util.appSimpleDateFormat
 import java.text.SimpleDateFormat
-import java.util.Locale
 
 @Composable
 fun CertificationCard(
@@ -52,5 +52,5 @@ fun CertificationCard(
 
 @Composable
 private fun rememberFormatter(): SimpleDateFormat {
-    return remember { SimpleDateFormat("d MMM yyyy", Locale.getDefault()) }
+    return remember { appSimpleDateFormat("d MMM yyyy") }
 }
