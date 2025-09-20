@@ -8,31 +8,27 @@ import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.repository.ServiceRepository
 import com.example.posko24.data.repository.SkillRepository
 import com.example.posko24.data.repository.CertificationRepository
-import com.example.posko24.data.repository.OrderRepository
+import com.example.posko24.data.repository.ProviderAvailabilityRepository
 import com.google.firebase.firestore.DocumentSnapshot
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.example.posko24.data.model.Skill
 import com.example.posko24.data.model.Certification
-import com.example.posko24.data.model.OrderStatus
-import com.example.posko24.data.model.scheduledLocalDate
 import android.util.Log
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.toKotlinLocalDate
 import com.example.posko24.util.APP_TIME_ZONE
 
 @HiltViewModel
 class ProviderDetailViewModel @Inject constructor(
     private val repository: ServiceRepository,
-    private val orderRepository: OrderRepository,
+    private val availabilityRepository: ProviderAvailabilityRepository,
     private val skillRepository: SkillRepository,
     private val certificationRepository: CertificationRepository,
     savedStateHandle: SavedStateHandle
@@ -140,21 +136,10 @@ class ProviderDetailViewModel @Inject constructor(
 
     private fun loadBusyDates(providerId: String) {
         viewModelScope.launch {
-            val activeStatuses = listOf(
-                OrderStatus.AWAITING_PAYMENT,
-                OrderStatus.PENDING,
-                OrderStatus.ACCEPTED,
-                OrderStatus.ONGOING,
-                OrderStatus.AWAITING_CONFIRMATION,
-                OrderStatus.AWAITING_PROVIDER_CONFIRMATION
-            )
-
-            orderRepository.getProviderOrdersByStatus(providerId, activeStatuses).collect { result ->
-                if (providerId != currentProviderId) return@collect
-                result.onSuccess { orders ->
-                    val busyDates = orders.mapNotNull { order ->
-                        order.scheduledLocalDate()?.toKotlinLocalDate()
-                    }.toSet()
+            availabilityRepository.getBusyDates(providerId).collect { result ->
+            if (providerId != currentProviderId) return@collect
+                result.onSuccess { rawDates ->
+                    val busyDates = parseAvailableDates(rawDates).toSet()
                     Log.d("ProviderDetailViewModel", "Loaded ${busyDates.size} busy dates")
                     updateProviderScheduleState(busyDates = busyDates)
                 }.onFailure {

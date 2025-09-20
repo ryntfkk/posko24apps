@@ -11,6 +11,7 @@ admin.initializeApp();
 const db = admin.firestore();
 
 const ACTIVE_PROVIDER_ORDER_STATUSES = [
+  'awaiting_payment',
   'pending',
   'accepted',
   'ongoing',
@@ -54,6 +55,37 @@ function arraysEqual(a, b) {
   }
 
   return a.every((value, index) => value === b[index]);
+}
+
+async function recomputeProviderBusyDates(providerId) {
+  if (!providerId) {
+    return 0;
+  }
+
+  const profileRef = db.collection('provider_profiles').doc(providerId);
+
+  if (!Array.isArray(ACTIVE_PROVIDER_ORDER_STATUSES) || ACTIVE_PROVIDER_ORDER_STATUSES.length === 0) {
+    await profileRef.set({ busyDates: [] }, { merge: true });
+    return 0;
+  }
+
+  const activeOrdersQuery = db
+    .collection('orders')
+    .where('providerId', '==', providerId)
+    .where('status', 'in', ACTIVE_PROVIDER_ORDER_STATUSES);
+
+  const snapshot = await activeOrdersQuery.get();
+
+  const busyDates = sanitizeDateList(
+    snapshot.docs.map((doc) => {
+      const data = doc.data() || {};
+      return normalizeScheduledDate(data.scheduledDate);
+    })
+  );
+
+  await profileRef.set({ busyDates }, { merge: true });
+
+  return busyDates.length;
 }
 
 async function applyProviderAvailabilityChange({
@@ -776,6 +808,91 @@ exports.syncProviderAvailability = onDocumentWritten('orders/{orderId}', async (
       taskCount: tasks.length,
     });
   }
+
+  return null;
+});
+
+/**
+ * ============================================================
+ * 6C) SYNC PROVIDER BUSY DATES (Firestore Trigger v2)
+ * ============================================================
+ */
+exports.syncProviderBusyDates = onDocumentWritten('orders/{orderId}', async (event) => {
+  const orderId = event.params.orderId;
+  const beforeSnap = event.data?.before;
+  const afterSnap = event.data?.after;
+
+  const beforeData = beforeSnap && beforeSnap.exists && typeof beforeSnap.data === 'function'
+    ? beforeSnap.data()
+    : null;
+  const afterData = afterSnap && afterSnap.exists && typeof afterSnap.data === 'function'
+    ? afterSnap.data()
+    : null;
+
+  if (!beforeData && !afterData) {
+    return null;
+  }
+
+  const beforeProvider = beforeData?.providerId || null;
+  const afterProvider = afterData?.providerId || null;
+
+  const beforeStatus = typeof beforeData?.status === 'string' ? beforeData.status : null;
+  const afterStatus = typeof afterData?.status === 'string' ? afterData.status : null;
+
+  const beforeDate = beforeData ? normalizeScheduledDate(beforeData.scheduledDate) : null;
+  const afterDate = afterData ? normalizeScheduledDate(afterData.scheduledDate) : null;
+
+  const beforeActive = Boolean(
+    beforeProvider && beforeStatus && ACTIVE_PROVIDER_ORDER_STATUSES.includes(beforeStatus)
+  );
+  const afterActive = Boolean(
+    afterProvider && afterStatus && ACTIVE_PROVIDER_ORDER_STATUSES.includes(afterStatus)
+  );
+
+  let shouldSync = false;
+  if (beforeActive !== afterActive) {
+    shouldSync = true;
+  } else if (beforeActive && afterActive) {
+    if (beforeProvider !== afterProvider || beforeDate !== afterDate) {
+      shouldSync = true;
+    }
+  }
+
+  if (!shouldSync) {
+    return null;
+  }
+
+  const providerIds = new Set();
+  if (beforeActive && beforeProvider) {
+    providerIds.add(beforeProvider);
+  }
+  if (afterActive && afterProvider) {
+    providerIds.add(afterProvider);
+  }
+
+  if (providerIds.size === 0) {
+    return null;
+  }
+
+  await Promise.all(
+    Array.from(providerIds).map(async (providerId) => {
+      try {
+        const busyDatesCount = await recomputeProviderBusyDates(providerId);
+        functions.logger.info('[SYNC_PROVIDER_BUSY_DATES_UPDATED]', {
+          orderId,
+          providerId,
+          busyDatesCount,
+        });
+      } catch (error) {
+        functions.logger.error('[SYNC_PROVIDER_BUSY_DATES_FAILED]', {
+          orderId,
+          providerId,
+          message: error?.message || 'Unknown error',
+        });
+        throw error;
+      }
+    })
+  );
 
   return null;
 });

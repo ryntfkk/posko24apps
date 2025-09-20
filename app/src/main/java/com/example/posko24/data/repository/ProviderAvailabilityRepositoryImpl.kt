@@ -12,12 +12,15 @@ class ProviderAvailabilityRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : ProviderAvailabilityRepository {
 
-    override fun getAvailability(providerId: String): Flow<Result<List<String>>> = flow {
+    private suspend fun getDateList(providerId: String, field: String): List<String> {
         val snapshot = firestore.collection("provider_profiles").document(providerId).get().await()
-        val dates = (snapshot.get("availableDates") as? List<*>)
+        return (snapshot.get(field) as? List<*>)
             ?.filterIsInstance<String>()
             ?: emptyList()
-        emit(Result.success(dates))
+    }
+
+    override fun getAvailability(providerId: String): Flow<Result<List<String>>> = flow {
+        emit(Result.success(getDateList(providerId, "availableDates")))
     }.catch { throwable ->
         emit(Result.failure(throwable))
     }
@@ -26,6 +29,12 @@ class ProviderAvailabilityRepositoryImpl @Inject constructor(
         firestore.collection("provider_profiles").document(providerId)
             .set(mapOf("availableDates" to dates), SetOptions.merge()).await()
         emit(Result.success(Unit))
+    }.catch { throwable ->
+        emit(Result.failure(throwable))
+    }
+
+    override fun getBusyDates(providerId: String): Flow<Result<List<String>>> = flow {
+        emit(Result.success(getDateList(providerId, "busyDates")))
     }.catch { throwable ->
         emit(Result.failure(throwable))
     }

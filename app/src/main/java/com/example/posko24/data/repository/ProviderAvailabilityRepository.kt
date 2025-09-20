@@ -6,4 +6,6 @@ interface ProviderAvailabilityRepository {
     fun getAvailability(providerId: String): Flow<Result<List<String>>>
 
     fun saveAvailability(providerId: String, dates: List<String>): Flow<Result<Unit>>
+
+    fun getBusyDates(providerId: String): Flow<Result<List<String>>>
 }
