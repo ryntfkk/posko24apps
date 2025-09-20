@@ -1,7 +1,7 @@
 'use strict';
 
 const functions = require('firebase-functions/v2');
-const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
+const { onDocumentUpdated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const midtransClient = require('midtrans-client');
 const { ADMIN_FEE } = require('./config');
@@ -24,6 +24,137 @@ function normalizeScheduledDate(rawDate) {
   }
   const trimmed = rawDate.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function sanitizeDateList(rawList) {
+  if (!Array.isArray(rawList)) {
+    return [];
+  }
+
+  const normalized = rawList
+    .map((value) => normalizeScheduledDate(value))
+    .filter((value) => typeof value === 'string' && value.length > 0);
+
+  const deduped = Array.from(new Set(normalized));
+  deduped.sort();
+  return deduped;
+}
+
+function arraysEqual(a, b) {
+  if (a === b) {
+    return true;
+  }
+
+  if (!Array.isArray(a) || !Array.isArray(b)) {
+    return false;
+  }
+
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  return a.every((value, index) => value === b[index]);
+}
+
+async function applyProviderAvailabilityChange({
+  providerId,
+  scheduledDate,
+  action,
+  reason = 'UNSPECIFIED',
+  forceAvailability,
+} = {}) {
+  const normalizedDate = normalizeScheduledDate(scheduledDate);
+
+  if (!providerId || !action) {
+    return null;
+  }
+
+  const profileRef = db.collection('provider_profiles').doc(providerId);
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const snapshot = await tx.get(profileRef);
+      if (!snapshot.exists) {
+        functions.logger.warn('[PROVIDER_AVAILABILITY_MISSING_PROFILE]', {
+          providerId,
+          action,
+          reason,
+        });
+        return;
+      }
+
+      const data = snapshot.data() || {};
+      const currentDates = sanitizeDateList(data.availableDates);
+      let nextDates = currentDates;
+
+      if (action === 'consume') {
+        if (normalizedDate) {
+          nextDates = currentDates.filter((date) => date !== normalizedDate);
+        }
+      } else if (action === 'release') {
+        if (normalizedDate && !currentDates.includes(normalizedDate)) {
+          nextDates = currentDates.concat(normalizedDate);
+          nextDates.sort();
+        }
+      } else {
+        functions.logger.warn('[PROVIDER_AVAILABILITY_UNKNOWN_ACTION]', {
+          providerId,
+          action,
+          reason,
+        });
+        return;
+      }
+
+      const updates = {};
+      let changed = false;
+
+      if (!arraysEqual(nextDates, currentDates)) {
+        updates.availableDates = nextDates;
+        changed = true;
+      }
+
+      const resolvedAvailability =
+        typeof forceAvailability === 'boolean'
+          ? forceAvailability
+          : nextDates.length > 0;
+
+      const currentAvailability =
+        typeof data.available === 'boolean'
+          ? data.available
+          : typeof data.isAvailable === 'boolean'
+            ? data.isAvailable
+            : null;
+
+      if (currentAvailability !== resolvedAvailability) {
+        updates.available = resolvedAvailability;
+        changed = true;
+      }
+
+      if (changed) {
+        tx.update(profileRef, updates);
+        functions.logger.info('[PROVIDER_AVAILABILITY_UPDATED]', {
+          providerId,
+          action,
+          reason,
+          scheduledDate: normalizedDate,
+          availableDates: updates.availableDates || currentDates,
+          available:
+            'available' in updates ? updates.available : currentAvailability,
+        });
+      }
+    });
+  } catch (error) {
+    functions.logger.error('[PROVIDER_AVAILABILITY_UPDATE_FAILED]', {
+      providerId,
+      action,
+      reason,
+      scheduledDate: normalizedDate,
+      message: error?.message || 'Unknown error',
+    });
+    throw error;
+  }
+
+  return null;
 }
 /* =========================
    Helpers: Env & Validation
@@ -279,24 +410,26 @@ exports.claimOrder = functions.https.onCall(async (request) => {
 
   const uid = request.auth.uid;
   const orderRef = db.collection('orders').doc(orderId);
- await db.runTransaction(async (tx) => {
-     const snap = await tx.get(orderRef);
-     if (!snap.exists) {
-       throw new functions.https.HttpsError('not-found', 'Pesanan tidak ditemukan.');
-     }
+   let requestedScheduledDate = null;
 
-     const data = snap.data() || {};
-     if (data.providerId) {
-       throw new functions.https.HttpsError('failed-precondition', 'Pesanan sudah memiliki provider.');
-     }
-     if (data.status !== 'searching_provider') {
-       throw new functions.https.HttpsError(
-         'failed-precondition',
-         'Pesanan tidak dalam status pencarian provider.'
-       );
-     }
+     await db.runTransaction(async (tx) => {
+         const snap = await tx.get(orderRef);
+         if (!snap.exists) {
+           throw new functions.https.HttpsError('not-found', 'Pesanan tidak ditemukan.');
+         }
 
-     const requestedScheduledDate = normalizeScheduledDate(data.scheduledDate);
+         const data = snap.data() || {};
+         if (data.providerId) {
+           throw new functions.https.HttpsError('failed-precondition', 'Pesanan sudah memiliki provider.');
+         }
+         if (data.status !== 'searching_provider') {
+           throw new functions.https.HttpsError(
+             'failed-precondition',
+             'Pesanan tidak dalam status pencarian provider.'
+           );
+         }
+
+    requestedScheduledDate = normalizeScheduledDate(data.scheduledDate);
 
      if (ACTIVE_PROVIDER_ORDER_STATUSES.length > 0) {
        const activeOrdersQuery = db
@@ -350,8 +483,15 @@ exports.claimOrder = functions.https.onCall(async (request) => {
        }
      }
 
-     tx.update(orderRef, { providerId: uid, status: 'pending' });
-   });
+    tx.update(orderRef, { providerId: uid, status: 'pending' });
+      });
+
+      await applyProviderAvailabilityChange({
+        providerId: uid,
+        scheduledDate: requestedScheduledDate,
+        action: 'consume',
+        reason: 'CLAIM_ORDER',
+      });
 
   functions.logger.info('[CLAIM_ORDER]', { orderId, providerId: uid });
   return { success: true };
@@ -503,10 +643,140 @@ exports.onProviderAssigned = onDocumentUpdated('orders/{orderId}', async (event)
   const after = event.data.after.data();
   const before = event.data.before.data();
 
-    if (!before.providerId && after.providerId && after.orderType === 'basic') {
+  if (!before.providerId && after.providerId && after.orderType === 'basic') {
     functions.logger.info('[CREATE_CHAT]', { orderId: event.params.orderId });
     await createChatRoom(after, event.params.orderId);
   }
+  return null;
+});
+/**
+ * ============================================================
+ * 6B) SYNC PROVIDER AVAILABILITY (Firestore Trigger v2)
+ * ============================================================
+ */
+exports.syncProviderAvailability = onDocumentWritten('orders/{orderId}', async (event) => {
+  const orderId = event.params.orderId;
+  const beforeSnap = event.data?.before;
+  const afterSnap = event.data?.after;
+
+  const beforeData = beforeSnap && beforeSnap.exists && typeof beforeSnap.data === 'function'
+    ? beforeSnap.data()
+    : null;
+  const afterData = afterSnap && afterSnap.exists && typeof afterSnap.data === 'function'
+    ? afterSnap.data()
+    : null;
+
+  if (!beforeData && !afterData) {
+    return null;
+  }
+
+  const tasks = [];
+
+  const beforeProvider = beforeData?.providerId || null;
+  const afterProvider = afterData?.providerId || null;
+
+  const beforeDate = beforeData ? normalizeScheduledDate(beforeData.scheduledDate) : null;
+  const afterDate = afterData ? normalizeScheduledDate(afterData.scheduledDate) : null;
+
+  const beforeStatus = beforeData?.status || null;
+  const afterStatus = afterData?.status || null;
+
+  if (afterProvider && !beforeProvider) {
+    tasks.push(
+      applyProviderAvailabilityChange({
+        providerId: afterProvider,
+        scheduledDate: afterDate,
+        action: 'consume',
+        reason: 'PROVIDER_ASSIGNED',
+      })
+    );
+  } else if (afterProvider && beforeProvider && afterProvider !== beforeProvider) {
+    tasks.push(
+      applyProviderAvailabilityChange({
+        providerId: beforeProvider,
+        scheduledDate: beforeDate,
+        action: 'release',
+        reason: 'PROVIDER_CHANGED_RELEASE',
+      })
+    );
+    tasks.push(
+      applyProviderAvailabilityChange({
+        providerId: afterProvider,
+        scheduledDate: afterDate,
+        action: 'consume',
+        reason: 'PROVIDER_CHANGED_CONSUME',
+      })
+    );
+  } else if (!afterProvider && beforeProvider) {
+    tasks.push(
+      applyProviderAvailabilityChange({
+        providerId: beforeProvider,
+        scheduledDate: beforeDate,
+        action: 'release',
+        reason: 'PROVIDER_REMOVED',
+      })
+    );
+  }
+
+  if (afterProvider && beforeProvider === afterProvider) {
+    const providerId = afterProvider;
+    if (beforeDate !== afterDate) {
+      if (beforeDate) {
+        tasks.push(
+          applyProviderAvailabilityChange({
+            providerId,
+            scheduledDate: beforeDate,
+            action: 'release',
+            reason: 'SCHEDULE_CHANGED_RELEASE',
+          })
+        );
+      }
+      if (afterDate) {
+        tasks.push(
+          applyProviderAvailabilityChange({
+            providerId,
+            scheduledDate: afterDate,
+            action: 'consume',
+            reason: 'SCHEDULE_CHANGED_CONSUME',
+          })
+        );
+      }
+    }
+  }
+
+  if (afterProvider && beforeStatus !== afterStatus) {
+    if (afterStatus === 'cancelled' || afterStatus === 'completed') {
+      const relevantDate = afterDate || beforeDate;
+      tasks.push(
+        applyProviderAvailabilityChange({
+          providerId: afterProvider,
+          scheduledDate: relevantDate,
+          action: 'release',
+          reason: `STATUS_${String(afterStatus || '').toUpperCase()}`,
+        })
+      );
+    }
+  }
+
+  if (!afterData && beforeProvider) {
+    tasks.push(
+      applyProviderAvailabilityChange({
+        providerId: beforeProvider,
+        scheduledDate: beforeDate,
+        action: 'release',
+        reason: 'ORDER_DELETED',
+      })
+    );
+  }
+
+  if (tasks.length > 0) {
+    await Promise.all(tasks);
+    functions.logger.info('[SYNC_PROVIDER_AVAILABILITY_TASKS]', {
+      orderId,
+      taskCount: tasks.length,
+    });
+  }
+
   return null;
 });
 

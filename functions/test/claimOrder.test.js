@@ -11,6 +11,7 @@ function deepClone(value) {
 function createFakeFirestore() {
   const stores = {
     orders: new Map(),
+    provider_profiles: new Map(),
   };
   let autoId = 0;
 
@@ -144,7 +145,16 @@ function createFakeFirestore() {
       const data = getStore('orders').get(id);
       return data ? deepClone(data) : undefined;
     },
+      __seedProviderProfile(id, data) {
+          getStore('provider_profiles').set(id, deepClone(data));
+        },
+        __getProviderProfile(id) {
+          const data = getStore('provider_profiles').get(id);
+          return data ? deepClone(data) : undefined;
+        },
     __reset() {
+          autoId = 0;
+
       Object.values(stores).forEach((store) => store.clear());
     },
   };
@@ -160,11 +170,38 @@ async function invokeCallable(handler, data, providerId) {
   };
   return handler.run(request);
 }
+function makeSnapshot(data) {
+  if (data === undefined || data === null) {
+    return {
+      exists: false,
+      data: () => undefined,
+    };
+  }
+  return {
+    exists: true,
+    data: () => deepClone(data),
+  };
+}
+
+function makeFirestoreEvent({ before, after, orderId }) {
+  return {
+    params: { orderId },
+    data: {
+      before: makeSnapshot(before),
+      after: makeSnapshot(after),
+    },
+  };
+}
 
 async function claimOrderSucceedsWithoutConflict(handler, fakeDb) {
   fakeDb.__reset();
   const providerId = 'provider-1';
   const orderId = 'order-no-conflict';
+
+  fakeDb.__seedProviderProfile(providerId, {
+    availableDates: ['2024-04-01', '2024-04-05'],
+    available: true,
+  });
 
   fakeDb.__seedOrder(orderId, {
     status: 'searching_provider',
@@ -178,6 +215,9 @@ async function claimOrderSucceedsWithoutConflict(handler, fakeDb) {
   const updatedOrder = fakeDb.__getOrder(orderId);
   assert.strictEqual(updatedOrder.providerId, providerId);
   assert.strictEqual(updatedOrder.status, 'pending');
+    const providerProfile = fakeDb.__getProviderProfile(providerId);
+    assert.deepStrictEqual(providerProfile.availableDates, ['2024-04-05']);
+    assert.strictEqual(providerProfile.available, true);
 }
 
 async function claimOrderFailsWhenSameDateConflict(handler, fakeDb) {
@@ -243,6 +283,11 @@ async function claimOrderSucceedsWithDifferentDate(handler, fakeDb) {
   fakeDb.__reset();
   const providerId = 'provider-1';
 
+  fakeDb.__seedProviderProfile(providerId, {
+    availableDates: ['2024-05-01', '2024-05-03'],
+    available: true,
+  });
+
   fakeDb.__seedOrder('existing-order', {
     status: 'accepted',
     providerId,
@@ -261,6 +306,74 @@ async function claimOrderSucceedsWithDifferentDate(handler, fakeDb) {
   const updated = fakeDb.__getOrder('order-new-date');
   assert.strictEqual(updated.providerId, providerId);
   assert.strictEqual(updated.status, 'pending');
+
+  const profile = fakeDb.__getProviderProfile(providerId);
+  assert.deepStrictEqual(profile.availableDates, ['2024-05-01']);
+  assert.strictEqual(profile.available, true);
+}
+
+async function directOrderConsumesAvailability(handler, fakeDb) {
+  fakeDb.__reset();
+  const providerId = 'provider-direct';
+
+  fakeDb.__seedProviderProfile(providerId, {
+    availableDates: ['2024-06-10'],
+    available: true,
+  });
+
+  const event = makeFirestoreEvent({
+    orderId: 'direct-order-1',
+    before: undefined,
+    after: {
+      orderType: 'direct',
+      providerId,
+      scheduledDate: '2024-06-10',
+      status: 'awaiting_provider_confirmation',
+    },
+  });
+
+  await handler.run(event);
+
+  const profile = fakeDb.__getProviderProfile(providerId);
+  assert.deepStrictEqual(profile.availableDates, []);
+  assert.strictEqual(profile.available, false);
+}
+
+async function statusReleaseRestoresAvailability(handler, fakeDb) {
+  const statuses = ['cancelled', 'completed'];
+
+  for (const status of statuses) {
+    fakeDb.__reset();
+    const providerId = `provider-${status}`;
+
+    fakeDb.__seedProviderProfile(providerId, {
+      availableDates: [],
+      available: false,
+    });
+
+    const beforeData = {
+      providerId,
+      scheduledDate: '2024-07-20',
+      status: 'pending',
+    };
+
+    const afterData = {
+      ...beforeData,
+      status,
+    };
+
+    const event = makeFirestoreEvent({
+      orderId: `order-${status}`,
+      before: beforeData,
+      after: afterData,
+    });
+
+    await handler.run(event);
+
+    const profile = fakeDb.__getProviderProfile(providerId);
+    assert.deepStrictEqual(profile.availableDates, ['2024-07-20']);
+    assert.strictEqual(profile.available, true);
+  }
 }
 
 async function run() {
@@ -288,11 +401,14 @@ async function run() {
     myFunctions = require('../index.js');
 
     const claimOrderHandler = myFunctions.claimOrder;
+    const syncAvailabilityHandler = myFunctions.syncProviderAvailability;
 
     await claimOrderSucceedsWithoutConflict(claimOrderHandler, fakeDb);
     await claimOrderFailsWhenSameDateConflict(claimOrderHandler, fakeDb);
     await claimOrderFailsWhenExistingOrderHasNoSchedule(claimOrderHandler, fakeDb);
     await claimOrderSucceedsWithDifferentDate(claimOrderHandler, fakeDb);
+    await directOrderConsumesAvailability(syncAvailabilityHandler, fakeDb);
+    await statusReleaseRestoresAvailability(syncAvailabilityHandler, fakeDb);
 
     console.log('All claimOrder tests passed.');
   } finally {
