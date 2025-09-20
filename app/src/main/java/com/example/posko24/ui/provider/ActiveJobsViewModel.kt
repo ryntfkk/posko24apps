@@ -22,6 +22,9 @@ class ActiveJobsViewModel @Inject constructor(
     private val _state = MutableStateFlow<ActiveJobsState>(ActiveJobsState.Loading)
     val state = _state.asStateFlow()
 
+    private val _claimMessage = MutableStateFlow<String?>(null)
+    val claimMessage = _claimMessage.asStateFlow()
+
     init {
         loadActiveJobs()
     }
@@ -55,10 +58,14 @@ class ActiveJobsViewModel @Inject constructor(
                     loadActiveJobs()
                     onSuccess()
                 }.onFailure {
-                    _state.value = ActiveJobsState.Error(it.message ?: "Gagal mengambil order.")
+                    _claimMessage.value = it.message ?: "Gagal mengambil order."
                 }
             }
         }
+    }
+
+    fun clearClaimMessage() {
+        _claimMessage.value = null
     }
 }
 

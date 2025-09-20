@@ -14,6 +14,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
 import android.util.Log
 import java.util.Locale
 
@@ -209,7 +210,21 @@ class OrderRepositoryImpl @Inject constructor(
         val data = hashMapOf("orderId" to orderId)
         functions.getHttpsCallable("claimOrder").call(data).await()
         emit(Result.success(true))
-    }.catch {
-        emit(Result.failure(it))
+    }.catch { throwable ->
+        if (throwable is FirebaseFunctionsException) {
+            val detailsMessage = when (val details = throwable.details) {
+                is Map<*, *> -> details["message"] as? String
+                is String -> details
+                else -> null
+            }
+
+            val cleanedMessage = detailsMessage?.takeIf { it.isNotBlank() }
+                ?: throwable.message?.substringAfter(": ")?.takeIf { it.isNotBlank() }
+                ?: throwable.message
+
+            emit(Result.failure(Exception(cleanedMessage ?: "Gagal mengambil order.", throwable)))
+        } else {
+            emit(Result.failure(throwable))
+        }
     }
 }

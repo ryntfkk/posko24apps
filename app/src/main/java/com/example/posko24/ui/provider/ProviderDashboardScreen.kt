@@ -34,6 +34,16 @@ fun ProviderDashboardScreen(
     val reviewsState by reviewsViewModel.state.collectAsState()
     val balanceState by balanceViewModel.state.collectAsState()
     var selectedOrder by remember { mutableStateOf<Order?>(null) }
+    val claimMessage by activeJobsViewModel.claimMessage.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(claimMessage) {
+        val message = claimMessage
+        if (!message.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(message)
+            activeJobsViewModel.clearClaimMessage()
+        }
+    }
     LaunchedEffect(activeRole) {
         activeJobsViewModel.onActiveRoleChanged(activeRole)
         skillsViewModel.onActiveRoleChanged(activeRole)
@@ -51,7 +61,8 @@ fun ProviderDashboardScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         selectedOrder?.let { order ->
             val addressParts = listOfNotNull(

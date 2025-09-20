@@ -10,6 +10,21 @@ const { calculateRefundBreakdown } = require('./refund');
 admin.initializeApp();
 const db = admin.firestore();
 
+const ACTIVE_PROVIDER_ORDER_STATUSES = [
+  'pending',
+  'accepted',
+  'ongoing',
+  'awaiting_confirmation',
+  'awaiting_provider_confirmation',
+];
+
+function normalizeScheduledDate(rawDate) {
+  if (typeof rawDate !== 'string') {
+    return null;
+  }
+  const trimmed = rawDate.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 /* =========================
    Helpers: Env & Validation
    ========================= */
@@ -264,20 +279,80 @@ exports.claimOrder = functions.https.onCall(async (request) => {
 
   const uid = request.auth.uid;
   const orderRef = db.collection('orders').doc(orderId);
-  const snap = await orderRef.get();
-  if (!snap.exists) {
-    throw new functions.https.HttpsError('not-found', 'Pesanan tidak ditemukan.');
-  }
+ await db.runTransaction(async (tx) => {
+     const snap = await tx.get(orderRef);
+     if (!snap.exists) {
+       throw new functions.https.HttpsError('not-found', 'Pesanan tidak ditemukan.');
+     }
 
-  const data = snap.data();
-  if (data.providerId) {
-    throw new functions.https.HttpsError('failed-precondition', 'Pesanan sudah memiliki provider.');
-  }
-  if (data.status !== 'searching_provider') {
-    throw new functions.https.HttpsError('failed-precondition', 'Pesanan tidak dalam status pencarian provider.');
-  }
+     const data = snap.data() || {};
+     if (data.providerId) {
+       throw new functions.https.HttpsError('failed-precondition', 'Pesanan sudah memiliki provider.');
+     }
+     if (data.status !== 'searching_provider') {
+       throw new functions.https.HttpsError(
+         'failed-precondition',
+         'Pesanan tidak dalam status pencarian provider.'
+       );
+     }
 
-  await orderRef.update({ providerId: uid, status: 'pending' });
+     const requestedScheduledDate = normalizeScheduledDate(data.scheduledDate);
+
+     if (ACTIVE_PROVIDER_ORDER_STATUSES.length > 0) {
+       const activeOrdersQuery = db
+         .collection('orders')
+         .where('providerId', '==', uid)
+         .where('status', 'in', ACTIVE_PROVIDER_ORDER_STATUSES);
+
+       const activeOrdersSnap = await tx.get(activeOrdersQuery);
+       const conflictingDoc = activeOrdersSnap.docs.find((doc) => {
+         const existingData = doc.data() || {};
+         const existingScheduledDate = normalizeScheduledDate(existingData.scheduledDate);
+
+         if (!requestedScheduledDate) {
+           return true;
+         }
+
+         if (!existingScheduledDate) {
+           return true;
+         }
+
+         return existingScheduledDate === requestedScheduledDate;
+       });
+
+       if (conflictingDoc) {
+         const conflictingData = conflictingDoc.data() || {};
+         const conflictingScheduledDate = normalizeScheduledDate(conflictingData.scheduledDate);
+         const message = requestedScheduledDate
+           ? 'Anda sudah memiliki pesanan aktif pada tanggal tersebut. Selesaikan pesanan sebelumnya sebelum mengambil order baru.'
+           : 'Anda masih memiliki pesanan aktif yang belum selesai. Selesaikan pesanan sebelumnya sebelum mengambil order baru.';
+
+         const details = {
+           reason: 'ACTIVE_ORDER_CONFLICT',
+           conflictingOrderId: conflictingDoc.id,
+           conflictingStatus: conflictingData.status || null,
+           conflictingScheduledDate,
+           requestedOrderId: orderId,
+           requestedScheduledDate,
+           message,
+         };
+
+         functions.logger.warn('[CLAIM_ORDER_CONFLICT]', {
+           orderId,
+           providerId: uid,
+           requestedScheduledDate,
+           conflictingOrderId: conflictingDoc.id,
+           conflictingScheduledDate,
+           conflictingStatus: conflictingData.status || null,
+         });
+
+         throw new functions.https.HttpsError('failed-precondition', message, details);
+       }
+     }
+
+     tx.update(orderRef, { providerId: uid, status: 'pending' });
+   });
+
   functions.logger.info('[CLAIM_ORDER]', { orderId, providerId: uid });
   return { success: true };
 });
