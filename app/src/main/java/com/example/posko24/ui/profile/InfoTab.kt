@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
@@ -26,12 +27,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,31 +49,41 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 
 /**
- * Tab content displaying provider bio, status, and availability schedule.
+ * Tab content displaying provider bio, status, and a read-only schedule overview.
  */
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun InfoTabContent(
     provider: ProviderProfile,
-    scheduleUiState: ProviderScheduleUiState? = null
+    scheduleState: ProviderScheduleUiState,
+    onShowSchedule: () -> Unit
 ) {
-    val fallbackDates = remember(provider.availableDates) {
+    val today = remember { Clock.System.now().toLocalDateTime(APP_TIME_ZONE).date }
+    val fallbackAvailableDates = remember(provider.availableDates) {
         provider.availableDates.mapNotNull { raw ->
             runCatching { LocalDate.parse(raw) }.getOrNull()
         }.distinct().sorted()
     }
-    val availableDates = scheduleUiState?.availableDates ?: fallbackDates
-    val busyDates = scheduleUiState?.busyDates ?: emptyList()
-    val today = remember { Clock.System.now().toLocalDateTime(APP_TIME_ZONE).date }
-    val upcomingDates = remember(availableDates, today) {
-        availableDates.filter { it >= today }
+    val availableDates = remember(scheduleState.availableDates, fallbackAvailableDates) {
+        if (scheduleState.availableDates.isNotEmpty()) scheduleState.availableDates else fallbackAvailableDates
     }
-    val summaryDates = remember(upcomingDates) { upcomingDates.take(3) }
-    val remainingCount = remember(upcomingDates, summaryDates) {
-        (upcomingDates.size - summaryDates.size).coerceAtLeast(0)
+    val busyDates = scheduleState.busyDates
+
+    val fallbackSummary = remember(availableDates, today) {
+        val upcoming = availableDates.filter { it >= today }
+        val highlighted = upcoming.take(3)
+        val remaining = (upcoming.size - highlighted.size).coerceAtLeast(0)
+        SummaryState(highlighted, remaining)
     }
-    val hasSchedule = availableDates.isNotEmpty() || busyDates.isNotEmpty()
-    var showScheduleSheet by rememberSaveable { mutableStateOf(false) }
+
+    val summaryState = remember(scheduleState.highlightedDates, scheduleState.remainingAvailableCount, fallbackSummary) {
+        if (scheduleState.highlightedDates.isNotEmpty() || scheduleState.remainingAvailableCount > 0) {
+            SummaryState(scheduleState.highlightedDates, scheduleState.remainingAvailableCount)
+        } else fallbackSummary
+    }
+
+    val hasSchedule = scheduleState.hasSchedule || availableDates.isNotEmpty() || busyDates.isNotEmpty()
+
 
     Column(
         modifier = Modifier
@@ -101,48 +108,51 @@ fun InfoTabContent(
         }
         InfoRow(icon = statusIcon, text = statusLabel)
 
-        if (hasSchedule) {
-            Text("Jadwal Tersedia", style = MaterialTheme.typography.titleMedium)
-            if (summaryDates.isNotEmpty()) {
+        Text("Jadwal", style = MaterialTheme.typography.titleMedium)
+        when {
+            summaryState.dates.isNotEmpty() -> {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    summaryDates.forEach { date ->
+                    summaryState.dates.forEach { date ->
                         AssistChip(
                             onClick = {},
                             enabled = false,
                             label = { Text(date.toSummaryLabel()) }
                         )
                     }
-                    if (remainingCount > 0) {
+                    if (summaryState.remainingCount > 0) {
                         AssistChip(
                             onClick = {},
                             enabled = false,
-                            label = { Text("+${remainingCount}") }
+                            label = { Text("+${summaryState.remainingCount}") }
                         )
                     }
                 }
-            } else {
+            }
+            busyDates.isNotEmpty() -> {
                 Text(
-                    text = "Tidak ada tanggal tersedia dalam waktu dekat.",
+                    text = "Beberapa tanggal sudah terisi. Lihat kalender untuk detail.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            TextButton(onClick = { showScheduleSheet = true }) {
-                Text("Lihat Jadwal Lengkap")
+            else -> {
+                Text(
+                    text = "Penyedia belum membagikan jadwal ketersediaan.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
-    }
-
-    if (showScheduleSheet) {
-        ProviderScheduleBottomSheet(
-            availableDates = availableDates,
-            busyDates = busyDates,
-            onDismiss = { showScheduleSheet = false }
-        )
+        TextButton(
+            onClick = onShowSchedule,
+            enabled = hasSchedule,
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text("Lihat Jadwal")
+        }
     }
 }
 
@@ -164,17 +174,20 @@ private fun InfoRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProviderScheduleBottomSheet(
-    availableDates: List<LocalDate>,
-    busyDates: List<LocalDate>,
+fun ProviderScheduleBottomSheet(
+    state: ProviderScheduleUiState,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
     val today = remember { Clock.System.now().toLocalDateTime(APP_TIME_ZONE).date }
+
+    val availableDates = state.availableDates
+    val busyDates = state.busyDates
     val combinedDates = remember(availableDates, busyDates) {
-        (availableDates + busyDates).sorted()
+        (availableDates + busyDates).distinct().sorted()
     }
+
     val rangeStart = remember(combinedDates, today) {
         val earliest = combinedDates.firstOrNull()
         when {
@@ -183,13 +196,14 @@ private fun ProviderScheduleBottomSheet(
             else -> today
         }
     }
+
     val rangeEnd = remember(combinedDates, rangeStart) {
         val latest = combinedDates.lastOrNull() ?: rangeStart
         val minimumEnd = rangeStart.plus(DatePeriod(days = 29))
-        listOf(latest, minimumEnd).maxOrNull() ?: minimumEnd
+        if (latest > minimumEnd) latest else minimumEnd
     }
     val calendarMonths = remember(rangeStart, rangeEnd, availableDates, busyDates) {
-        buildCalendarRange(
+        buildCalendarMonths(
             startDate = rangeStart,
             endDate = rangeEnd,
             availableDates = availableDates.toSet(),
@@ -215,58 +229,63 @@ private fun ProviderScheduleBottomSheet(
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = "Lihat ketersediaan penyedia dalam rentang 30 hari.",
+                text = "Kalender ini hanya untuk melihat ketersediaan penyedia dalam 30 hari ke depan.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            if (calendarMonths.isEmpty()) {
+            CalendarLegend()
+
+            if (!state.hasSchedule) {
                 Text(
-                    text = "Belum ada jadwal yang dapat ditampilkan.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = "Belum ada jadwal yang dibagikan. Semua tanggal ditampilkan sebagai tidak tersedia.",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            } else {
-                calendarMonths.forEach { month ->
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = monthYearLabel(month.year, month.month.number),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
+            }
+
+            calendarMonths.forEach { month ->
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = monthYearLabel(month.year, month.month.ordinal + 1),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        weekDayLabels.forEach { label ->
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    month.weeks.forEach { week ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            weekDayLabels.forEach { label ->
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.weight(1f),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-
-                        month.toWeekRows().forEach { week ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                week.forEach { day ->
-                                    if (day == null) {
-                                        Spacer(modifier = Modifier.weight(1f).aspectRatio(1f))
-                                    } else {
-                                        ScheduleDayItem(
-                                            date = day.date,
-                                            isAvailable = day.isAvailable,
-                                            isBusy = day.isBusy,
-                                            isPast = day.date < today,
-                                            isToday = day.date == today,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    }
+                            week.forEach { day ->
+                                if (day == null) {
+                                    Spacer(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .aspectRatio(1f)
+                                    )
+                                } else {
+                                    ScheduleDayItem(
+                                        date = day.date,
+                                        isAvailable = day.isAvailable,
+                                        isBusy = day.isBusy,
+                                        today = today,
+                                        modifier = Modifier.weight(1f)
+                                    )
                                 }
                             }
                         }
@@ -277,35 +296,83 @@ private fun ProviderScheduleBottomSheet(
     }
 }
 
+
+@Composable
+private fun CalendarLegend() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        CalendarLegendItem(
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            label = "Tersedia"
+        )
+        CalendarLegendItem(
+            color = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+            border = MaterialTheme.colorScheme.error,
+            label = "Sudah dipesan"
+        )
+        CalendarLegendItem(
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            border = MaterialTheme.colorScheme.outline,
+            label = "Tidak tersedia"
+        )
+    }
+}
+
+@Composable
+private fun CalendarLegendItem(
+    color: Color,
+    contentColor: Color,
+    label: String,
+    border: Color? = null
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Surface(
+            modifier = Modifier.size(14.dp),
+            shape = CircleShape,
+            color = color,
+            contentColor = contentColor,
+            tonalElevation = 0.dp,
+            border = border?.let { BorderStroke(1.dp, it) }
+        ) {}
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 @Composable
 private fun ScheduleDayItem(
     date: LocalDate,
     isAvailable: Boolean,
     isBusy: Boolean,
-    isPast: Boolean,
-    isToday: Boolean,
+    today: LocalDate,
     modifier: Modifier = Modifier
 ) {
     val backgroundColor: Color
     val contentColor: Color
-    val border: BorderStroke?
+    var border: BorderStroke? = null
     val tonalElevation = if (isAvailable) 4.dp else 0.dp
 
     when {
         isAvailable -> {
             backgroundColor = MaterialTheme.colorScheme.primary
             contentColor = MaterialTheme.colorScheme.onPrimary
-            border = null
         }
         isBusy -> {
             backgroundColor = MaterialTheme.colorScheme.errorContainer
             contentColor = MaterialTheme.colorScheme.onErrorContainer
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
-        }
-        isToday -> {
-            backgroundColor = MaterialTheme.colorScheme.secondaryContainer
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
         }
         else -> {
             backgroundColor = MaterialTheme.colorScheme.surfaceVariant
@@ -314,8 +381,16 @@ private fun ScheduleDayItem(
         }
     }
 
-    val alphaValue = if (isPast && !isAvailable && !isBusy) 0.4f else 1f
+    val isInactive = !isAvailable && !isBusy
+    val alphaValue = if (isInactive) {
+        if (date < today) 0.25f else 0.5f
+    } else {
+        if (!isAvailable && date < today) 0.7f else 1f
+    }
 
+    val finalBorder = if (date == today && isInactive) {
+        BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+    } else border
     Surface(
         modifier = modifier
             .aspectRatio(1f)
@@ -324,7 +399,7 @@ private fun ScheduleDayItem(
         color = backgroundColor,
         contentColor = contentColor,
         tonalElevation = tonalElevation,
-        border = border
+        border = finalBorder
     ) {
         Box(
             modifier = Modifier
@@ -345,8 +420,7 @@ private fun ScheduleDayItem(
 private data class CalendarMonth(
     val year: Int,
     val month: Month,
-    val leadingEmptyDays: Int,
-    val days: List<CalendarDay>
+    val weeks: List<List<CalendarDay?>>
 )
 
 private data class CalendarDay(
@@ -355,18 +429,13 @@ private data class CalendarDay(
     val isBusy: Boolean
 )
 
-private fun CalendarMonth.toWeekRows(): List<List<CalendarDay?>> {
-    val padded = buildList {
-        repeat(leadingEmptyDays) { add(null) }
-        addAll(days)
-        while (size % 7 != 0) {
-            add(null)
-        }
-    }
-    return padded.chunked(7)
-}
+private data class SummaryState(
+    val dates: List<LocalDate>,
+    val remainingCount: Int
+)
 
-private fun buildCalendarRange(
+
+private fun buildCalendarMonths(
     startDate: LocalDate,
     endDate: LocalDate,
     availableDates: Set<LocalDate>,
@@ -380,25 +449,36 @@ private fun buildCalendarRange(
 
     while (currentMonthStart <= lastMonthStart) {
         val month = currentMonthStart.month
-        val daysInMonth = month.length(currentMonthStart.year)
-        val days = (1..daysInMonth)
-            .map { day -> LocalDate(currentMonthStart.year, currentMonthStart.monthNumber, day) }
-            .filter { it >= startDate && it <= endDate }
-            .map { date ->
-                CalendarDay(
-                    date = date,
-                    isAvailable = availableDates.contains(date),
-                    isBusy = busyDates.contains(date)
-                )
-            }
+        val daysInMonth = month.length(isLeapYear(currentMonthStart.year))
+        val firstDayOfMonth = LocalDate(currentMonthStart.year, currentMonthStart.monthNumber, 1)
+        val leadingEmptyDays = firstDayOfMonth.dayOfWeek.ordinal
 
-        if (days.isNotEmpty()) {
-            val firstDayOfMonth = LocalDate(currentMonthStart.year, currentMonthStart.monthNumber, 1)
+        val paddedDays = buildList<CalendarDay?> {
+            repeat(leadingEmptyDays) { add(null) }
+            (1..daysInMonth).forEach { day ->
+                val date = LocalDate(currentMonthStart.year, currentMonthStart.monthNumber, day)
+                if (date < startDate || date > endDate) {
+                    add(null)
+                } else {
+                    add(
+                        CalendarDay(
+                            date = date,
+                            isAvailable = availableDates.contains(date),
+                            isBusy = busyDates.contains(date)
+                        )
+                    )
+                }
+            }
+            while (size % 7 != 0) {
+                add(null)
+            }
+        }
+        if (paddedDays.any { it != null }) {
+            val weeks = paddedDays.chunked(7)
             months += CalendarMonth(
                 year = currentMonthStart.year,
                 month = month,
-                leadingEmptyDays = firstDayOfMonth.dayOfWeek.ordinal,
-                days = days
+                weeks = weeks
             )
         }
 
@@ -407,6 +487,9 @@ private fun buildCalendarRange(
     }
 
     return months
+}
+private fun isLeapYear(year: Int): Boolean {
+    return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 }
 
 private val monthNamesShort = listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
