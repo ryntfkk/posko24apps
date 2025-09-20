@@ -47,10 +47,10 @@ import java.text.NumberFormat
 import java.util.Locale
 import androidx.compose.foundation.BorderStroke
 import kotlinx.coroutines.launch
+import com.example.posko24.util.APP_TIME_ZONE
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 
@@ -391,7 +391,7 @@ fun AvailabilityBottomSheet(
     }
 
     val today = remember {
-        Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+        Clock.System.now().toLocalDateTime(APP_TIME_ZONE).date
     }
     val availableDates = remember(today) {
         (0 until 60).map { today.plus(DatePeriod(days = it)) }

@@ -20,6 +20,7 @@ import com.example.posko24.data.repository.ServiceRepository
 import com.example.posko24.data.repository.UserRepository
 import com.example.posko24.data.repository.PromoRepository
 import com.example.posko24.config.PaymentConfig
+import com.example.posko24.util.APP_ZONE_ID
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.auth.FirebaseAuth
@@ -177,7 +178,7 @@ class BasicOrderViewModel @Inject constructor(
                                         parsedDates.isEmpty() -> null
                                         current.selectedDate != null && parsedDates.contains(current.selectedDate) -> current.selectedDate
                                         else -> {
-                                            val today = LocalDate.now()
+                                            val today = LocalDate.now(APP_ZONE_ID)
                                             parsedDates.firstOrNull { date -> !date.isBefore(today) }
                                                 ?: parsedDates.firstOrNull()
                                         }
