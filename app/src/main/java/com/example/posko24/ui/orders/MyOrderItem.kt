@@ -19,7 +19,7 @@ fun MyOrderItem(
     onOrderClick: (String) -> Unit,
     onReviewClick: (String) -> Unit,
     onPay: (String) -> Unit,
-    onClaim: (String) -> Unit,
+    onClaim: (Order) -> Unit,
     onAccept: (String) -> Unit,
     onStart: (String) -> Unit,
     onFinish: (String) -> Unit
@@ -67,13 +67,13 @@ fun MyOrderItem(
             ) {
                 when (order.status) {
                     OrderStatus.SEARCHING_PROVIDER.value -> {
-                        Button(onClick = { onClaim(order.id) }) {
+                        Button(onClick = { onClaim(order) }) {
                             Text("Claim")
                         }
                     }
                     OrderStatus.AWAITING_PROVIDER_CONFIRMATION.value -> {
                         if (order.providerId.isNullOrBlank()) {
-                            Button(onClick = { onClaim(order.id) }) {
+                            Button(onClick = { onClaim(order) }) {
                                 Text("Claim")
                             }
                         } else {

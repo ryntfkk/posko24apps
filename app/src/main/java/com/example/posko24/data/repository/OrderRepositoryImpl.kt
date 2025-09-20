@@ -206,8 +206,14 @@ class OrderRepositoryImpl @Inject constructor(
         emit(Result.failure(exception))
     }
 
-    override fun claimOrder(orderId: String): Flow<Result<Boolean>> = flow {
-        val data = hashMapOf("orderId" to orderId)
+    override fun claimOrder(orderId: String, scheduledDate: String): Flow<Result<Boolean>> = flow {
+        val normalizedDate = scheduledDate.trim()
+        require(normalizedDate.isNotEmpty()) { "Tanggal penjadwalan tidak boleh kosong." }
+
+        val data = hashMapOf(
+            "orderId" to orderId,
+            "scheduledDate" to normalizedDate
+        )
         functions.getHttpsCallable("claimOrder").call(data).await()
         emit(Result.success(true))
     }.catch { throwable ->

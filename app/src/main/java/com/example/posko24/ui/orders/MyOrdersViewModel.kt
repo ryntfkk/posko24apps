@@ -106,9 +106,13 @@ class MyOrdersViewModel @Inject constructor(
         }
     }
 
-    fun claimOrder(orderId: String) {
+    fun claimOrder(orderId: String, scheduledDate: String?) {
+        val normalizedDate = scheduledDate?.trim()
+        if (normalizedDate.isNullOrEmpty()) {
+            return
+        }
         viewModelScope.launch {
-            orderRepository.claimOrder(orderId).collect { result ->
+            orderRepository.claimOrder(orderId, normalizedDate).collect { result ->
                 result.onSuccess {
                     currentRole?.let { loadOrders(it) }
                 }

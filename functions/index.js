@@ -435,60 +435,90 @@ exports.claimOrder = functions.https.onCall(async (request) => {
     throw new functions.https.HttpsError('unauthenticated', 'Anda harus login.');
   }
 
-  const { orderId } = request.data || {};
+  const { orderId, scheduledDate } = request.data || {};
   if (!orderId) {
     throw new functions.https.HttpsError('invalid-argument', 'OrderId wajib diisi.');
   }
 
+ const requestedScheduledDate = normalizeScheduledDate(scheduledDate);
+  if (!requestedScheduledDate) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Tanggal penjadwalan wajib diisi dan harus berupa string.'
+    );
+  }
+
+  const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+  if (!isoDatePattern.test(requestedScheduledDate)) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Format tanggal tidak valid. Gunakan format yyyy-MM-dd.'
+    );
+  }
+
   const uid = request.auth.uid;
   const orderRef = db.collection('orders').doc(orderId);
-   let requestedScheduledDate = null;
+   const profileRef = db.collection('provider_profiles').doc(uid);
+  await db.runTransaction(async (tx) => {
+    const [orderSnap, profileSnap] = await Promise.all([
+      tx.get(orderRef),
+      tx.get(profileRef),
+    ]);
+ if (!orderSnap.exists) {
+      throw new functions.https.HttpsError('not-found', 'Pesanan tidak ditemukan.');
+    }
+     const orderData = orderSnap.data() || {};
+        if (orderData.providerId) {
+          throw new functions.https.HttpsError('failed-precondition', 'Pesanan sudah memiliki provider.');
+        }
+        if (orderData.status !== 'searching_provider') {
+          throw new functions.https.HttpsError(
+            'failed-precondition',
+            'Pesanan tidak dalam status pencarian provider.'
+          );
+        }
 
-     await db.runTransaction(async (tx) => {
-         const snap = await tx.get(orderRef);
-         if (!snap.exists) {
-           throw new functions.https.HttpsError('not-found', 'Pesanan tidak ditemukan.');
-         }
+        if (!profileSnap.exists) {
+          throw new functions.https.HttpsError(
+            'failed-precondition',
+            'Profil provider tidak ditemukan.'
+          );
+        }
 
-         const data = snap.data() || {};
-         if (data.providerId) {
-           throw new functions.https.HttpsError('failed-precondition', 'Pesanan sudah memiliki provider.');
-         }
-         if (data.status !== 'searching_provider') {
-           throw new functions.https.HttpsError(
-             'failed-precondition',
-             'Pesanan tidak dalam status pencarian provider.'
-           );
-         }
+        const profileData = profileSnap.data() || {};
+        const availableDates = sanitizeDateList(profileData.availableDates);
+        if (!availableDates.includes(requestedScheduledDate)) {
+          const message = 'Tanggal yang dipilih tidak ada dalam jadwal tersedia Anda.';
+          const details = {
+            reason: 'SCHEDULE_NOT_AVAILABLE',
+            requestedScheduledDate,
+            availableDates,
+          };
+          throw new functions.https.HttpsError('failed-precondition', message, details);
+        }
 
-    requestedScheduledDate = normalizeScheduledDate(data.scheduledDate);
+        if (ACTIVE_PROVIDER_ORDER_STATUSES.length > 0) {
+          const activeOrdersQuery = db
+            .collection('orders')
+            .where('providerId', '==', uid)
+            .where('status', 'in', ACTIVE_PROVIDER_ORDER_STATUSES);
 
-     if (ACTIVE_PROVIDER_ORDER_STATUSES.length > 0) {
-       const activeOrdersQuery = db
-         .collection('orders')
-         .where('providerId', '==', uid)
-         .where('status', 'in', ACTIVE_PROVIDER_ORDER_STATUSES);
+          const activeOrdersSnap = await tx.get(activeOrdersQuery);
+          const conflictingDoc = activeOrdersSnap.docs.find((doc) => {
+            const existingData = doc.data() || {};
+            const existingScheduledDate = normalizeScheduledDate(existingData.scheduledDate);
 
-       const activeOrdersSnap = await tx.get(activeOrdersQuery);
-       const conflictingDoc = activeOrdersSnap.docs.find((doc) => {
-         const existingData = doc.data() || {};
-         const existingScheduledDate = normalizeScheduledDate(existingData.scheduledDate);
+            if (!existingScheduledDate) {
+              return true;
+            }
 
-         if (!requestedScheduledDate) {
-           return true;
-         }
+            return existingScheduledDate === requestedScheduledDate;
+      });
 
-         if (!existingScheduledDate) {
-           return true;
-         }
-
-         return existingScheduledDate === requestedScheduledDate;
-       });
-
-       if (conflictingDoc) {
+ if (conflictingDoc) {
          const conflictingData = conflictingDoc.data() || {};
          const conflictingScheduledDate = normalizeScheduledDate(conflictingData.scheduledDate);
-         const message = requestedScheduledDate
+         const message = conflictingScheduledDate
            ? 'Anda sudah memiliki pesanan aktif pada tanggal tersebut. Selesaikan pesanan sebelumnya sebelum mengambil order baru.'
            : 'Anda masih memiliki pesanan aktif yang belum selesai. Selesaikan pesanan sebelumnya sebelum mengambil order baru.';
 
@@ -515,17 +545,25 @@ exports.claimOrder = functions.https.onCall(async (request) => {
        }
      }
 
-    tx.update(orderRef, { providerId: uid, status: 'pending' });
-      });
+     tx.update(orderRef, {
+       scheduledDate: requestedScheduledDate,
+       providerId: uid,
+       status: 'pending',
+     });
+   });
 
-      await applyProviderAvailabilityChange({
-        providerId: uid,
-        scheduledDate: requestedScheduledDate,
-        action: 'consume',
-        reason: 'CLAIM_ORDER',
-      });
+   await applyProviderAvailabilityChange({
+     providerId: uid,
+     scheduledDate: requestedScheduledDate,
+     action: 'consume',
+     reason: 'CLAIM_ORDER',
+   });
 
-  functions.logger.info('[CLAIM_ORDER]', { orderId, providerId: uid });
+   functions.logger.info('[CLAIM_ORDER]', {
+     orderId,
+     providerId: uid,
+     scheduledDate: requestedScheduledDate,
+   });
   return { success: true };
 });
 

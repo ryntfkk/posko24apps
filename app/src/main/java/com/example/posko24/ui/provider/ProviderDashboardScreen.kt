@@ -159,7 +159,7 @@ fun ProviderDashboardScreen(
                                 onCardClick = { selectedOrder = job },
                                 onTakeOrderClick = if (showClaim) {
                                     {
-                                        activeJobsViewModel.claimOrder(job.id) {
+                                        activeJobsViewModel.claimOrder(job.id, job.scheduledDate) {
                                             onOrderClick(job.id)
                                         }
                                     }

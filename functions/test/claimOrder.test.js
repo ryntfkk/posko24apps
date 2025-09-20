@@ -206,24 +206,68 @@ async function claimOrderSucceedsWithoutConflict(handler, fakeDb) {
   fakeDb.__seedOrder(orderId, {
     status: 'searching_provider',
     providerId: null,
-    scheduledDate: '2024-04-01',
+    scheduledDate: null,
   });
 
-  const result = await invokeCallable(handler, { orderId }, providerId);
+    const result = await invokeCallable(
+      handler,
+      { orderId, scheduledDate: '2024-04-01' },
+      providerId,
+    );
   assert.ok(result && result.success, 'Callable should return success');
 
   const updatedOrder = fakeDb.__getOrder(orderId);
   assert.strictEqual(updatedOrder.providerId, providerId);
   assert.strictEqual(updatedOrder.status, 'pending');
-    const providerProfile = fakeDb.__getProviderProfile(providerId);
-    assert.deepStrictEqual(providerProfile.availableDates, ['2024-04-05']);
-    assert.strictEqual(providerProfile.available, true);
+     assert.strictEqual(updatedOrder.scheduledDate, '2024-04-01');
+
+      const providerProfile = fakeDb.__getProviderProfile(providerId);
+      assert.deepStrictEqual(providerProfile.availableDates, ['2024-04-05']);
+      assert.strictEqual(providerProfile.available, true);
+    }
+
+    async function claimOrderFailsWhenDateNotAvailable(handler, fakeDb) {
+      fakeDb.__reset();
+      const providerId = 'provider-unavailable';
+      const orderId = 'order-no-slot';
+
+      fakeDb.__seedProviderProfile(providerId, {
+        availableDates: ['2024-04-02'],
+        available: true,
+      });
+
+      fakeDb.__seedOrder(orderId, {
+        status: 'searching_provider',
+        providerId: null,
+        scheduledDate: null,
+      });
+
+      try {
+        await invokeCallable(
+          handler,
+          { orderId, scheduledDate: '2024-04-01' },
+          providerId,
+        );
+        assert.fail('Expected claimOrder to throw when requested date is unavailable.');
+      } catch (error) {
+        assert.strictEqual(error.code, 'failed-precondition');
+        assert.match(error.message, /tidak ada dalam jadwal/i);
+      }
+
+      const untouched = fakeDb.__getOrder(orderId);
+      assert.strictEqual(untouched.providerId, null);
+      assert.strictEqual(untouched.status, 'searching_provider');
 }
 
 async function claimOrderFailsWhenSameDateConflict(handler, fakeDb) {
   fakeDb.__reset();
   const providerId = 'provider-1';
   const conflictingDate = '2024-05-01';
+
+ fakeDb.__seedProviderProfile(providerId, {
+    availableDates: [conflictingDate],
+    available: true,
+  });
 
   fakeDb.__seedOrder('existing-order', {
     status: 'pending',
@@ -238,7 +282,11 @@ async function claimOrderFailsWhenSameDateConflict(handler, fakeDb) {
   });
 
   try {
-    await invokeCallable(handler, { orderId: 'order-to-claim' }, providerId);
+    await invokeCallable(
+         handler,
+         { orderId: 'order-to-claim', scheduledDate: conflictingDate },
+         providerId,
+       );
     assert.fail('Expected claimOrder to throw for conflicting schedule.');
   } catch (error) {
     assert.strictEqual(error.code, 'failed-precondition');
@@ -254,6 +302,11 @@ async function claimOrderFailsWhenExistingOrderHasNoSchedule(handler, fakeDb) {
   fakeDb.__reset();
   const providerId = 'provider-1';
 
+ fakeDb.__seedProviderProfile(providerId, {
+    availableDates: ['2024-06-10'],
+    available: true,
+  });
+
   fakeDb.__seedOrder('active-without-schedule', {
     status: 'ongoing',
     providerId,
@@ -263,11 +316,15 @@ async function claimOrderFailsWhenExistingOrderHasNoSchedule(handler, fakeDb) {
   fakeDb.__seedOrder('order-future', {
     status: 'searching_provider',
     providerId: null,
-    scheduledDate: '2024-06-10',
+    scheduledDate: null,
   });
 
   try {
-    await invokeCallable(handler, { orderId: 'order-future' }, providerId);
+     await invokeCallable(
+          handler,
+          { orderId: 'order-future', scheduledDate: '2024-06-10' },
+          providerId,
+        );
     assert.fail('Expected claimOrder to throw when provider has unscheduled active order.');
   } catch (error) {
     assert.strictEqual(error.code, 'failed-precondition');
@@ -300,7 +357,11 @@ async function claimOrderSucceedsWithDifferentDate(handler, fakeDb) {
     scheduledDate: '2024-05-03',
   });
 
-  const result = await invokeCallable(handler, { orderId: 'order-new-date' }, providerId);
+  const result = await invokeCallable(
+      handler,
+      { orderId: 'order-new-date', scheduledDate: '2024-05-03' },
+      providerId,
+    );
   assert.ok(result && result.success, 'Callable should succeed when schedules do not overlap.');
 
   const updated = fakeDb.__getOrder('order-new-date');
@@ -404,6 +465,7 @@ async function run() {
     const syncAvailabilityHandler = myFunctions.syncProviderAvailability;
 
     await claimOrderSucceedsWithoutConflict(claimOrderHandler, fakeDb);
+    await claimOrderFailsWhenDateNotAvailable(claimOrderHandler, fakeDb);
     await claimOrderFailsWhenSameDateConflict(claimOrderHandler, fakeDb);
     await claimOrderFailsWhenExistingOrderHasNoSchedule(claimOrderHandler, fakeDb);
     await claimOrderSucceedsWithDifferentDate(claimOrderHandler, fakeDb);

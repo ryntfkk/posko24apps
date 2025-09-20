@@ -51,9 +51,14 @@ class ActiveJobsViewModel @Inject constructor(
             loadActiveJobs()
         }
     }
-    fun claimOrder(orderId: String, onSuccess: () -> Unit = {}) {
+    fun claimOrder(orderId: String, scheduledDate: String?, onSuccess: () -> Unit = {}) {
+        val normalizedDate = scheduledDate?.trim()
+        if (normalizedDate.isNullOrEmpty()) {
+            _claimMessage.value = "Tanggal penjadwalan belum dipilih."
+            return
+        }
         viewModelScope.launch {
-            orderRepository.claimOrder(orderId).collect { result ->
+            orderRepository.claimOrder(orderId, normalizedDate).collect { result ->
                 result.onSuccess {
                     loadActiveJobs()
                     onSuccess()

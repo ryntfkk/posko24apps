@@ -29,5 +29,5 @@ interface OrderRepository {
     fun createPaymentRequest(orderId: String, user: User): Flow<Result<String>>
 
     fun getProviderOrdersByStatus(providerId: String, statuses: List<OrderStatus>): Flow<Result<List<Order>>>
-    fun claimOrder(orderId: String): Flow<Result<Boolean>>
+    fun claimOrder(orderId: String, scheduledDate: String): Flow<Result<Boolean>>
 }
