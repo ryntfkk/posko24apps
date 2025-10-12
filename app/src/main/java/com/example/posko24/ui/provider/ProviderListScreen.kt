@@ -1,11 +1,15 @@
 package com.example.posko24.ui.provider
 
 import android.annotation.SuppressLint
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
@@ -59,17 +63,22 @@ fun ProviderListScreen(
                     CircularProgressIndicator()
                 }
                 is ProviderListState.Success -> {
-                    LazyColumn(
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 180.dp),
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = 8.dp)
+                            .padding(top = 8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(currentState.providers) { provider ->
                             ProviderListItem(
                                 provider = provider,
                                 onClick = {
                                     onNavigateToProviderDetail(provider.uid)
-                                }
+                                },
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
