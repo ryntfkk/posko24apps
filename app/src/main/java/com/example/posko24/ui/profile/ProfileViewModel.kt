@@ -15,7 +15,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.toLocalDateTime
+import com.example.posko24.util.APP_TIME_ZONE
 import javax.inject.Inject
 
 @HiltViewModel
@@ -40,9 +43,13 @@ class ProfileViewModel @Inject constructor(
     }
 
     private fun parseAvailabilityDates(dates: List<String>): List<LocalDate> {
+        val today = Clock.System.now().toLocalDateTime(APP_TIME_ZONE).date
         return dates.mapNotNull { dateString ->
             runCatching { LocalDate.parse(dateString) }.getOrNull()
-        }.sorted()
+        }
+            .filter { it >= today }
+            .distinct()
+            .sorted()
     }
 
     private fun loadUserProfile() {

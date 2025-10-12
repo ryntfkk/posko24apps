@@ -175,11 +175,13 @@ class ProviderDetailViewModel @Inject constructor(
     }
 
     private fun refreshScheduleUiState(scheduleState: ProviderScheduleState = _providerScheduleState.value) {
+        val today = Clock.System.now().toLocalDateTime(APP_TIME_ZONE).date
         val sanitizedAvailable = sanitizeDates(scheduleState.availableDates)
+            .filter { it >= today }
         val sanitizedBusy = sanitizeDates(scheduleState.busyDates)
 
-        val today = Clock.System.now().toLocalDateTime(APP_TIME_ZONE).date
-        val upcoming = sanitizedAvailable.filter { it >= today }
+            .filter { it >= today }
+        val upcoming = sanitizedAvailable
         val highlightedDates = upcoming.take(3)
         val remaining = (upcoming.size - highlightedDates.size).coerceAtLeast(0)
 

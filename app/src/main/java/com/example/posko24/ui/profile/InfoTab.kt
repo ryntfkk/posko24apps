@@ -59,10 +59,13 @@ fun InfoTabContent(
     onShowSchedule: () -> Unit
 ) {
     val today = remember { Clock.System.now().toLocalDateTime(APP_TIME_ZONE).date }
-    val fallbackAvailableDates = remember(provider.availableDates) {
+    val fallbackAvailableDates = remember(provider.availableDates, today) {
         provider.availableDates.mapNotNull { raw ->
             runCatching { LocalDate.parse(raw) }.getOrNull()
-        }.distinct().sorted()
+        }
+            .filter { it >= today }
+            .distinct()
+            .sorted()
     }
     val availableDates = remember(scheduleState.availableDates, fallbackAvailableDates) {
         if (scheduleState.availableDates.isNotEmpty()) scheduleState.availableDates else fallbackAvailableDates

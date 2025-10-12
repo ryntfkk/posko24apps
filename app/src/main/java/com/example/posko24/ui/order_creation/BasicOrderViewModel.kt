@@ -166,22 +166,22 @@ class BasicOrderViewModel @Inject constructor(
                                         listOf(ProviderServiceSelection(svc, 1))
                                     }
                                 } ?: emptyList()
+                                val today = LocalDate.now(APP_ZONE_ID)
                                 val parsedDates = provider.availableDates.mapNotNull { rawDate ->
                                     try {
                                         LocalDate.parse(rawDate, DateTimeFormatter.ISO_LOCAL_DATE)
                                     } catch (_: DateTimeParseException) {
                                         null
                                     }
-                                }.distinct().sorted()
+                                }
+                                    .filter { !it.isBefore(today) }
+                                    .distinct()
+                                    .sorted()
                                 _uiState.update { current ->
                                     val resolvedSelection = when {
                                         parsedDates.isEmpty() -> null
                                         current.selectedDate != null && parsedDates.contains(current.selectedDate) -> current.selectedDate
-                                        else -> {
-                                            val today = LocalDate.now(APP_ZONE_ID)
-                                            parsedDates.firstOrNull { date -> !date.isBefore(today) }
-                                                ?: parsedDates.firstOrNull()
-                                        }
+                                        else -> parsedDates.firstOrNull()
                                     }
                                     current.copy(
                                         provider = provider,
