@@ -149,7 +149,8 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onSelectTechnician = {
                                     navController.navigate("provider_list_screen/$categoryIdArg")
-                                }
+                                },
+                                onNavigateBack = { navController.popBackStack() }
                             )
                         }
                         composable(

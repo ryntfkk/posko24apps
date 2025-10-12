@@ -101,7 +101,7 @@ fun ProviderDetailScreen(
                             name = provider.fullName,
                             bio = provider.bio,
                             rating = provider.averageRating,
-                            completedOrders = provider.totalReviews,
+                            completedOrders = provider.completedOrders ?: 0,
                             favorites = 0,
                             bannerUrl = provider.profileBannerUrl,
                             modifier = Modifier.padding(bottom = 2.dp), // Add padding only at the bottom

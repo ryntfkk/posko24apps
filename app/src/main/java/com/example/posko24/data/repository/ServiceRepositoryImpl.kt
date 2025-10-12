@@ -61,13 +61,17 @@ class ServiceRepositoryImpl @Inject constructor(
                         val startingPrice = profile.startingPrice
                             ?: fetchProviderStartingPrice(profile.uid)
                         val completedOrders = profile.completedOrders
+                            ?.takeIf { it > 0 }
                             ?: fetchCompletedOrdersCount(profile.uid)
+                        val district = profile.district.takeIf { it.isNotBlank() }
+                            ?: fetchProviderDistrict(profile.uid)
                         profile.copy(
                             fullName = user.fullName,
                             profilePictureUrl = user.profilePictureUrl,
                             profileBannerUrl = user.profileBannerUrl,
                             startingPrice = startingPrice,
-                            completedOrders = completedOrders
+                            completedOrders = completedOrders ?: 0,
+                            district = district ?: ""
                         )
                     }
                 }
@@ -144,6 +148,20 @@ class ServiceRepositoryImpl @Inject constructor(
                 .get()
                 .await()
             ordersSnapshot.size()
+        } catch (exception: Exception) {
+            null
+        }
+    }
+
+    private suspend fun fetchProviderDistrict(providerId: String): String? {
+        return try {
+            val addressSnapshot = firestore.collection("users")
+                .document(providerId)
+                .collection("addresses")
+                .limit(1)
+                .get()
+                .await()
+            addressSnapshot.documents.firstOrNull()?.getString("district")
         } catch (exception: Exception) {
             null
         }

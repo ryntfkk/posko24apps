@@ -54,6 +54,7 @@ fun BasicOrderScreen(
     viewModel: BasicOrderViewModel = hiltViewModel(),
     onOrderSuccess: (String) -> Unit = {},
     onSelectTechnician: () -> Unit = {},
+    onNavigateBack: () -> Unit = {},
     ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -150,8 +151,7 @@ fun BasicOrderScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Formulir Pemesanan", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    val activity = (LocalContext.current as? Activity)
-                    IconButton(onClick = { activity?.finish() }) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
                     }
                 },
