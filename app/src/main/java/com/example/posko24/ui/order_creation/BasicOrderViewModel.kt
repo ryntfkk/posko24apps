@@ -263,6 +263,18 @@ class BasicOrderViewModel @Inject constructor(
                     return@launch
                 }
 
+                if (!currentState.availableDates.contains(selectedDate)) {
+                    _uiState.update {
+                        it.copy(
+                            orderCreationState = OrderCreationState.Error(
+                                "Tanggal yang dipilih sudah tidak tersedia. Silakan pilih ulang."
+                            ),
+                            selectedDate = null
+                        )
+                    }
+                    return@launch
+                }
+
                 var quantity = 0
                 var subtotal = 0.0
                 val items = mutableListOf<Map<String, Any>>()
@@ -301,10 +313,13 @@ class BasicOrderViewModel @Inject constructor(
                     promoCode = currentState.promoCode.ifBlank { null },
                     totalAmount = totalAmount,
                     scheduledDate = selectedDate.toString(),
-                    serviceSnapshot = mapOf(
-                        "categoryName" to provider.primaryCategoryId,
-                        "items" to items
-                    )
+                    serviceSnapshot = buildMap {
+                        val categoryName = currentState.category?.name
+                            ?: provider.primaryCategoryId
+                        put("categoryName", categoryName)
+                        put("items", items)
+                        put("providerName", provider.fullName)
+                    }
                 )
 
                 Log.d("BasicOrderVM", "📦 Creating direct order: $order")
@@ -412,8 +427,22 @@ class BasicOrderViewModel @Inject constructor(
     fun cancelOrder() {
         val orderId = _uiState.value.orderId ?: return
         viewModelScope.launch {
-            orderRepository.cancelOrder(orderId).collect {}
-            resetOrderState()
+            _uiState.update { it.copy(orderCreationState = OrderCreationState.Loading) }
+            orderRepository.cancelOrder(orderId).collect { result ->
+                result.onSuccess {
+                    Log.d("BasicOrderVM", "✅ Order $orderId cancelled")
+                    resetOrderState()
+                }.onFailure { throwable ->
+                    Log.e("BasicOrderVM", "❌ Failed to cancel order: ${throwable.message}", throwable)
+                    _uiState.update {
+                        it.copy(
+                            orderCreationState = OrderCreationState.Error(
+                                throwable.message ?: "Gagal membatalkan pesanan."
+                            )
+                        )
+                    }
+                }
+            }
         }
     }
 

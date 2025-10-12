@@ -30,6 +30,7 @@ fun OrderCard(
         serviceItems.size == 1 -> serviceItems.first().name
         else -> serviceItems.joinToString(", ") { it.name }
     }
+    val providerName = order.serviceSnapshot["providerName"] as? String
     val categoryName = order.serviceSnapshot["categoryName"] as? String ?: "Kategori"
     val scheduledLabel = order.formattedScheduledDate()
     val createdAtLabel = order.createdAt?.toDate()?.let {
@@ -51,7 +52,12 @@ fun OrderCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            Text(text = categoryName, style = MaterialTheme.typography.bodySmall)
+            val subtitle = when {
+                !providerName.isNullOrBlank() && order.orderType == "direct" ->
+                    "Teknisi: $providerName"
+                else -> categoryName
+            }
+            Text(text = subtitle, style = MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = "Status: ${order.status.replace('_', ' ').capitalize(Locale.ROOT)}")
             Text(
