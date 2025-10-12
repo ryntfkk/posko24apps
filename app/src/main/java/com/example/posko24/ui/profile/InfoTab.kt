@@ -91,9 +91,21 @@ fun ProviderAvailabilitySection(
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Text("Status Operasional", style = MaterialTheme.typography.titleMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Status Operasional", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(
+                onClick = onShowSchedule,
+                enabled = hasSchedule
+            ) {
+                Text("Lihat Jadwal")
+            }
+        }
         val statusIcon = if (provider.isAvailable) Icons.Default.CheckCircle else Icons.Default.Block
         val statusLabel = if (provider.isAvailable) {
             "Aktif menerima order"
@@ -138,17 +150,6 @@ fun ProviderAvailabilitySection(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        ) {
-            TextButton(
-                onClick = onShowSchedule,
-                enabled = hasSchedule
-            ) {
-                Text("Lihat Jadwal")
             }
         }
     }
