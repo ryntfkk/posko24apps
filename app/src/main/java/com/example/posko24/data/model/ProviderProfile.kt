@@ -20,6 +20,9 @@ data class ProviderProfile(
     val uid: String = "",
     val fullName: String = "",
     val profilePictureUrl: String? = null,
-    val profileBannerUrl: String? = null
+    val profileBannerUrl: String? = null,
+    val startingPrice: Double? = null,
+    val completedOrders: Int? = null,
+    val district: String = ""
 )
 

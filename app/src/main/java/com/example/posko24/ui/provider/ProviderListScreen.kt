@@ -64,7 +64,7 @@ fun ProviderListScreen(
                 }
                 is ProviderListState.Success -> {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 180.dp),
+                        columns = GridCells.Fixed(2),
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(top = 8.dp),

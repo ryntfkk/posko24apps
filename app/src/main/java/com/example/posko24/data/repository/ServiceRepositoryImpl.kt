@@ -1,5 +1,6 @@
 package com.example.posko24.data.repository
 
+import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.ServiceCategory
@@ -7,6 +8,9 @@ import com.example.posko24.data.model.User
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.firestore.DocumentSnapshot
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
@@ -50,14 +54,24 @@ class ServiceRepositoryImpl @Inject constructor(
         val usersSnapshot = firestore.collection("users").whereIn("uid", userIds).get().await()
         val usersMap = usersSnapshot.documents.associate { it.id to it.toObject(User::class.java) }
 
-        val combinedProfiles = providerProfiles.mapNotNull { profile ->
-            usersMap[profile.uid]?.let { user ->
-                profile.copy(
-                    fullName = user.fullName,
-                    profilePictureUrl = user.profilePictureUrl,
-                    profileBannerUrl = user.profileBannerUrl
-                )
-            }
+        val combinedProfiles = coroutineScope {
+            providerProfiles.map { profile ->
+                async {
+                    usersMap[profile.uid]?.let { user ->
+                        val startingPrice = profile.startingPrice
+                            ?: fetchProviderStartingPrice(profile.uid)
+                        val completedOrders = profile.completedOrders
+                            ?: fetchCompletedOrdersCount(profile.uid)
+                        profile.copy(
+                            fullName = user.fullName,
+                            profilePictureUrl = user.profilePictureUrl,
+                            profileBannerUrl = user.profileBannerUrl,
+                            startingPrice = startingPrice,
+                            completedOrders = completedOrders
+                        )
+                    }
+                }
+            }.awaitAll().filterNotNull()
         }
 
         emit(Result.success(combinedProfiles))
@@ -88,8 +102,7 @@ class ServiceRepositoryImpl @Inject constructor(
             profileDoc.toProviderProfileWithDefaults()?.let { profile ->
                 profile.copy(
                     fullName = user.fullName,
-                    profilePictureUrl = user.profilePictureUrl,
-                    profileBannerUrl = user.profileBannerUrl
+                    profilePictureUrl = user.profilePictureUrl
                 )
             }
         }
@@ -108,6 +121,32 @@ class ServiceRepositoryImpl @Inject constructor(
         emit(Result.success(filtered))
     }.catch { exception ->
         emit(Result.failure(exception))
+    }
+    private suspend fun fetchProviderStartingPrice(providerId: String): Double? {
+        return try {
+            val servicesSnapshot = firestore.collection("provider_profiles").document(providerId)
+                .collection("services")
+                .orderBy("price")
+                .limit(1)
+                .get()
+                .await()
+            servicesSnapshot.documents.firstOrNull()?.getDouble("price")
+        } catch (exception: Exception) {
+            null
+        }
+    }
+
+    private suspend fun fetchCompletedOrdersCount(providerId: String): Int? {
+        return try {
+            val ordersSnapshot = firestore.collection("orders")
+                .whereEqualTo("providerId", providerId)
+                .whereEqualTo("status", OrderStatus.COMPLETED.value)
+                .get()
+                .await()
+            ordersSnapshot.size()
+        } catch (exception: Exception) {
+            null
+        }
     }
 
     private fun distanceInKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
@@ -140,8 +179,7 @@ class ServiceRepositoryImpl @Inject constructor(
         val combinedProfile = user?.let {
             providerProfile.copy(
                 fullName = it.fullName,
-                profilePictureUrl = it.profilePictureUrl,
-                profileBannerUrl = it.profileBannerUrl
+                profilePictureUrl = it.profilePictureUrl
             )
         }
 
