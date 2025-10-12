@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Star
@@ -33,12 +34,13 @@ fun ProfileHeader(
     completedOrders: Int,
     favorites: Int,
     modifier: Modifier = Modifier,
-    bannerUrl: String? = null
+    bannerUrl: String? = null,
+    onBackClick: (() -> Unit)? = null
 ) {
     // Column pembungkus agar ada padding di bagian bawah setelah semua elemen
     Column(modifier = modifier) {
         ConstraintLayout(modifier = Modifier.fillMaxWidth()) {
-            val (banner, profileImage, metrics, nameAndBio) = createRefs()
+            val (banner, backButton, profileImage, metrics, nameAndBio) = createRefs()
 
             // Banner
             AsyncImage(
@@ -54,6 +56,27 @@ fun ProfileHeader(
                 placeholder = painterResource(id = R.drawable.bg_search_section),
                 error = painterResource(id = R.drawable.bg_search_section)
             )
+
+            if (onBackClick != null) {
+                Surface(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .size(40.dp)
+                        .constrainAs(backButton) {
+                            top.linkTo(banner.top)
+                            start.linkTo(banner.start)
+                        },
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                ) {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Kembali"
+                        )
+                    }
+                }
+            }
 
             // Foto Profil
             Box(

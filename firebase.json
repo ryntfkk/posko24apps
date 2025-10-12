@@ -15,5 +15,8 @@
         "*.local"
       ]
     }
-  ]
+  ],
+  "storage": {
+    "rules": "storage.rules"
+  }
 }

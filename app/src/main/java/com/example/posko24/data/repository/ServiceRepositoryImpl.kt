@@ -54,7 +54,8 @@ class ServiceRepositoryImpl @Inject constructor(
             usersMap[profile.uid]?.let { user ->
                 profile.copy(
                     fullName = user.fullName,
-                    profilePictureUrl = user.profilePictureUrl
+                    profilePictureUrl = user.profilePictureUrl,
+                    profileBannerUrl = user.profileBannerUrl
                 )
             }
         }
@@ -87,7 +88,8 @@ class ServiceRepositoryImpl @Inject constructor(
             profileDoc.toProviderProfileWithDefaults()?.let { profile ->
                 profile.copy(
                     fullName = user.fullName,
-                    profilePictureUrl = user.profilePictureUrl
+                    profilePictureUrl = user.profilePictureUrl,
+                    profileBannerUrl = user.profileBannerUrl
                 )
             }
         }
@@ -138,7 +140,8 @@ class ServiceRepositoryImpl @Inject constructor(
         val combinedProfile = user?.let {
             providerProfile.copy(
                 fullName = it.fullName,
-                profilePictureUrl = it.profilePictureUrl
+                profilePictureUrl = it.profilePictureUrl,
+                profileBannerUrl = it.profileBannerUrl
             )
         }
 

@@ -119,7 +119,8 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("basic_order_screen/$categoryId?providerId=$id")
                                 },
                                 onFavoriteClick = { _ -> },
-                                onShareClick = { _ -> }
+                                onShareClick = { _ -> },
+                                onBackClick = { navController.popBackStack() }
                             )
                         }
                         composable(

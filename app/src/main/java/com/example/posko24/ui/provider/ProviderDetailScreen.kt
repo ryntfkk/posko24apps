@@ -28,8 +28,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -53,7 +51,8 @@ fun ProviderDetailScreen(
     viewModel: ProviderDetailViewModel = hiltViewModel(),
     onOrderClick: (providerId: String, categoryId: String) -> Unit,
     onFavoriteClick: (providerId: String) -> Unit,
-    onShareClick: (providerId: String) -> Unit
+    onShareClick: (providerId: String) -> Unit,
+    onBackClick: () -> Unit
 ) {
     val detailState by viewModel.providerDetailState.collectAsState()
     val skills by viewModel.skills.collectAsState()
@@ -69,15 +68,6 @@ fun ProviderDetailScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Profil Penyedia Jasa") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         when (val state = detailState) {
@@ -113,7 +103,9 @@ fun ProviderDetailScreen(
                             rating = provider.averageRating,
                             completedOrders = provider.totalReviews,
                             favorites = 0,
-                            modifier = Modifier.padding(bottom = 2.dp) // Add padding only at the bottom
+                            bannerUrl = provider.profileBannerUrl,
+                            modifier = Modifier.padding(bottom = 2.dp), // Add padding only at the bottom
+                            onBackClick = onBackClick
                         )
                     }
 

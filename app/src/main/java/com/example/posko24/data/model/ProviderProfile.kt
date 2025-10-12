@@ -19,6 +19,7 @@ data class ProviderProfile(
     val location: GeoPoint? = null,
     val uid: String = "",
     val fullName: String = "",
-    val profilePictureUrl: String? = null
+    val profilePictureUrl: String? = null,
+    val profileBannerUrl: String? = null
 )
 
