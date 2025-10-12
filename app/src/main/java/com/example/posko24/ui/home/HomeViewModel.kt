@@ -4,12 +4,15 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.Order
+import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ServiceCategory
 import com.example.posko24.data.repository.ServiceRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.DocumentSnapshot
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +49,8 @@ class HomeViewModel @Inject constructor(
     private val _activeOrderDetails = MutableStateFlow<ActiveOrderDetails?>(null)
     val activeOrderDetails: StateFlow<ActiveOrderDetails?> = _activeOrderDetails
 
+    private val paymentTimeoutMillis = 24L * 60L * 60L * 1000L
+
     init {
         loadCategories()
         loadBanners()
@@ -81,17 +86,25 @@ class HomeViewModel @Inject constructor(
                     Log.d(TAG, "Tidak ditemukan order aktif untuk pengguna $uid")
                     _activeOrderDetails.value = null
                 } else {
-                    val order = snapshot.documents.first().toObject(Order::class.java)
-                    if (order != null && !order.providerId.isNullOrEmpty()) {
+                    val document = snapshot.documents.first()
+                    val order = document.toOrder()
+                    if (order == null) {
+                        Log.d(TAG, "Dokumen order tidak dapat dikonversi.")
+                        _activeOrderDetails.value = null
+                        return@addOnSuccessListener
+                    }
+
+                    if (expireIfAwaitingPaymentTimeout(order)) {
+                        return@addOnSuccessListener
+                    }
+
+                    if (!order.providerId.isNullOrEmpty()) {
                         // Jika order ditemukan dan ada providerId, cari nama provider
                         fetchProviderName(order)
-                    } else if (order != null) {
+                    } else {
                         // Order ada tetapi belum memiliki provider, gunakan nama default
                         Log.d(TAG, "Order ditemukan tapi tanpa provider ID.")
                         _activeOrderDetails.value = ActiveOrderDetails(order, "Teknisi")
-                    } else {
-                        Log.d(TAG, "Dokumen order tidak dapat dikonversi.")
-                        _activeOrderDetails.value = null
                     }
                 }
             }
@@ -99,6 +112,43 @@ class HomeViewModel @Inject constructor(
                 _activeOrderDetails.value = null
                 Log.e(TAG, "Gagal mengambil order aktif", e)
             }
+    }
+
+    private fun DocumentSnapshot.toOrder(): Order? =
+        Order.fromDocument(this)
+
+    private fun expireIfAwaitingPaymentTimeout(order: Order): Boolean {
+        if (order.status != OrderStatus.AWAITING_PAYMENT.value) {
+            return false
+        }
+
+        val createdAt = order.createdAt ?: return false
+        val now = Timestamp.now()
+        val elapsed = now.toDate().time - createdAt.toDate().time
+
+        if (elapsed < paymentTimeoutMillis || order.id.isBlank()) {
+            return false
+        }
+
+        Log.d(TAG, "Order ${order.id} melewati batas waktu pembayaran, menandai sebagai dibatalkan.")
+        _activeOrderDetails.value = null
+
+        firestore.collection("orders")
+            .document(order.id)
+            .update(
+                mapOf(
+                    "status" to OrderStatus.CANCELLED.value,
+                    "paymentStatus" to "expire"
+                )
+            )
+            .addOnSuccessListener {
+                Log.d(TAG, "Order ${order.id} berhasil diperbarui menjadi dibatalkan karena melewati batas pembayaran.")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Gagal memperbarui status order ${order.id} yang melewati batas pembayaran.", e)
+            }
+
+        return true
     }
 
     // --- FUNGSI BARU UNTUK MENGAMBIL NAMA PROVIDER ---

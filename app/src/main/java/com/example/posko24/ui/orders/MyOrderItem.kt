@@ -44,14 +44,16 @@ fun MyOrderItem(
                     }
                 }
                 OrderStatus.AWAITING_PAYMENT.value -> {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        Button(onClick = { onPay(order.id) }) {
-                            Text("Bayar")
+                    if (!order.isAwaitingPaymentExpired()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Button(onClick = { onPay(order.id) }) {
+                                Text("Bayar")
+                            }
                         }
                     }
                 }

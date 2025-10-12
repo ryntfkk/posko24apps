@@ -45,18 +45,13 @@ class MyOrdersViewModel @Inject constructor(
                         if (orders.isEmpty()) {
                             _ordersState.value = OrdersState.Empty
                         } else {
-                            val ongoingStatuses = listOf(
-                            OrderStatus.AWAITING_PAYMENT,
-                            OrderStatus.SEARCHING_PROVIDER,
-                            OrderStatus.AWAITING_PROVIDER_CONFIRMATION,
-                            OrderStatus.PENDING,
-                            OrderStatus.ACCEPTED,
-                            OrderStatus.ONGOING,
-                            OrderStatus.AWAITING_CONFIRMATION
-                            ).map { it.value }
-                            val historyStatuses = listOf(OrderStatus.COMPLETED, OrderStatus.CANCELLED).map { it.value }
-                            val ongoingOrders = orders.filter { it.status in ongoingStatuses }.sortedByDescending { it.createdAt }
-                            val historyOrders = orders.filter { it.status in historyStatuses }.sortedByDescending { it.createdAt }
+                            val normalizedOrders = expireOrdersIfNeeded(orders)
+                            val ongoingStatuses = getOngoingStatuses()
+                            val historyStatuses = getHistoryStatuses()
+                            val ongoingOrders = normalizedOrders.filter { it.status in ongoingStatuses }
+                                .sortedByDescending { it.createdAt }
+                            val historyOrders = normalizedOrders.filter { it.status in historyStatuses }
+                                .sortedByDescending { it.createdAt }
 
                             _ordersState.value = OrdersState.Success(ongoingOrders, historyOrders)
                         }
@@ -70,18 +65,13 @@ class MyOrdersViewModel @Inject constructor(
                         if (orders.isEmpty()) {
                             _ordersState.value = OrdersState.Empty
                         } else {
-                            val ongoingStatuses = listOf(
-                                OrderStatus.AWAITING_PAYMENT,
-                                OrderStatus.SEARCHING_PROVIDER,
-                                OrderStatus.AWAITING_PROVIDER_CONFIRMATION,
-                                OrderStatus.PENDING,
-                                OrderStatus.ACCEPTED,
-                                OrderStatus.ONGOING,
-                                OrderStatus.AWAITING_CONFIRMATION
-                            ).map { it.value }
-                            val historyStatuses = listOf(OrderStatus.COMPLETED, OrderStatus.CANCELLED).map { it.value }
-                            val ongoingOrders = orders.filter { it.status in ongoingStatuses }.sortedByDescending { it.createdAt }
-                            val historyOrders = orders.filter { it.status in historyStatuses }.sortedByDescending { it.createdAt }
+                            val normalizedOrders = expireOrdersIfNeeded(orders)
+                            val ongoingStatuses = getOngoingStatuses()
+                            val historyStatuses = getHistoryStatuses()
+                            val ongoingOrders = normalizedOrders.filter { it.status in ongoingStatuses }
+                                .sortedByDescending { it.createdAt }
+                            val historyOrders = normalizedOrders.filter { it.status in historyStatuses }
+                                .sortedByDescending { it.createdAt }
 
 
                             _ordersState.value = OrdersState.Success(ongoingOrders, historyOrders)
@@ -93,6 +83,19 @@ class MyOrdersViewModel @Inject constructor(
             }
         }
     }
+
+    private fun getOngoingStatuses(): List<String> = listOf(
+        OrderStatus.AWAITING_PAYMENT,
+        OrderStatus.SEARCHING_PROVIDER,
+        OrderStatus.AWAITING_PROVIDER_CONFIRMATION,
+        OrderStatus.PENDING,
+        OrderStatus.ACCEPTED,
+        OrderStatus.ONGOING,
+        OrderStatus.AWAITING_CONFIRMATION
+    ).map { it.value }
+
+    private fun getHistoryStatuses(): List<String> =
+        listOf(OrderStatus.COMPLETED, OrderStatus.CANCELLED).map { it.value }
     fun onActiveRoleChanged(role: String) {
         if (currentRole != role) {
             currentRole = role
@@ -135,6 +138,41 @@ class MyOrdersViewModel @Inject constructor(
 
     fun clearPaymentToken() {
         _paymentToken.value = null
+    }
+
+    private suspend fun expireOrdersIfNeeded(orders: List<Order>): List<Order> {
+        if (orders.isEmpty()) return orders
+
+        val now = System.currentTimeMillis()
+        val expiredOrders = orders.filter { it.isAwaitingPaymentExpired(now) }
+        if (expiredOrders.isEmpty()) {
+            return orders
+        }
+
+        val expiredOrderIds = mutableSetOf<String>()
+        for (order in expiredOrders) {
+            val result = orderRepository
+                .updateOrderStatusAndPayment(order.id, OrderStatus.CANCELLED, "expire")
+                .first()
+            if (result.isSuccess) {
+                expiredOrderIds += order.id
+            }
+        }
+
+        if (expiredOrderIds.isEmpty()) {
+            return orders
+        }
+
+        return orders.map { order ->
+            if (order.id in expiredOrderIds) {
+                order.copy(
+                    status = OrderStatus.CANCELLED.value,
+                    paymentStatus = "expire"
+                )
+            } else {
+                order
+            }
+        }
     }
 }
 
