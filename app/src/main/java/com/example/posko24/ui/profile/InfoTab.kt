@@ -49,14 +49,15 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 
 /**
- * Tab content displaying provider bio, status, and a read-only schedule overview.
+ * Section displaying the provider's operational status and a read-only schedule overview.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun InfoTabContent(
+fun ProviderAvailabilitySection(
     provider: ProviderProfile,
     scheduleState: ProviderScheduleUiState,
-    onShowSchedule: () -> Unit
+    onShowSchedule: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val today = remember { Clock.System.now().toLocalDateTime(APP_TIME_ZONE).date }
     val fallbackAvailableDates = remember(provider.availableDates, today) {
@@ -89,19 +90,9 @@ fun InfoTabContent(
 
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (provider.bio.isNotBlank()) {
-            Text("Deskripsi", style = MaterialTheme.typography.titleMedium)
-            Text(
-                provider.bio,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
         Text("Status Operasional", style = MaterialTheme.typography.titleMedium)
         val statusIcon = if (provider.isAvailable) Icons.Default.CheckCircle else Icons.Default.Block
         val statusLabel = if (provider.isAvailable) {
@@ -111,7 +102,7 @@ fun InfoTabContent(
         }
         InfoRow(icon = statusIcon, text = statusLabel)
 
-        Text("Jadwal", style = MaterialTheme.typography.titleMedium)
+        Text("Jadwal Tersedia", style = MaterialTheme.typography.titleMedium)
         when {
             summaryState.dates.isNotEmpty() -> {
                 FlowRow(
@@ -149,12 +140,16 @@ fun InfoTabContent(
                 )
             }
         }
-        TextButton(
-            onClick = onShowSchedule,
-            enabled = hasSchedule,
-            modifier = Modifier.align(Alignment.End)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
         ) {
-            Text("Lihat Jadwal")
+            TextButton(
+                onClick = onShowSchedule,
+                enabled = hasSchedule
+            ) {
+                Text("Lihat Jadwal")
+            }
         }
     }
 }

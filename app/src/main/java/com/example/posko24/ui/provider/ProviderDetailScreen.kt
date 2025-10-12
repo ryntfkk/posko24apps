@@ -43,6 +43,7 @@ import com.example.posko24.ui.components.CertificationCard
 import com.example.posko24.ui.components.ProfileHeader
 import com.example.posko24.ui.components.SkillTag
 import com.example.posko24.ui.profile.ProfileTabs
+import com.example.posko24.ui.profile.ProviderAvailabilitySection
 import com.example.posko24.ui.profile.ProviderScheduleBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -173,14 +174,20 @@ fun ProviderDetailScreen(
                         }
                     }
 
-                    // Portfolio and Services Tabs - With horizontal padding
                     item {
                         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                            ProfileTabs(
+                            ProviderAvailabilitySection(
                                 provider = provider,
                                 scheduleState = scheduleState,
                                 onShowSchedule = { viewModel.showScheduleSheet() }
                             )
+                        }
+                    }
+
+                    // Portfolio and Services Tabs - With horizontal padding
+                    item {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            ProfileTabs()
                         }
                     }
                     item {
