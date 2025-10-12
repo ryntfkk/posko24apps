@@ -4,6 +4,7 @@ import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.User
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -48,7 +49,16 @@ class UserRepositoryImpl @Inject constructor(
     }
     override suspend fun updateUserProfile(userId: String, data: Map<String, Any?>): Result<Unit> {
         return try {
-            firestore.collection("users").document(userId).update(data).await()
+            val sanitizedData = data
+                .filterValues { it != null }
+                .mapValues { it.value!! }
+
+            if (sanitizedData.isNotEmpty()) {
+                firestore.collection("users")
+                    .document(userId)
+                    .set(sanitizedData, SetOptions.merge())
+                    .await()
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

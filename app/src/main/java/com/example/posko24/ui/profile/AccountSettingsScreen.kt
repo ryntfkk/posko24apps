@@ -1,5 +1,7 @@
 package com.example.posko24.ui.profile
 
+import android.content.ContentResolver
+import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -52,6 +54,7 @@ fun AccountSettingsScreen(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let {
+            persistReadPermission(context.contentResolver, it)
             viewModel.uploadProfileImage(it) { success ->
                 val msg = if (success) {
                     "Foto profil diperbarui"
@@ -67,6 +70,7 @@ fun AccountSettingsScreen(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let {
+            persistReadPermission(context.contentResolver, it)
             viewModel.uploadBannerImage(it) { success ->
                 val msg = if (success) {
                     "Banner profil diperbarui"
@@ -213,5 +217,19 @@ fun AccountSettingsScreen(
                 Text("Ubah Password")
             }
         }
+    }
+}
+
+private fun persistReadPermission(contentResolver: ContentResolver, uri: android.net.Uri) {
+    if (uri.scheme != ContentResolver.SCHEME_CONTENT) return
+    try {
+        contentResolver.takePersistableUriPermission(
+            uri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+    } catch (_: SecurityException) {
+        // Ignore – the picker might not support persistable permissions on this API level.
+    } catch (_: IllegalArgumentException) {
+        // Ignore – Uri already persisted or not persistable.
     }
 }
