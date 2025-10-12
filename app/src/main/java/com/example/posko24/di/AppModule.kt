@@ -12,6 +12,7 @@ import javax.inject.Singleton
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.ktx.functions
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.FirebaseStorage
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -72,6 +73,10 @@ object AppModule {
     ): UserRepository {
         return UserRepositoryImpl(firestore)
     }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseStorage(): FirebaseStorage = FirebaseStorage.getInstance()
 
     @Provides
     @Singleton

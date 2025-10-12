@@ -11,6 +11,7 @@ data class User(
     val email: String = "",
     val phoneNumber: String = "",
     val profilePictureUrl: String? = null,
+    val profileBannerUrl: String? = null,
     val balance: Double = 0.0,
     val roles: List<String> = listOf("customer"),
     val activeRole: String = "customer",
