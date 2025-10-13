@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.posko24.data.model.Wilayah
 import com.example.posko24.data.model.UserAddress
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
@@ -99,15 +100,36 @@ class AddressRepositoryImpl @Inject constructor(
     }
     override suspend fun saveAddress(userId: String, address: UserAddress): Result<Unit> {
         return try {
-            val data = hashMapOf(
+            val userDocRef = firestore.collection("users").document(userId)
+            val addressesCollection = userDocRef.collection("addresses")
+
+            val addressPayload = mutableMapOf<String, Any?>(
                 "province" to address.province,
                 "city" to address.city,
                 "district" to address.district,
                 "detail" to address.detail,
-                "location" to address.location
+                "isDefault" to true
             )
-            firestore.collection("users").document(userId)
-                .collection("addresses").add(data).await()
+            address.location?.let { addressPayload["location"] = it }
+
+            val defaultAddressPayload = addressPayload.toMutableMap().apply {
+                remove("isDefault")
+            }.filterValues { it != null }
+
+            val batch = firestore.batch()
+            val newAddressRef = addressesCollection.document()
+
+            batch.set(newAddressRef, addressPayload)
+            batch.set(
+                userDocRef,
+                mapOf(
+                    "defaultAddressId" to newAddressRef.id,
+                    "defaultAddress" to defaultAddressPayload
+                ),
+                SetOptions.merge()
+            )
+
+            batch.commit().await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

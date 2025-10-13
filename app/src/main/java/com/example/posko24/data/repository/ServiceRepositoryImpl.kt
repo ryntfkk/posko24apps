@@ -74,9 +74,11 @@ class ServiceRepositoryImpl @Inject constructor(
                             ?: profile.completedOrders
                             ?: 0
                         val statsDistrict = stats?.district?.trim()?.takeIf { it.isNotEmpty() }
-                        val initialDistrict = profile.district.takeIf { it.isNotBlank() } ?: statsDistrict
-                        val resolvedDistrict = initialDistrict
-                            ?: fetchProviderDistrict(profile.uid, userSnapshot).orEmpty()
+                        val resolvedDistrict = sequenceOf(
+                            profile.district,
+                            statsDistrict,
+                            resolveDistrictFromMap(userSnapshot?.data)
+                        ).firstOrNull { !it.isNullOrBlank() }?.trim().orEmpty()
                         profile.copy(
                             fullName = user.fullName,
                             profilePictureUrl = user.profilePictureUrl,
@@ -186,40 +188,6 @@ class ServiceRepositoryImpl @Inject constructor(
                 sin(dLon / 2).pow(2.0)
         val c = 2 * atan2(sqrt(a), sqrt(1 - a))
         return earthRadius * c
-    }
-
-    private suspend fun fetchProviderDistrict(
-        providerId: String,
-        userSnapshot: DocumentSnapshot?
-    ): String? {
-        resolveDistrictFromMap(userSnapshot?.data)?.let { return it }
-
-        return try {
-            val addressesSnapshot = firestore.collection("users")
-                .document(providerId)
-                .collection("addresses")
-                .limit(5)
-                .get()
-                .await()
-
-            val sortedAddresses = addressesSnapshot.documents.sortedByDescending {
-                it.getBoolean("isDefault") == true
-            }
-
-            for (addressDoc in sortedAddresses) {
-                val directDistrict = addressDoc.getString("district")?.trim()
-                if (!directDistrict.isNullOrEmpty()) {
-                    return directDistrict
-                }
-                val resolvedFromMap = resolveDistrictFromMap(addressDoc.data)
-                if (!resolvedFromMap.isNullOrEmpty()) {
-                    return resolvedFromMap
-                }
-            }
-            null
-        } catch (exception: Exception) {
-            null
-        }
     }
 
     private fun resolveDistrictFromMap(data: Map<String, Any?>?): String? {
