@@ -272,7 +272,11 @@ class ServiceRepositoryImpl @Inject constructor(
 
         val alternativeKeys = data.keys.filter {
             it.contains("district", ignoreCase = true) ||
-                    it.contains("kecamatan", ignoreCase = true)
+                    it.contains("kecamatan", ignoreCase = true) ||
+                    it.contains("subdistrict", ignoreCase = true) ||
+                    it.contains("kelurahan", ignoreCase = true) ||
+                    it.contains("desa", ignoreCase = true) ||
+                    it.contains("village", ignoreCase = true)
         }
         for (key in alternativeKeys) {
             extractDistrictCandidate(data[key])?.let { return it }
@@ -368,6 +372,10 @@ class ServiceRepositoryImpl @Inject constructor(
             "kecamatan",
             "subDistrict",
             "sub_district",
+            "subdistrict",
+            "kelurahan",
+            "desa",
+            "village",
             "city",
             "kota",
             "regency",
@@ -375,7 +383,8 @@ class ServiceRepositoryImpl @Inject constructor(
             "province",
             "provinsi",
             "state",
-            "region"
+            "region",
+            "wilayah"
         )
     }
 

@@ -120,6 +120,10 @@ const ADMINISTRATIVE_PART_KEYS = [
   'kecamatan',
   'subDistrict',
   'sub_district',
+    'subdistrict',
+    'kelurahan',
+    'desa',
+    'village',
   'city',
   'kota',
   'regency',
@@ -128,6 +132,8 @@ const ADMINISTRATIVE_PART_KEYS = [
   'provinsi',
   'state',
   'region',
+    'wilayah',
+
 ];
 
 function resolveDistrictFromData(data) {
@@ -138,6 +144,10 @@ function resolveDistrictFromData(data) {
   const direct = extractDistrictValue(data.district);
   if (direct) {
     return direct;
+  }
+  const directSegments = deriveBasicAddressSegments(data);
+  if (directSegments?.district) {
+    return directSegments.district;
   }
 
   for (const key of DIRECT_DISTRICT_KEYS) {
@@ -165,6 +175,10 @@ function resolveDistrictFromData(data) {
         if (nested) {
           return nested;
         }
+                const nestedSegments = deriveBasicAddressSegments(data[key]);
+                if (nestedSegments?.district) {
+                  return nestedSegments.district;
+                }
       }
     }
   }
@@ -204,7 +218,10 @@ function resolveAddressSegments(rawData) {
   if (!data || typeof data !== 'object') {
     return null;
   }
-
+  const directSegments = deriveBasicAddressSegments(data);
+  if (directSegments) {
+    return directSegments;
+  }
   const district =
     normalizeAddressString(data.district) ||
     normalizeAddressString(data.kecamatan) ||
@@ -250,6 +267,57 @@ function resolveAddressSegments(rawData) {
   }
 
   return null;
+}
+function deriveBasicAddressSegments(data) {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  const pickString = (value, { allowDistrictExtraction = false } = {}) => {
+    if (typeof value === 'string') {
+      return normalizeAddressString(value);
+    }
+    if (allowDistrictExtraction) {
+      const candidate = extractDistrictValue(value);
+      if (candidate) {
+        return candidate;
+      }
+    }
+    return null;
+  };
+
+  const pickFromKeys = (keys, options) => {
+    for (const key of keys) {
+      if (!Object.prototype.hasOwnProperty.call(data, key)) {
+        continue;
+      }
+      const raw = data[key];
+      const candidate = pickString(raw, options);
+      if (candidate) {
+        return candidate;
+      }
+    }
+    return null;
+  };
+
+  const district =
+    pickFromKeys(
+      ['district', 'kecamatan', 'subDistrict', 'sub_district', 'subdistrict', 'kelurahan', 'desa', 'village'],
+      { allowDistrictExtraction: true }
+    ) || null;
+  const city =
+    pickFromKeys(['city', 'kota', 'regency', 'kabupaten', 'town', 'kota_kabupaten']) || null;
+  const province =
+    pickFromKeys(['province', 'provinsi', 'state', 'region', 'wilayah']) || null;
+  const detail =
+    pickFromKeys(
+      ['detail', 'addressLine', 'address_line', 'address', 'street', 'line1', 'alamat', 'alamatLengkap', 'alamat_lengkap'],
+      { allowDistrictExtraction: false }
+    ) || null;
+
+  const segments = { detail, district, city, province };
+  const hasValue = Object.values(segments).some((value) => typeof value === 'string' && value.length > 0);
+  return hasValue ? segments : null;
 }
 
 function buildAddressLabel(segments) {
