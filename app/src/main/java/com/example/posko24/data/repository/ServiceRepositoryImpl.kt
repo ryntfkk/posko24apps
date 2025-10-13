@@ -106,7 +106,8 @@ class ServiceRepositoryImpl @Inject constructor(
             profileDoc.toProviderProfileWithDefaults()?.let { profile ->
                 profile.copy(
                     fullName = user.fullName,
-                    profilePictureUrl = user.profilePictureUrl
+                    profilePictureUrl = user.profilePictureUrl,
+                    profileBannerUrl = user.profileBannerUrl
                 )
             }
         }
@@ -143,11 +144,13 @@ class ServiceRepositoryImpl @Inject constructor(
     private suspend fun fetchCompletedOrdersCount(providerId: String): Int? {
         return try {
             val ordersSnapshot = firestore.collection("orders")
-                .whereEqualTo("providerId", providerId)
                 .whereEqualTo("status", OrderStatus.COMPLETED.value)
                 .get()
                 .await()
-            ordersSnapshot.size()
+            ordersSnapshot.documents.count { doc ->
+                val status = doc.getString("status") ?: doc.get("status")?.toString()
+                status == OrderStatus.COMPLETED.value
+            }
         } catch (exception: Exception) {
             null
         }
@@ -158,10 +161,18 @@ class ServiceRepositoryImpl @Inject constructor(
             val addressSnapshot = firestore.collection("users")
                 .document(providerId)
                 .collection("addresses")
-                .limit(1)
                 .get()
                 .await()
-            addressSnapshot.documents.firstOrNull()?.getString("district")
+
+            addressSnapshot.documents
+                .mapNotNull { doc ->
+                    when (val rawDistrict = doc.get("district")) {
+                        is String -> rawDistrict
+                        is Map<*, *> -> rawDistrict["name"] as? String
+                        else -> rawDistrict?.toString()
+                    }
+                }
+                .firstOrNull { it.isNotBlank() }
         } catch (exception: Exception) {
             null
         }
@@ -197,7 +208,8 @@ class ServiceRepositoryImpl @Inject constructor(
         val combinedProfile = user?.let {
             providerProfile.copy(
                 fullName = it.fullName,
-                profilePictureUrl = it.profilePictureUrl
+                profilePictureUrl = it.profilePictureUrl,
+                profileBannerUrl = it.profileBannerUrl
             )
         }
 
