@@ -1,5 +1,6 @@
 package com.example.posko24.data.repository
 
+import android.util.Log
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.ServiceCategory
@@ -68,7 +69,15 @@ class ServiceRepositoryImpl @Inject constructor(
                             ?: fetchProviderStartingPrice(profile.uid)
                         val requiresStats = (profile.completedOrders == null || profile.completedOrders <= 0) ||
                                 profile.district.isBlank()
-                        val stats = if (requiresStats) fetchProviderPublicStats(profile.uid) else null
+                        val stats = if (requiresStats) {
+                            fetchProviderPublicStats(profile.uid).also {
+                                if (it == null) {
+                                    Log.w(TAG, "[ProviderStats] Stats not available for provider=${profile.uid} requiresStats=$requiresStats")
+                                }
+                            }
+                        } else {
+                            null
+                        }
                         val resolvedCompletedOrders = profile.completedOrders?.takeIf { it > 0 }
                             ?: stats?.completedOrders
                             ?: profile.completedOrders
@@ -91,14 +100,23 @@ class ServiceRepositoryImpl @Inject constructor(
                             .mapNotNull { it }
                             .map { it.trim() }
                             .firstOrNull { it.isNotEmpty() }
+                        val userSnapshotDistrict = extractDistrictFromUserSnapshot(userSnapshot)
                         var resolvedDistrict = profile.district
                         if (resolvedDistrict.isBlank()) {
+                            Log.d(TAG, "[ProviderDistrict] Using stats district for provider=${profile.uid} | profileDistrict='${profile.district}' | statsDistrict='${statsDistrict.orEmpty()}'")
                             resolvedDistrict = statsDistrict.orEmpty()
                         }
                         if (resolvedDistrict.isBlank()) {
-                            resolvedDistrict = extractDistrictFromUserSnapshot(userSnapshot)
+                            Log.d(TAG, "[ProviderDistrict] Using user snapshot district for provider=${profile.uid} | statsDistrict='${statsDistrict.orEmpty()}' | userSnapshotDistrict='$userSnapshotDistrict'")
+                            resolvedDistrict = userSnapshotDistrict
                         }
                         resolvedDistrict = resolvedDistrict.trim()
+                        if (resolvedDistrict.isBlank()) {
+                            Log.w(
+                                TAG,
+                                "[ProviderDistrictMissing] Provider=${profile.uid} missing district after resolution | profileDistrict='${profile.district}' | statsDistrict='${statsDistrict.orEmpty()}' | userSnapshotDistrict='$userSnapshotDistrict' | stats=$stats"
+                            )
+                        }
                         profile.copy(
                             fullName = user.fullName,
                             profilePictureUrl = user.profilePictureUrl,
@@ -198,8 +216,10 @@ class ServiceRepositoryImpl @Inject constructor(
                 addressDetail = addressDetail,
             )
         } catch (exception: FirebaseFunctionsException) {
+            Log.e(TAG, "[ProviderStats] FirebaseFunctionsException for provider=$providerId", exception)
             null
         } catch (exception: Exception) {
+            Log.e(TAG, "[ProviderStats] Unexpected error fetching stats for provider=$providerId", exception)
             null
         }
     }
@@ -333,6 +353,7 @@ class ServiceRepositoryImpl @Inject constructor(
     }
 
     companion object {
+        private const val TAG = "ServiceRepositoryImpl"
         private val DISTRICT_PRIORITY_KEYS = listOf("name", "label", "value")
         private val FALLBACK_ADDRESS_KEYS = listOf("address", "defaultAddress", "serviceArea", "location")
         private val DIRECT_DISTRICT_KEYS = listOf(

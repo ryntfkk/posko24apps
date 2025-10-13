@@ -1,5 +1,6 @@
 package com.example.posko24.data.repository
 
+import android.util.Log
 import com.example.posko24.data.model.ProviderProfile
 import com.google.firebase.firestore.DocumentSnapshot
 
@@ -59,6 +60,20 @@ fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
         ?.trim()
         ?: ""
 
+    if (resolvedDistrict.isBlank()) {
+        Log.w(
+            TAG,
+            "[ProviderProfileMapper] Unable to resolve district | docId=$id | explicit='$explicitDistrict' | fallback='$fallbackDistrict' | profile='${profile.district}'"
+        )
+    } else {
+        if (explicitDistrict.isBlank() && !fallbackDistrict.isNullOrBlank()) {
+            Log.d(
+                TAG,
+                "[ProviderProfileMapper] Using fallback district for docId=$id | fallback='$fallbackDistrict'"
+            )
+        }
+    }
+
     return profile.copy(
         uid = resolvedUid,
         availableDates = availableDates,
@@ -100,6 +115,7 @@ private fun resolveDistrictFromData(data: Map<String, Any?>?): String? {
 
     return null
 }
+private const val TAG = "ProviderProfileMapper"
 
 private fun combineAdministrativeParts(data: Map<String, Any?>): String? {
     val parts = ADMINISTRATIVE_PART_KEYS.asSequence()

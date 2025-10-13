@@ -941,13 +941,30 @@ exports.upgradeToProvider = functions.https.onCall(async (request) => {
      const completedOrders = ordersSnap.size;
      const label = buildAddressLabel(addressSegments);
 
-     return {
-       completedOrders,
-       district: district || null,
-              addressLabel: label || null,
-              address: addressSegments,
-     };
-   } catch (error) {
+   functions.logger.info('[GET_PROVIDER_PUBLIC_STATS_RESOLUTION]', {
+         providerId,
+         profileHasDistrict: Boolean(profileData?.district || profileData?.defaultAddress),
+         userHasDistrict: Boolean(userData?.district || userData?.defaultAddress),
+         resolvedDistrict: district || null,
+         addressSegments,
+       });
+
+       if (!district || !district.trim()) {
+         functions.logger.warn('[GET_PROVIDER_PUBLIC_STATS_DISTRICT_MISSING]', {
+           providerId,
+           profileDistrict: profileData?.district || null,
+           userDistrict: userData?.district || null,
+           addressSegments,
+         });
+       }
+
+       return {
+         completedOrders,
+         district: district || null,
+                addressLabel: label || null,
+                address: addressSegments,
+       };
+     } catch (error) {
      functions.logger.error('[GET_PROVIDER_PUBLIC_STATS_FAILED]', {
        providerId,
        message: error?.message || 'Unknown error',
