@@ -54,12 +54,16 @@ class ServiceRepositoryImpl @Inject constructor(
         }
 
         val usersSnapshot = firestore.collection("users").whereIn("uid", userIds).get().await()
-        val usersMap = usersSnapshot.documents.associate { it.id to it.toObject(User::class.java) }
-
+        val userDocumentsMap = usersSnapshot.documents.associateBy { it.id }
+        val usersMap = usersSnapshot.documents.mapNotNull { doc ->
+            doc.toObject(User::class.java)?.let { doc.id to it }
+        }.toMap()
         val combinedProfiles = coroutineScope {
             providerProfiles.map { profile ->
                 async {
-                    usersMap[profile.uid]?.let { user ->
+                    val user = usersMap[profile.uid]
+                    val userSnapshot = userDocumentsMap[profile.uid]
+                    if (user != null) {
                         val startingPrice = profile.startingPrice
                             ?: fetchProviderStartingPrice(profile.uid)
                         val requiresStats = (profile.completedOrders == null || profile.completedOrders <= 0) ||
@@ -69,9 +73,10 @@ class ServiceRepositoryImpl @Inject constructor(
                             ?: stats?.completedOrders
                             ?: profile.completedOrders
                             ?: 0
-                        val resolvedDistrict = profile.district.takeIf { it.isNotBlank() }
-                            ?: stats?.district
-                            ?: profile.district
+                        val statsDistrict = stats?.district?.trim()?.takeIf { it.isNotEmpty() }
+                        val initialDistrict = profile.district.takeIf { it.isNotBlank() } ?: statsDistrict
+                        val resolvedDistrict = initialDistrict
+                            ?: fetchProviderDistrict(profile.uid, userSnapshot).orEmpty()
                         profile.copy(
                             fullName = user.fullName,
                             profilePictureUrl = user.profilePictureUrl,
@@ -80,6 +85,8 @@ class ServiceRepositoryImpl @Inject constructor(
                             completedOrders = resolvedCompletedOrders,
                             district = resolvedDistrict,
                         )
+                    } else {
+                        null
                     }
                 }
             }.awaitAll().filterNotNull()
@@ -179,6 +186,100 @@ class ServiceRepositoryImpl @Inject constructor(
                 sin(dLon / 2).pow(2.0)
         val c = 2 * atan2(sqrt(a), sqrt(1 - a))
         return earthRadius * c
+    }
+
+    private suspend fun fetchProviderDistrict(
+        providerId: String,
+        userSnapshot: DocumentSnapshot?
+    ): String? {
+        resolveDistrictFromMap(userSnapshot?.data)?.let { return it }
+
+        return try {
+            val addressesSnapshot = firestore.collection("users")
+                .document(providerId)
+                .collection("addresses")
+                .limit(5)
+                .get()
+                .await()
+
+            val sortedAddresses = addressesSnapshot.documents.sortedByDescending {
+                it.getBoolean("isDefault") == true
+            }
+
+            for (addressDoc in sortedAddresses) {
+                val directDistrict = addressDoc.getString("district")?.trim()
+                if (!directDistrict.isNullOrEmpty()) {
+                    return directDistrict
+                }
+                val resolvedFromMap = resolveDistrictFromMap(addressDoc.data)
+                if (!resolvedFromMap.isNullOrEmpty()) {
+                    return resolvedFromMap
+                }
+            }
+            null
+        } catch (exception: Exception) {
+            null
+        }
+    }
+
+    private fun resolveDistrictFromMap(data: Map<String, Any?>?): String? {
+        if (data.isNullOrEmpty()) return null
+
+        extractDistrictCandidate(data["district"])?.let { return it }
+
+        for (key in FALLBACK_ADDRESS_KEYS) {
+            if (data.containsKey(key)) {
+                val value = data[key]
+                extractDistrictCandidate(value)?.let { return it }
+                val nestedMap = castToStringAnyMap(value)
+                resolveDistrictFromMap(nestedMap)?.let { return it }
+            }
+        }
+
+        val alternativeKeys = data.keys.filter {
+            it.contains("district", ignoreCase = true) ||
+                    it.contains("kecamatan", ignoreCase = true)
+        }
+        for (key in alternativeKeys) {
+            extractDistrictCandidate(data[key])?.let { return it }
+        }
+
+        return null
+    }
+
+    private fun extractDistrictCandidate(value: Any?): String? {
+        return when (value) {
+            is String -> value.trim().takeIf { it.isNotEmpty() }
+            is Map<*, *> -> {
+                extractDistrictCandidate(value["district"]) ?: run {
+                    for (key in DISTRICT_PRIORITY_KEYS) {
+                        val candidate = (value[key] as? String)?.trim()
+                        if (!candidate.isNullOrEmpty()) {
+                            return candidate
+                        }
+                    }
+                    value.values.asSequence()
+                        .mapNotNull { extractDistrictCandidate(it) }
+                        .firstOrNull()
+                }
+            }
+            is Iterable<*> -> value.asSequence()
+                .mapNotNull { extractDistrictCandidate(it) }
+                .firstOrNull()
+            else -> null
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun castToStringAnyMap(value: Any?): Map<String, Any?>? {
+        val map = value as? Map<*, *> ?: return null
+        if (map.keys.any { it !is String }) return null
+        return map as Map<String, Any?>
+    }
+
+    companion object {
+        private val DISTRICT_PRIORITY_KEYS = listOf("name", "label", "value")
+        private val FALLBACK_ADDRESS_KEYS = listOf("address", "defaultAddress", "serviceArea", "location")
     }
 
     // --- IMPLEMENTASI FUNGSI BARU DI SINI ---
