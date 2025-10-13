@@ -59,7 +59,23 @@ class ServiceRepositoryImpl @Inject constructor(
         val usersMap = usersSnapshot.documents.mapNotNull { doc ->
             doc.toObject(User::class.java)?.let { doc.id to it }
         }.toMap()
-        val combinedProfiles = coroutineScope {
+        val addressDistricts = coroutineScope {
+            userIds.map { userId ->
+                async {
+                    runCatching { fetchPrimaryAddressDistrict(userId) }
+                        .onFailure { exception ->
+                            Log.e(TAG, "[ProviderDistrict] Failed to fetch address for user=$userId", exception)
+                        }
+                        .getOrNull()
+                        ?.trim()
+                        ?.takeIf { it.isNotEmpty() }
+                        .let { district ->
+                            userId to district
+                        }
+                }
+            }.awaitAll().toMap()
+        }
+            val combinedProfiles = coroutineScope {
             providerProfiles.map { profile ->
                 async {
                     val user = usersMap[profile.uid]
@@ -67,8 +83,9 @@ class ServiceRepositoryImpl @Inject constructor(
                     if (user != null) {
                         val startingPrice = profile.startingPrice
                             ?: fetchProviderStartingPrice(profile.uid)
+                        val addressDistrict = addressDistricts[profile.uid]
                         val requiresStats = (profile.completedOrders == null || profile.completedOrders <= 0) ||
-                                profile.district.isBlank()
+                                (profile.district.isBlank() && addressDistrict.isNullOrBlank())
                         val stats = if (requiresStats) {
                             fetchProviderPublicStats(profile.uid).also {
                                 if (it == null) {
@@ -103,6 +120,15 @@ class ServiceRepositoryImpl @Inject constructor(
                         val userSnapshotDistrict = extractDistrictFromUserSnapshot(userSnapshot)
                         var resolvedDistrict = profile.district
                         if (resolvedDistrict.isBlank()) {
+                            if (!addressDistrict.isNullOrBlank()) {
+                                Log.d(
+                                    TAG,
+                                    "[ProviderDistrict] Using address district for provider=${profile.uid} | profileDistrict='${profile.district}' | addressDistrict='$addressDistrict'"
+                                )
+                            }
+                            resolvedDistrict = addressDistrict.orEmpty()
+                        }
+                        if (resolvedDistrict.isBlank()) {
                             Log.d(TAG, "[ProviderDistrict] Using stats district for provider=${profile.uid} | profileDistrict='${profile.district}' | statsDistrict='${statsDistrict.orEmpty()}'")
                             resolvedDistrict = statsDistrict.orEmpty()
                         }
@@ -114,7 +140,7 @@ class ServiceRepositoryImpl @Inject constructor(
                         if (resolvedDistrict.isBlank()) {
                             Log.w(
                                 TAG,
-                                "[ProviderDistrictMissing] Provider=${profile.uid} missing district after resolution | profileDistrict='${profile.district}' | statsDistrict='${statsDistrict.orEmpty()}' | userSnapshotDistrict='$userSnapshotDistrict' | stats=$stats"
+                                "[ProviderDistrictMissing] Provider=${profile.uid} missing district after resolution | profileDistrict='${profile.district}' | addressDistrict='${addressDistrict.orEmpty()}' | statsDistrict='${statsDistrict.orEmpty()}' | userSnapshotDistrict='$userSnapshotDistrict' | stats=$stats"
                             )
                         }
                         profile.copy(
@@ -354,6 +380,33 @@ class ServiceRepositoryImpl @Inject constructor(
         if (value.length != 20) return false
         if (value.any { it.isWhitespace() }) return false
         return value.all { it.isLetterOrDigit() }
+    }
+
+    private suspend fun fetchPrimaryAddressDistrict(userId: String): String? {
+        return try {
+            val addressesCollection = firestore.collection("users")
+                .document(userId)
+                .collection("addresses")
+
+            val primaryAddress = addressesCollection
+                .whereEqualTo("isPrimary", true)
+                .limit(1)
+                .get()
+                .await()
+                .documents
+                .firstOrNull()
+                ?: addressesCollection
+                    .limit(1)
+                    .get()
+                    .await()
+                    .documents
+                    .firstOrNull()
+
+            primaryAddress?.getString("district")?.trim()?.takeIf { it.isNotEmpty() }
+        } catch (exception: Exception) {
+            Log.e(TAG, "[ProviderDistrict] Error fetching primary address for user=$userId", exception)
+            null
+        }
     }
 
     companion object {
