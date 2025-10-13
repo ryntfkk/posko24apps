@@ -62,9 +62,15 @@ private fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
         ?: profile.availableDates
     val resolvedUid = if (profile.uid.isEmpty()) id else profile.uid
     val isAvailable = (getBoolean("available") ?: getBoolean("isAvailable")) ?: profile.isAvailable
+    val resolvedDistrict = when (val rawDistrict = get("district")) {
+        is String -> rawDistrict
+        is Map<*, *> -> rawDistrict["name"] as? String ?: rawDistrict.values.firstOrNull()?.toString()
+        else -> rawDistrict?.toString()
+    }?.takeIf { it.isNotBlank() } ?: profile.district
     return profile.copy(
         uid = resolvedUid,
         availableDates = availableDates,
-        isAvailable = isAvailable
+        isAvailable = isAvailable,
+        district = resolvedDistrict
     )
 }

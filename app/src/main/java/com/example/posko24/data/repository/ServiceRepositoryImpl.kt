@@ -144,13 +144,11 @@ class ServiceRepositoryImpl @Inject constructor(
     private suspend fun fetchCompletedOrdersCount(providerId: String): Int? {
         return try {
             val ordersSnapshot = firestore.collection("orders")
+                .whereEqualTo("providerId", providerId)
                 .whereEqualTo("status", OrderStatus.COMPLETED.value)
                 .get()
                 .await()
-            ordersSnapshot.documents.count { doc ->
-                val status = doc.getString("status") ?: doc.get("status")?.toString()
-                status == OrderStatus.COMPLETED.value
-            }
+            ordersSnapshot.size()
         } catch (exception: Exception) {
             null
         }
@@ -259,5 +257,14 @@ private fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
         ?.filterIsInstance<String>()
         ?: profile.availableDates
     val resolvedUid = if (profile.uid.isEmpty()) id else profile.uid
-    return profile.copy(uid = resolvedUid, availableDates = availableDates)
+    val resolvedDistrict = when (val rawDistrict = get("district")) {
+        is String -> rawDistrict
+        is Map<*, *> -> rawDistrict["name"] as? String ?: rawDistrict.values.firstOrNull()?.toString()
+        else -> rawDistrict?.toString()
+    }?.takeIf { it.isNotBlank() } ?: profile.district
+    return profile.copy(
+        uid = resolvedUid,
+        availableDates = availableDates,
+        district = resolvedDistrict
+    )
 }
