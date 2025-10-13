@@ -115,15 +115,25 @@ class AddressRepositoryImpl @Inject constructor(
             val defaultAddressPayload = addressPayload.toMutableMap().apply {
                 remove("isDefault")
             }.filterValues { it != null }
+            val existingAddressDoc = when {
+                address.id.isNotBlank() -> addressesCollection.document(address.id)
+                    .get()
+                    .await()
+                    .takeIf { it.exists() }
+                else -> addressesCollection.limit(1).get().await().documents.firstOrNull()
+            }
 
+            val addressDocRef = when {
+                existingAddressDoc != null -> existingAddressDoc.reference
+                address.id.isNotBlank() -> addressesCollection.document(address.id)
+                else -> addressesCollection.document()
+            }
             val batch = firestore.batch()
-            val newAddressRef = addressesCollection.document()
-
-            batch.set(newAddressRef, addressPayload)
+            batch.set(addressDocRef, addressPayload, SetOptions.merge())
             batch.set(
                 userDocRef,
                 mapOf(
-                    "defaultAddressId" to newAddressRef.id,
+                    "defaultAddressId" to addressDocRef.id,
                     "defaultAddress" to defaultAddressPayload
                 ),
                 SetOptions.merge()
