@@ -65,7 +65,9 @@ fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
         ?.trim()
         ?: ""
 
-    if (resolvedDistrict.isBlank()) {
+    val normalizedDistrict = normalizeDistrictLabel(resolvedDistrict)
+
+    if (normalizedDistrict.isBlank()) {
         Log.w(
             TAG,
             "[ProviderProfileMapper] Unable to resolve district | docId=$id | explicit='$explicitDistrict' | fallback='$fallbackDistrict' | profile='${profile.district}'"
@@ -84,7 +86,7 @@ fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
         availableDates = availableDates,
         busyDates = busyDates,
         isAvailable = isAvailable,
-        district = resolvedDistrict
+        district = normalizedDistrict
     )
 }
 
@@ -175,4 +177,47 @@ private fun extractFromMap(map: Map<*, *>): String? {
     }
 
     return null
+}
+
+private fun normalizeDistrictLabel(raw: String): String {
+    val trimmed = raw.trim()
+    if (trimmed.isEmpty()) return ""
+
+    val separators = listOf(",", "\n", " - ")
+    val segments = separators
+        .fold(listOf(trimmed)) { parts, separator ->
+            parts.flatMap { part -> part.split(separator) }
+        }
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+
+    if (segments.isEmpty()) return trimmed
+
+    val districtKeywords = listOf(
+        "kec",
+        "kecamatan",
+        "kelurahan",
+        "desa",
+        "village",
+        "district",
+        "subdistrict",
+        "sub-district"
+    )
+
+    val districtSegment = segments.firstOrNull { segment ->
+        val normalized = segment.lowercase()
+        districtKeywords.any { keyword -> normalized.contains(keyword) }
+    }
+
+    if (districtSegment != null) {
+        return districtSegment
+    }
+
+    val cityKeywords = listOf("kota", "kabupaten", "regency", "city")
+    val citySegment = segments.firstOrNull { segment ->
+        val normalized = segment.lowercase()
+        cityKeywords.any { keyword -> normalized.contains(keyword) }
+    }
+
+    return citySegment ?: segments.first()
 }

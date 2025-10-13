@@ -100,8 +100,8 @@ class ServiceRepositoryImpl @Inject constructor(
                             ?: profile.completedOrders
                             ?: 0
                         val statsDistrict = sequenceOf(
-                            stats?.addressLabel,
-                            stats?.district,
+                            stats?.district, // <-- Prioritaskan district
+                            stats?.addressLabel, // <-- Jadikan addressLabel sebagai fallback
                             listOfNotNull(
                                 stats?.addressDetail,
                                 stats?.addressDistrict,
