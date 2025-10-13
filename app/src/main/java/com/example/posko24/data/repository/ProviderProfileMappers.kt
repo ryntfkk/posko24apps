@@ -62,7 +62,15 @@ private fun resolveDistrictFromData(data: Map<String, Any?>?): String? {
         }
     }
 
-    return extractDistrictValue(data)
+    val alternativeDistrictKeys = data.keys.filter {
+        it.contains("district", ignoreCase = true) ||
+                it.contains("kecamatan", ignoreCase = true)
+    }
+    for (key in alternativeDistrictKeys) {
+        extractDistrictValue(data[key])?.let { return it }
+    }
+
+    return null
 }
 
 @Suppress("UNCHECKED_CAST")
