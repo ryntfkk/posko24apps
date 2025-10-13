@@ -60,6 +60,9 @@ private fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
     val availableDates = (get("availableDates") as? List<*>)
         ?.filterIsInstance<String>()
         ?: profile.availableDates
+    val busyDates = (get("busyDates") as? List<*>)
+        ?.filterIsInstance<String>()
+        ?: profile.busyDates
     val resolvedUid = if (profile.uid.isEmpty()) id else profile.uid
     val isAvailable = (getBoolean("available") ?: getBoolean("isAvailable")) ?: profile.isAvailable
     val resolvedDistrict = when (val rawDistrict = get("district")) {
@@ -70,6 +73,7 @@ private fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
     return profile.copy(
         uid = resolvedUid,
         availableDates = availableDates,
+        busyDates = busyDates,
         isAvailable = isAvailable,
         district = resolvedDistrict
     )

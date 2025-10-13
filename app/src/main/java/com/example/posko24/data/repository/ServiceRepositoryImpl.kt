@@ -1,6 +1,5 @@
 package com.example.posko24.data.repository
 
-import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.ServiceCategory
@@ -8,6 +7,8 @@ import com.example.posko24.data.model.User
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -23,7 +24,8 @@ import kotlin.math.sqrt
 import javax.inject.Inject
 
 class ServiceRepositoryImpl @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val functions: FirebaseFunctions
 ) : ServiceRepository {
 
     override fun getServiceCategories(): Flow<Result<List<ServiceCategory>>> = flow {
@@ -60,18 +62,23 @@ class ServiceRepositoryImpl @Inject constructor(
                     usersMap[profile.uid]?.let { user ->
                         val startingPrice = profile.startingPrice
                             ?: fetchProviderStartingPrice(profile.uid)
-                        val completedOrders = profile.completedOrders
-                            ?.takeIf { it > 0 }
-                            ?: fetchCompletedOrdersCount(profile.uid)
-                        val district = profile.district.takeIf { it.isNotBlank() }
-                            ?: fetchProviderDistrict(profile.uid)
+                        val requiresStats = (profile.completedOrders == null || profile.completedOrders <= 0) ||
+                                profile.district.isBlank()
+                        val stats = if (requiresStats) fetchProviderPublicStats(profile.uid) else null
+                        val resolvedCompletedOrders = profile.completedOrders?.takeIf { it > 0 }
+                            ?: stats?.completedOrders
+                            ?: profile.completedOrders
+                            ?: 0
+                        val resolvedDistrict = profile.district.takeIf { it.isNotBlank() }
+                            ?: stats?.district
+                            ?: profile.district
                         profile.copy(
                             fullName = user.fullName,
                             profilePictureUrl = user.profilePictureUrl,
                             profileBannerUrl = user.profileBannerUrl,
                             startingPrice = startingPrice,
-                            completedOrders = completedOrders ?: 0,
-                            district = district ?: ""
+                            completedOrders = resolvedCompletedOrders,
+                            district = resolvedDistrict,
                         )
                     }
                 }
@@ -127,6 +134,28 @@ class ServiceRepositoryImpl @Inject constructor(
     }.catch { exception ->
         emit(Result.failure(exception))
     }
+    private data class ProviderPublicStats(
+        val completedOrders: Int?,
+        val district: String?
+    )
+
+    private suspend fun fetchProviderPublicStats(providerId: String): ProviderPublicStats? {
+        return try {
+            val result = functions
+                .getHttpsCallable("getProviderPublicStats")
+                .call(mapOf("providerId" to providerId))
+                .await()
+            val data = result.data as? Map<*, *> ?: return null
+            val completedOrders = (data["completedOrders"] as? Number)?.toInt()
+            val district = (data["district"] as? String)?.trim()?.takeIf { it.isNotEmpty() }
+            ProviderPublicStats(completedOrders, district)
+        } catch (exception: FirebaseFunctionsException) {
+            null
+        } catch (exception: Exception) {
+            null
+        }
+    }
+
     private suspend fun fetchProviderStartingPrice(providerId: String): Double? {
         return try {
             val servicesSnapshot = firestore.collection("provider_profiles").document(providerId)
@@ -136,41 +165,6 @@ class ServiceRepositoryImpl @Inject constructor(
                 .get()
                 .await()
             servicesSnapshot.documents.firstOrNull()?.getDouble("price")
-        } catch (exception: Exception) {
-            null
-        }
-    }
-
-    private suspend fun fetchCompletedOrdersCount(providerId: String): Int? {
-        return try {
-            val ordersSnapshot = firestore.collection("orders")
-                .whereEqualTo("providerId", providerId)
-                .whereEqualTo("status", OrderStatus.COMPLETED.value)
-                .get()
-                .await()
-            ordersSnapshot.size()
-        } catch (exception: Exception) {
-            null
-        }
-    }
-
-    private suspend fun fetchProviderDistrict(providerId: String): String? {
-        return try {
-            val addressSnapshot = firestore.collection("users")
-                .document(providerId)
-                .collection("addresses")
-                .get()
-                .await()
-
-            addressSnapshot.documents
-                .mapNotNull { doc ->
-                    when (val rawDistrict = doc.get("district")) {
-                        is String -> rawDistrict
-                        is Map<*, *> -> rawDistrict["name"] as? String
-                        else -> rawDistrict?.toString()
-                    }
-                }
-                .firstOrNull { it.isNotBlank() }
         } catch (exception: Exception) {
             null
         }
@@ -256,7 +250,11 @@ private fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
     val availableDates = (get("availableDates") as? List<*>)
         ?.filterIsInstance<String>()
         ?: profile.availableDates
+    val busyDates = (get("busyDates") as? List<*>)
+        ?.filterIsInstance<String>()
+        ?: profile.busyDates
     val resolvedUid = if (profile.uid.isEmpty()) id else profile.uid
+    val isAvailable = (getBoolean("available") ?: getBoolean("isAvailable")) ?: profile.isAvailable
     val resolvedDistrict = when (val rawDistrict = get("district")) {
         is String -> rawDistrict
         is Map<*, *> -> rawDistrict["name"] as? String ?: rawDistrict.values.firstOrNull()?.toString()
@@ -265,6 +263,8 @@ private fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
     return profile.copy(
         uid = resolvedUid,
         availableDates = availableDates,
+        busyDates = busyDates,
+        isAvailable = isAvailable,
         district = resolvedDistrict
     )
 }

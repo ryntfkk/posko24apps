@@ -41,6 +41,92 @@ function sanitizeDateList(rawList) {
   return deduped;
 }
 
+function extractDistrictValue(raw) {
+  if (!raw) {
+    return null;
+  }
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (typeof raw === 'object') {
+    if (typeof raw.name === 'string') {
+      const trimmed = raw.name.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+
+    if (typeof raw.label === 'string') {
+      const trimmed = raw.label.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+
+    if (typeof raw.value === 'string') {
+      const trimmed = raw.value.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+
+    if (raw.district) {
+      const nested = extractDistrictValue(raw.district);
+      if (nested) {
+        return nested;
+      }
+    }
+
+    for (const value of Object.values(raw)) {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed.length > 0) {
+          return trimmed;
+        }
+      } else if (value && typeof value === 'object') {
+        const nested = extractDistrictValue(value);
+        if (nested) {
+          return nested;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function resolveDistrictFromData(data) {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  const direct = extractDistrictValue(data.district);
+  if (direct) {
+    return direct;
+  }
+
+  const fallbackKeys = ['address', 'defaultAddress', 'serviceArea', 'location'];
+  for (const key of fallbackKeys) {
+    if (key in data) {
+      const candidate = extractDistrictValue(data[key]);
+      if (candidate) {
+        return candidate;
+      }
+      if (data[key] && typeof data[key] === 'object') {
+        const nested = resolveDistrictFromData(data[key]);
+        if (nested) {
+          return nested;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 function arraysEqual(a, b) {
   if (a === b) {
     return true;
@@ -572,10 +658,11 @@ exports.claimOrder = functions.https.onCall(async (request) => {
  * 3) UPGRADE TO PROVIDER (Callable v2)
   * ============================================================
   */
- exports.upgradeToProvider = functions.https.onCall(async (request) => {
-   if (!request.auth) {
-     throw new functions.https.HttpsError('unauthenticated', 'Anda harus login.');
-   }
+exports.upgradeToProvider = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Anda harus login.');
+  }
+
 
    const uid = request.auth.uid;
    const userRef = db.collection('users').doc(uid);
@@ -609,8 +696,87 @@ exports.claimOrder = functions.https.onCall(async (request) => {
      }
    });
 
-   functions.logger.info('[UPGRADE_TO_PROVIDER]', { uid });
-   return { success: true };
+    functions.logger.info('[UPGRADE_TO_PROVIDER]', { uid });
+    return { success: true };
+  });
+
+ /**
+  * ============================================================
+  * 3B) GET PROVIDER PUBLIC STATS (Callable v2)
+  * ============================================================
+  */
+ exports.getProviderPublicStats = functions.https.onCall(async (request) => {
+   if (!request.auth) {
+     throw new functions.https.HttpsError('unauthenticated', 'Anda harus login.');
+   }
+
+   const rawProviderId = request.data?.providerId;
+   if (typeof rawProviderId !== 'string') {
+     throw new functions.https.HttpsError('invalid-argument', 'providerId wajib berupa string.');
+   }
+
+   const providerId = rawProviderId.trim();
+   if (!providerId) {
+     throw new functions.https.HttpsError('invalid-argument', 'providerId tidak boleh kosong.');
+   }
+
+   try {
+     const profileRef = db.collection('provider_profiles').doc(providerId);
+     const userRef = db.collection('users').doc(providerId);
+
+     const [profileSnap, userSnap, ordersSnap] = await Promise.all([
+       profileRef.get(),
+       userRef.get(),
+       db
+         .collection('orders')
+         .where('providerId', '==', providerId)
+         .where('status', '==', 'completed')
+         .get(),
+     ]);
+
+     let district = '';
+     const profileData = profileSnap.exists ? profileSnap.data() || {} : {};
+     if (profileSnap.exists) {
+       district = resolveDistrictFromData(profileData) || '';
+     }
+
+     const userData = userSnap.exists ? userSnap.data() || {} : {};
+     if (!district && userSnap.exists) {
+       district =
+         resolveDistrictFromData(userData) ||
+         extractDistrictValue(userData.defaultAddress);
+     }
+
+     if (!district) {
+       const addressesSnap = await userRef
+         .collection('addresses')
+         .orderBy('isDefault', 'desc')
+         .limit(5)
+         .get();
+
+       for (const doc of addressesSnap.docs) {
+         const data = doc.data() || {};
+         const resolved = resolveDistrictFromData(data) || extractDistrictValue(data.district);
+         if (resolved) {
+           district = resolved;
+           break;
+         }
+       }
+     }
+
+     const completedOrders = ordersSnap.size;
+
+     return {
+       completedOrders,
+       district: district || null,
+     };
+   } catch (error) {
+     functions.logger.error('[GET_PROVIDER_PUBLIC_STATS_FAILED]', {
+       providerId,
+       message: error?.message || 'Unknown error',
+     });
+     throw new functions.https.HttpsError('internal', 'Gagal mengambil statistik penyedia.');
+   }
  });
 
  /**
