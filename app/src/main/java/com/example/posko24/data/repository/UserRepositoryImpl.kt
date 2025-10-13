@@ -2,7 +2,6 @@ package com.example.posko24.data.repository
 
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.User
-import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.Flow
@@ -54,27 +53,4 @@ class UserRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
-}
-private fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
-    val profile = toObject(ProviderProfile::class.java) ?: return null
-    val availableDates = (get("availableDates") as? List<*>)
-        ?.filterIsInstance<String>()
-        ?: profile.availableDates
-    val busyDates = (get("busyDates") as? List<*>)
-        ?.filterIsInstance<String>()
-        ?: profile.busyDates
-    val resolvedUid = if (profile.uid.isEmpty()) id else profile.uid
-    val isAvailable = (getBoolean("available") ?: getBoolean("isAvailable")) ?: profile.isAvailable
-    val resolvedDistrict = when (val rawDistrict = get("district")) {
-        is String -> rawDistrict
-        is Map<*, *> -> rawDistrict["name"] as? String ?: rawDistrict.values.firstOrNull()?.toString()
-        else -> rawDistrict?.toString()
-    }?.takeIf { it.isNotBlank() } ?: profile.district
-    return profile.copy(
-        uid = resolvedUid,
-        availableDates = availableDates,
-        busyDates = busyDates,
-        isAvailable = isAvailable,
-        district = resolvedDistrict
-    )
 }

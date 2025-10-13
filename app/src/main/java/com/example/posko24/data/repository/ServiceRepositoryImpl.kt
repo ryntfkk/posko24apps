@@ -245,26 +245,3 @@ class ServiceRepositoryImpl @Inject constructor(
         emit(Result.failure(exception))
     }
 }
-private fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
-    val profile = toObject(ProviderProfile::class.java) ?: return null
-    val availableDates = (get("availableDates") as? List<*>)
-        ?.filterIsInstance<String>()
-        ?: profile.availableDates
-    val busyDates = (get("busyDates") as? List<*>)
-        ?.filterIsInstance<String>()
-        ?: profile.busyDates
-    val resolvedUid = if (profile.uid.isEmpty()) id else profile.uid
-    val isAvailable = (getBoolean("available") ?: getBoolean("isAvailable")) ?: profile.isAvailable
-    val resolvedDistrict = when (val rawDistrict = get("district")) {
-        is String -> rawDistrict
-        is Map<*, *> -> rawDistrict["name"] as? String ?: rawDistrict.values.firstOrNull()?.toString()
-        else -> rawDistrict?.toString()
-    }?.takeIf { it.isNotBlank() } ?: profile.district
-    return profile.copy(
-        uid = resolvedUid,
-        availableDates = availableDates,
-        busyDates = busyDates,
-        isAvailable = isAvailable,
-        district = resolvedDistrict
-    )
-}
