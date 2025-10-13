@@ -146,8 +146,14 @@ fun ProviderListItem(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)
                     )
+
+                    val districtText = provider.district.ifBlank { "Lokasi tidak tersedia" }
+                    val distanceText = provider.distanceKm?.let {
+                        String.format(Locale.getDefault(), "%.1f km", it)
+                    }
+                    val locationText = distanceText?.let { "$it - $districtText" } ?: districtText
                     Text(
-                        text = provider.district.ifBlank { "Lokasi tidak tersedia" },
+                        text = locationText,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

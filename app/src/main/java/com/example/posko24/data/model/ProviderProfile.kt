@@ -20,6 +20,7 @@ data class ProviderProfile(
     val profileBannerUrl: String? = null,
     val startingPrice: Double? = null,
     val completedOrders: Int? = null,
-    val district: String = ""
+    val district: String = "",
+    val distanceKm: Double? = null
 )
 

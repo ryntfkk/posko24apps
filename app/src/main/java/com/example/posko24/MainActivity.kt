@@ -106,7 +106,8 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onNavigateToBasicOrder = {
                                     navController.navigate("basic_order_screen/$categoryId")
-                                }
+                                },
+                                onNavigateBack = { navController.popBackStack() }
                             )
                         }
                         composable(
