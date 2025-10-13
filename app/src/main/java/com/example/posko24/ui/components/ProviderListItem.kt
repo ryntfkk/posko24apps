@@ -97,7 +97,8 @@ fun ProviderListItem(
                 Text(
                     text = "Mulai dari $startingPriceText",
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF2E7D32)
                 )
 
                 Row(
