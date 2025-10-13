@@ -42,13 +42,12 @@ class ProviderViewModel @Inject constructor(
         val categoryId = savedStateHandle.get<String>("categoryId")
         if (categoryId.isNullOrBlank()) {
             _providerState.value = ProviderListState.Error("Kategori tidak ditemukan")
-            return
-        }
-
-        _providerState.value = ProviderListState.Loading
-        viewModelScope.launch {
-            val currentLocation = fetchCurrentUserLocation()
-            loadProviders(categoryId, currentLocation)
+        } else {
+            _providerState.value = ProviderListState.Loading
+            viewModelScope.launch {
+                val currentLocation = fetchCurrentUserLocation()
+                loadProviders(categoryId, currentLocation)
+            }
         }
     }
 
