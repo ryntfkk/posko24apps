@@ -73,12 +73,32 @@ class ServiceRepositoryImpl @Inject constructor(
                             ?: stats?.completedOrders
                             ?: profile.completedOrders
                             ?: 0
-                        val statsDistrict = stats?.district?.trim()?.takeIf { it.isNotEmpty() }
-                        val resolvedDistrict = sequenceOf(
-                            profile.district,
-                            statsDistrict,
-                            resolveDistrictFromMap(userSnapshot?.data)
-                        ).firstOrNull { !it.isNullOrBlank() }?.trim().orEmpty()
+                        val statsDistrict = sequenceOf(
+                            stats?.addressLabel,
+                            stats?.district,
+                            listOfNotNull(
+                                stats?.addressDetail,
+                                stats?.addressDistrict,
+                                stats?.addressCity,
+                                stats?.addressProvince
+                            )
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+                                .distinctBy { it.lowercase() }
+                                .joinToString(", ")
+                                .takeIf { it.isNotBlank() }
+                        )
+                            .mapNotNull { it }
+                            .map { it.trim() }
+                            .firstOrNull { it.isNotEmpty() }
+                        var resolvedDistrict = profile.district
+                        if (resolvedDistrict.isBlank()) {
+                            resolvedDistrict = statsDistrict.orEmpty()
+                        }
+                        if (resolvedDistrict.isBlank()) {
+                            resolvedDistrict = extractDistrictFromUserSnapshot(userSnapshot)
+                        }
+                        resolvedDistrict = resolvedDistrict.trim()
                         profile.copy(
                             fullName = user.fullName,
                             profilePictureUrl = user.profilePictureUrl,
@@ -145,7 +165,12 @@ class ServiceRepositoryImpl @Inject constructor(
     }
     private data class ProviderPublicStats(
         val completedOrders: Int?,
-        val district: String?
+        val district: String?,
+        val addressLabel: String?,
+        val addressDistrict: String?,
+        val addressCity: String?,
+        val addressProvince: String?,
+        val addressDetail: String?,
     )
 
     private suspend fun fetchProviderPublicStats(providerId: String): ProviderPublicStats? {
@@ -157,7 +182,21 @@ class ServiceRepositoryImpl @Inject constructor(
             val data = result.data as? Map<*, *> ?: return null
             val completedOrders = (data["completedOrders"] as? Number)?.toInt()
             val district = (data["district"] as? String)?.trim()?.takeIf { it.isNotEmpty() }
-            ProviderPublicStats(completedOrders, district)
+            val addressLabel = (data["addressLabel"] as? String)?.trim()?.takeIf { it.isNotEmpty() }
+            val addressMap = data["address"] as? Map<*, *>
+            val addressDistrict = (addressMap?.get("district") as? String)?.trim()?.takeIf { it.isNotEmpty() }
+            val addressCity = (addressMap?.get("city") as? String)?.trim()?.takeIf { it.isNotEmpty() }
+            val addressProvince = (addressMap?.get("province") as? String)?.trim()?.takeIf { it.isNotEmpty() }
+            val addressDetail = (addressMap?.get("detail") as? String)?.trim()?.takeIf { it.isNotEmpty() }
+            ProviderPublicStats(
+                completedOrders = completedOrders,
+                district = district,
+                addressLabel = addressLabel,
+                addressDistrict = addressDistrict,
+                addressCity = addressCity,
+                addressProvince = addressProvince,
+                addressDetail = addressDetail,
+            )
         } catch (exception: FirebaseFunctionsException) {
             null
         } catch (exception: Exception) {
@@ -215,9 +254,31 @@ class ServiceRepositoryImpl @Inject constructor(
         return null
     }
 
+    private fun extractDistrictFromUserSnapshot(userSnapshot: DocumentSnapshot?): String {
+        if (userSnapshot == null) return ""
+
+        val directDistrict = userSnapshot.getString("district")?.trim()?.takeIf { it.isNotEmpty() }
+        if (!directDistrict.isNullOrEmpty()) {
+            return directDistrict
+        }
+
+        val defaultAddress = userSnapshot.get("defaultAddress")
+        extractDistrictCandidate(defaultAddress)?.let { return it }
+
+        val snapshotData = userSnapshot.data?.mapValues { it.value }
+        return resolveDistrictFromMap(snapshotData).orEmpty()
+    }
+
     private fun extractDistrictCandidate(value: Any?): String? {
         return when (value) {
-            is String -> value.trim().takeIf { it.isNotEmpty() }
+            is String -> {
+                val trimmed = value.trim()
+                when {
+                    trimmed.isEmpty() -> null
+                    looksLikeAutoId(trimmed) -> null
+                    else -> trimmed
+                }
+            }
             is Map<*, *> -> {
                 extractDistrictCandidate(value["district"]) ?: run {
                     for (key in DISTRICT_PRIORITY_KEYS) {
@@ -243,6 +304,12 @@ class ServiceRepositoryImpl @Inject constructor(
         val map = value as? Map<*, *> ?: return null
         if (map.keys.any { it !is String }) return null
         return map as Map<String, Any?>
+    }
+
+    private fun looksLikeAutoId(value: String): Boolean {
+        if (value.length != 20) return false
+        if (value.any { it.isWhitespace() }) return false
+        return value.all { it.isLetterOrDigit() }
     }
 
     companion object {

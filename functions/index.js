@@ -98,6 +98,15 @@ function extractDistrictValue(raw) {
   return null;
 }
 
+function normalizeAddressString(raw) {
+  if (typeof raw !== 'string') {
+    return null;
+  }
+
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function resolveDistrictFromData(data) {
   if (!data || typeof data !== 'object') {
     return null;
@@ -125,6 +134,86 @@ function resolveDistrictFromData(data) {
   }
 
   return null;
+}
+
+function resolveAddressSegments(rawData) {
+  if (!rawData || typeof rawData !== 'object') {
+    return null;
+  }
+
+  const data = Array.isArray(rawData)
+    ? rawData.find((item) => item && typeof item === 'object') || null
+    : rawData;
+
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  const district =
+    normalizeAddressString(data.district) ||
+    normalizeAddressString(data.kecamatan) ||
+    normalizeAddressString(data.subDistrict) ||
+    normalizeAddressString(data.subdistrict) ||
+    normalizeAddressString(data.sub_district);
+
+  const city =
+    normalizeAddressString(data.city) ||
+    normalizeAddressString(data.kota) ||
+    normalizeAddressString(data.regency) ||
+    normalizeAddressString(data.kabupaten) ||
+    normalizeAddressString(data.town);
+
+  const province =
+    normalizeAddressString(data.province) ||
+    normalizeAddressString(data.provinsi) ||
+    normalizeAddressString(data.state) ||
+    normalizeAddressString(data.region);
+
+  const detail =
+    normalizeAddressString(data.detail) ||
+    normalizeAddressString(data.addressLine) ||
+    normalizeAddressString(data.address_line) ||
+    normalizeAddressString(data.address) ||
+    normalizeAddressString(data.street) ||
+    normalizeAddressString(data.line1);
+
+  const segments = { detail, district, city, province };
+
+  if (Object.values(segments).some((value) => normalizeAddressString(value))) {
+    return segments;
+  }
+
+  const nestedKeys = ['address', 'defaultAddress', 'serviceArea', 'location'];
+  for (const key of nestedKeys) {
+    if (key in data) {
+      const nested = resolveAddressSegments(data[key]);
+      if (nested) {
+        return nested;
+      }
+    }
+  }
+
+  return null;
+}
+
+function buildAddressLabel(segments) {
+  if (!segments || typeof segments !== 'object') {
+    return null;
+  }
+
+  const parts = [segments.detail, segments.district, segments.city, segments.province]
+    .map((value) => normalizeAddressString(value))
+    .filter((value) => typeof value === 'string');
+
+  const unique = [];
+  for (const part of parts) {
+    const exists = unique.some((item) => item.toLowerCase() === part.toLowerCase());
+    if (!exists) {
+      unique.push(part);
+    }
+  }
+
+  return unique.length > 0 ? unique.join(', ') : null;
 }
 
 function arraysEqual(a, b) {
@@ -707,7 +796,9 @@ exports.upgradeToProvider = functions.https.onCall(async (request) => {
   */
  exports.getProviderPublicStats = functions.https.onCall(async (request) => {
    if (!request.auth) {
-     throw new functions.https.HttpsError('unauthenticated', 'Anda harus login.');
+          functions.logger.info('[GET_PROVIDER_PUBLIC_STATS_UNAUTH]', {
+            providerId: request.data?.providerId,
+          });
    }
 
    const rawProviderId = request.data?.providerId;
@@ -735,19 +826,29 @@ exports.upgradeToProvider = functions.https.onCall(async (request) => {
      ]);
 
      let district = '';
+          let addressSegments = null;
+
      const profileData = profileSnap.exists ? profileSnap.data() || {} : {};
      if (profileSnap.exists) {
        district = resolveDistrictFromData(profileData) || '';
+              addressSegments = resolveAddressSegments(profileData) || null;
+
      }
 
      const userData = userSnap.exists ? userSnap.data() || {} : {};
      if (!district && userSnap.exists) {
        district =
          resolveDistrictFromData(userData) ||
-         extractDistrictValue(userData.defaultAddress);
+                 extractDistrictValue(userData.defaultAddress) ||
+                 '';
+             }
+             if (!addressSegments && userSnap.exists) {
+               addressSegments =
+                 resolveAddressSegments(userData) || resolveAddressSegments(userData.defaultAddress) || null;
      }
 
-     if (!district) {
+          if (!district || !addressSegments) {
+
        const addressesSnap = await userRef
          .collection('addresses')
          .orderBy('isDefault', 'desc')
@@ -756,19 +857,39 @@ exports.upgradeToProvider = functions.https.onCall(async (request) => {
 
        for (const doc of addressesSnap.docs) {
          const data = doc.data() || {};
-         const resolved = resolveDistrictFromData(data) || extractDistrictValue(data.district);
-         if (resolved) {
-           district = resolved;
+          const resolvedDistrict =
+                    resolveDistrictFromData(data) || extractDistrictValue(data.district) || '';
+                  const resolvedSegments = resolveAddressSegments(data);
+
+                  if (!district && resolvedDistrict) {
+                    district = resolvedDistrict;
+                  }
+
+                  if (!addressSegments && resolvedSegments) {
+                    addressSegments = resolvedSegments;
+                  }
+
+                  if (district && addressSegments) {
            break;
          }
        }
      }
+ if ((!district || !district.trim()) && addressSegments) {
+       district =
+         normalizeAddressString(addressSegments.district) ||
+         normalizeAddressString(addressSegments.city) ||
+         normalizeAddressString(addressSegments.province) ||
+         '';
+     }
 
      const completedOrders = ordersSnap.size;
+     const label = buildAddressLabel(addressSegments);
 
      return {
        completedOrders,
        district: district || null,
+              addressLabel: label || null,
+              address: addressSegments,
      };
    } catch (error) {
      functions.logger.error('[GET_PROVIDER_PUBLIC_STATS_FAILED]', {
