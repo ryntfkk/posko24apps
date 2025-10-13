@@ -31,7 +31,8 @@ data class ActiveOrderDetails(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val serviceRepository: ServiceRepository,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val auth: FirebaseAuth
 ) : ViewModel() {
 
     private val _categoriesState = MutableStateFlow<CategoriesState>(CategoriesState.Loading)
@@ -54,12 +55,17 @@ class HomeViewModel @Inject constructor(
     init {
         loadCategories()
         loadBanners()
-        loadActiveOrder()
+        if (auth.currentUser != null) {
+            loadActiveOrder()
+        } else {
+            Log.d(TAG, "Pengguna belum login saat inisialisasi, melewati pemuatan order aktif.")
+            _activeOrderDetails.value = null
+        }
     }
 
     fun loadActiveOrder() {
         Log.d(TAG, "Mencoba memuat order aktif...")
-        val uid = FirebaseAuth.getInstance().currentUser?.uid
+        val uid = auth.currentUser?.uid
         if (uid == null) {
             Log.d(TAG, "Pengguna belum login, tidak ada order aktif.")
             _activeOrderDetails.value = null

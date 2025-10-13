@@ -47,20 +47,21 @@ match /promo_codes/{codeId} {
     }
     // --------------------------------
 
-    // Address data: Publik, bisa dibaca oleh siapa saja
+        // Address data: Publik, bisa dibaca oleh siapa saja termasuk pengguna yang belum login
     match /provinces/{provinceId} {
-      allow read: if true;
-      allow write: if false; // Hanya bisa diubah dari console
-
-      match /cities/{cityId} {
         allow read: if true;
-        allow write: if false;
+        allow write: if false; // Hanya bisa diubah dari console
 
-        match /districts/{districtId} {
-          allow read: if true;
-          allow write: if false;
+        match /cities/{cityId} {
+                    allow read: if true;
+                    allow write: if false;
+
+                    match /districts/{districtId} {
+                        allow read: if true;
+                        allow write: if false;
+                    }
         }
-      }
+
     }
 
     // Orders: Aturan untuk pesanan

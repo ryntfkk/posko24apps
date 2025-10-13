@@ -119,7 +119,10 @@ fun ProviderListScreen(
             ExtendedFloatingActionButton(
                 onClick = onNavigateToBasicOrder,
                 icon = { Icon(Icons.Filled.ShoppingCart, "Pesan Cepat") },
-                text = { Text(text = "Pesan Cepat") }
+                text = { Text(text = "Pesan Cepat") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                elevation = FloatingActionButtonDefaults.elevation(8.dp)
             )
         }
     ) { paddingValues ->
