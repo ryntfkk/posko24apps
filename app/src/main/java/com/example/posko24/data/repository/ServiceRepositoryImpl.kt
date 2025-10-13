@@ -234,6 +234,13 @@ class ServiceRepositoryImpl @Inject constructor(
 
         extractDistrictCandidate(data["district"])?.let { return it }
 
+        for (key in DIRECT_DISTRICT_KEYS) {
+            if (data.containsKey(key)) {
+                extractDistrictCandidate(data[key])?.let { return it }
+            }
+        }
+
+        combineAdministrativeParts(data)?.let { return it }
         for (key in FALLBACK_ADDRESS_KEYS) {
             if (data.containsKey(key)) {
                 val value = data[key]
@@ -254,6 +261,16 @@ class ServiceRepositoryImpl @Inject constructor(
         return null
     }
 
+    private fun combineAdministrativeParts(data: Map<String, Any?>): String? {
+        val parts = ADMINISTRATIVE_PART_KEYS.asSequence()
+            .mapNotNull { key -> extractDistrictCandidate(data[key]) }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinctBy { it.lowercase() }
+            .toList()
+
+        return if (parts.isNotEmpty()) parts.joinToString(", ") else null
+    }
     private fun extractDistrictFromUserSnapshot(userSnapshot: DocumentSnapshot?): String {
         if (userSnapshot == null) return ""
 
@@ -261,7 +278,10 @@ class ServiceRepositoryImpl @Inject constructor(
         if (!directDistrict.isNullOrEmpty()) {
             return directDistrict
         }
-
+        for (key in DIRECT_DISTRICT_KEYS) {
+            val value = userSnapshot.get(key)
+            extractDistrictCandidate(value)?.let { return it }
+        }
         val defaultAddress = userSnapshot.get("defaultAddress")
         extractDistrictCandidate(defaultAddress)?.let { return it }
 
@@ -315,6 +335,27 @@ class ServiceRepositoryImpl @Inject constructor(
     companion object {
         private val DISTRICT_PRIORITY_KEYS = listOf("name", "label", "value")
         private val FALLBACK_ADDRESS_KEYS = listOf("address", "defaultAddress", "serviceArea", "location")
+        private val DIRECT_DISTRICT_KEYS = listOf(
+            "addressLabel",
+            "locationLabel",
+            "formattedAddress",
+            "formatted_address",
+            "defaultAddressLabel"
+        )
+        private val ADMINISTRATIVE_PART_KEYS = listOf(
+            "district",
+            "kecamatan",
+            "subDistrict",
+            "sub_district",
+            "city",
+            "kota",
+            "regency",
+            "kabupaten",
+            "province",
+            "provinsi",
+            "state",
+            "region"
+        )
     }
 
     // --- IMPLEMENTASI FUNGSI BARU DI SINI ---

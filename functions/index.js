@@ -107,6 +107,29 @@ function normalizeAddressString(raw) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+const DIRECT_DISTRICT_KEYS = [
+  'addressLabel',
+  'locationLabel',
+  'formattedAddress',
+  'formatted_address',
+  'defaultAddressLabel',
+];
+
+const ADMINISTRATIVE_PART_KEYS = [
+  'district',
+  'kecamatan',
+  'subDistrict',
+  'sub_district',
+  'city',
+  'kota',
+  'regency',
+  'kabupaten',
+  'province',
+  'provinsi',
+  'state',
+  'region',
+];
+
 function resolveDistrictFromData(data) {
   if (!data || typeof data !== 'object') {
     return null;
@@ -117,6 +140,19 @@ function resolveDistrictFromData(data) {
     return direct;
   }
 
+  for (const key of DIRECT_DISTRICT_KEYS) {
+    if (key in data) {
+      const candidate = extractDistrictValue(data[key]);
+      if (candidate) {
+        return candidate;
+      }
+    }
+  }
+
+  const combined = buildAdministrativeLabelFromMap(data);
+  if (combined) {
+    return combined;
+  }
   const fallbackKeys = ['address', 'defaultAddress', 'serviceArea', 'location'];
   for (const key of fallbackKeys) {
     if (key in data) {
@@ -134,6 +170,26 @@ function resolveDistrictFromData(data) {
   }
 
   return null;
+}
+function buildAdministrativeLabelFromMap(data) {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  const parts = [];
+  for (const key of ADMINISTRATIVE_PART_KEYS) {
+    if (key in data) {
+      const candidate = extractDistrictValue(data[key]);
+      if (candidate) {
+        const exists = parts.some((item) => item.toLowerCase() === candidate.toLowerCase());
+        if (!exists) {
+          parts.push(candidate.trim());
+        }
+      }
+    }
+  }
+
+  return parts.length > 0 ? parts.join(', ') : null;
 }
 
 function resolveAddressSegments(rawData) {

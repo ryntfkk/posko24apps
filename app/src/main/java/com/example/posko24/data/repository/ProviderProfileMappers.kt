@@ -5,7 +5,27 @@ import com.google.firebase.firestore.DocumentSnapshot
 
 private val PRIORITY_KEYS = listOf("name", "label", "value")
 private val FALLBACK_CONTAINER_KEYS = listOf("address", "defaultAddress", "serviceArea", "location")
-
+private val DIRECT_DISTRICT_KEYS = listOf(
+    "addressLabel",
+    "locationLabel",
+    "formattedAddress",
+    "formatted_address",
+    "defaultAddressLabel"
+)
+private val ADMINISTRATIVE_PART_KEYS = listOf(
+    "district",
+    "kecamatan",
+    "subDistrict",
+    "sub_district",
+    "city",
+    "kota",
+    "regency",
+    "kabupaten",
+    "province",
+    "provinsi",
+    "state",
+    "region"
+)
 fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
     val profile = toObject(ProviderProfile::class.java) ?: return null
 
@@ -53,6 +73,14 @@ private fun resolveDistrictFromData(data: Map<String, Any?>?): String? {
 
     extractDistrictValue(data["district"])?.let { return it }
 
+    for (key in DIRECT_DISTRICT_KEYS) {
+        if (data.containsKey(key)) {
+            extractDistrictValue(data[key])?.let { return it }
+        }
+    }
+
+    combineAdministrativeParts(data)?.let { return it }
+
     for (key in FALLBACK_CONTAINER_KEYS) {
         if (data.containsKey(key)) {
             val value = data[key]
@@ -71,6 +99,17 @@ private fun resolveDistrictFromData(data: Map<String, Any?>?): String? {
     }
 
     return null
+}
+
+private fun combineAdministrativeParts(data: Map<String, Any?>): String? {
+    val parts = ADMINISTRATIVE_PART_KEYS.asSequence()
+        .mapNotNull { key -> extractDistrictValue(data[key]) }
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .distinctBy { it.lowercase() }
+        .toList()
+
+    return if (parts.isNotEmpty()) parts.joinToString(", ") else null
 }
 
 @Suppress("UNCHECKED_CAST")
