@@ -11,12 +11,11 @@ service cloud.firestore {
       }
     }
 
-    // Service Categories & Provider Profiles: Publik, bisa dibaca oleh siapa saja yang login.
-    match /service_categories/{categoryId} {
-      // Izinkan baca jika pengguna sudah login (auth object tidak null)
-      allow read: if request.auth != null;
-      allow write: if false; // Hanya bisa diubah dari console
-    }
+// Service Categories & Provider Profiles: Publik, bisa dibaca oleh siapa saja.
+match /service_categories/{categoryId} {
+  allow read: if true; // Izinkan semua orang membaca
+  allow write: if false;
+}
 
 match /promo_codes/{codeId} {
   allow read: if true;        // everyone can read
@@ -25,7 +24,7 @@ match /promo_codes/{codeId} {
 
     match /provider_profiles/{providerId} {
       // Izinkan semua pengguna yang login membaca profil provider beserta field agregat seperti busyDates.
-      allow get, list: if request.auth != null;
+  allow get, list: if true; // Izinkan semua orang membaca daftar dan detail provider
       allow create, update, delete: if request.auth.uid == providerId;
 
       match /services/{serviceId} {
