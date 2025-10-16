@@ -179,8 +179,7 @@ class RegisterViewModel @Inject constructor(
             TAG,
             "Starting phone verification | phone=$sanitizedPhone | activity=${activity::class.java.simpleName} | " +
                     "appName=${firebaseApp?.name} | projectId=${firebaseApp?.options?.projectId} | " +
-                    "appIdSuffix=${firebaseApp?.options?.applicationId?.takeLast(6)} | " +
-                    "appVerifierDisabled=${firebaseAuth.firebaseAuthSettings.appVerificationDisabledForTesting}"
+                    "appIdSuffix=${firebaseApp?.options?.applicationId?.takeLast(6)} | "
         )
 
         updatePhoneState {
