@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.UserAddress
 import com.example.posko24.data.repository.AuthRepository
 import com.google.firebase.auth.AuthResult
+import com.google.firebase.auth.FirebaseAuthException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,7 +42,15 @@ class AuthViewModel @Inject constructor(
                         )
                     }
                 }.onFailure { exception ->
-                    Log.e("AuthViewModel", "Gagal login", exception)
+                    if (exception is FirebaseAuthException) {
+                        Log.e(
+                            "AuthViewModel",
+                            "Gagal login (FirebaseAuthException code=${exception.errorCode}): ${exception.message}",
+                            exception
+                        )
+                    } else {
+                        Log.e("AuthViewModel", "Gagal login", exception)
+                    }
                     _authState.value = AuthState.Error(exception.message ?: "Terjadi kesalahan")
                 }
             }
@@ -75,7 +84,15 @@ class AuthViewModel @Inject constructor(
                         message = message
                     )
                 }.onFailure { exception ->
-                    Log.e("AuthViewModel", "Gagal melakukan registrasi", exception)
+                    if (exception is FirebaseAuthException) {
+                        Log.e(
+                            "AuthViewModel",
+                            "Gagal melakukan registrasi (FirebaseAuthException code=${exception.errorCode}): ${exception.message}",
+                            exception
+                        )
+                    } else {
+                        Log.e("AuthViewModel", "Gagal melakukan registrasi", exception)
+                    }
                     _authState.value = AuthState.Error(exception.message ?: "Gagal mendaftar")
                 }
             }

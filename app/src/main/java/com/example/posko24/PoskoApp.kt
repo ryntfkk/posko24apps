@@ -8,7 +8,7 @@ import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 // Hapus import FirebaseAuth karena tidak lagi digunakan di sini
-// import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuth
 import com.midtrans.sdk.uikit.api.model.CustomColorTheme
 import com.midtrans.sdk.uikit.external.UiKitApi
 import dagger.hilt.android.HiltAndroidApp
@@ -25,10 +25,9 @@ class PoskoApp : Application() {
             firebaseAppCheck.installAppCheckProviderFactory(
                 DebugAppCheckProviderFactory.getInstance()
             )
-            // HAPUS BARIS DI BAWAH INI
-            // FirebaseAuth.getInstance().firebaseAuthSettings.setAppVerificationDisabledForTesting(
-            //     true
-            // )
+            FirebaseAuth.getInstance().firebaseAuthSettings.setAppVerificationDisabledForTesting(
+                true
+            )
         } else {
             firebaseAppCheck.installAppCheckProviderFactory(
                 PlayIntegrityAppCheckProviderFactory.getInstance()

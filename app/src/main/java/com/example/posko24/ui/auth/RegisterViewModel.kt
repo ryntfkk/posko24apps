@@ -4,6 +4,7 @@ import android.app.Activity
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.posko24.BuildConfig
 import com.example.posko24.data.model.UserAddress
 import com.example.posko24.data.model.Wilayah
 import com.example.posko24.data.repository.AddressRepository
@@ -182,6 +183,8 @@ class RegisterViewModel @Inject constructor(
                     "appIdSuffix=${firebaseApp?.options?.applicationId?.takeLast(6)} | "
         )
 
+        ensurePhoneVerificationFlow()
+
         updatePhoneState {
             it.copy(
                 sanitizedPhone = sanitizedPhone,
@@ -346,6 +349,8 @@ class RegisterViewModel @Inject constructor(
             .setActivity(activity)
             .setCallbacks(callbacks)
 
+        ensurePhoneVerificationFlow()
+
         if (token != null) {
             builder.setForceResendingToken(token)
         }
@@ -371,6 +376,17 @@ class RegisterViewModel @Inject constructor(
         Log.d(TAG, "Manually verifying OTP | verificationIdSuffix=${verificationId.takeLast(6)}")
         val credential = PhoneAuthProvider.getCredential(verificationId, trimmedCode)
         finalizeCredentialVerification(credential)
+    }
+
+    private fun ensurePhoneVerificationFlow() {
+        val authSettings = firebaseAuth.firebaseAuthSettings
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "Enabling reCAPTCHA-based flow for debug build")
+            authSettings.forceRecaptchaFlowForTesting(true)
+            authSettings.setAppVerificationDisabledForTesting(false)
+        } else {
+            authSettings.forceRecaptchaFlowForTesting(false)
+        }
     }
 
     private fun finalizeCredentialVerification(credential: PhoneAuthCredential) {
