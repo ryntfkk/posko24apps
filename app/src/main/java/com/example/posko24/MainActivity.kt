@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
                         composable("register_screen") {
                             RegisterScreen(
                                 onRegisterSuccess = {
-                                    navController.popBackStack("main_screen", inclusive = false)
+                                    navController.popBackStack()
                                 },
                                 onNavigateToLogin = { navController.popBackStack() }
                             )

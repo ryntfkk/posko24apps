@@ -87,11 +87,6 @@ fun RegisterScreen(
     // Mengamati perubahan pada authState
     LaunchedEffect(authState) {
         when (val state = authState) {
-            is AuthState.Success -> {
-                Toast.makeText(context, "Pendaftaran Berhasil!", Toast.LENGTH_SHORT).show()
-                onRegisterSuccess()
-                viewModel.resetState()
-            }
             is AuthState.Error -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
                 viewModel.resetState()
@@ -113,6 +108,17 @@ fun RegisterScreen(
 
             val sanitizedEmail = email.trim()
             val sanitizedPhone = phoneNumber.filterNot(Char::isWhitespace)
+
+            if (authState is AuthState.VerificationRequired) {
+                VerificationInstructionCard(
+                    message = (authState as AuthState.VerificationRequired).message,
+                    email = (authState as AuthState.VerificationRequired).email,
+                    onProceedToLogin = {
+                        viewModel.resetState()
+                        onRegisterSuccess()
+                    }
+                )
+            }
 
             when (currentStep) {
                 1 -> {
@@ -307,6 +313,40 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
             TextButton(onClick = onNavigateToLogin) {
                 Text("Sudah punya akun? Login")
+            }
+        }
+    }
+}
+
+@Composable
+private fun VerificationInstructionCard(
+    message: String,
+    email: String,
+    onProceedToLogin: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 24.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Verifikasi Email Diperlukan",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Email terdaftar: $email",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onProceedToLogin, modifier = Modifier.align(Alignment.End)) {
+                Text("Kembali ke Login")
             }
         }
     }

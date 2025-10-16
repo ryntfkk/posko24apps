@@ -2,7 +2,6 @@ package com.example.posko24.data.repository
 
 import com.example.posko24.data.model.User
 import com.example.posko24.data.model.UserAddress
-import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
@@ -17,11 +16,20 @@ class AuthRepositoryImpl @Inject constructor(
     private val addressRepository: AddressRepository
 ) : AuthRepository {
 
-    override suspend fun login(email: String, password: String): Flow<Result<AuthResult>> = flow {
+    override suspend fun login(email: String, password: String): Flow<Result<AuthRepository.AuthOutcome>> = flow {
         // HAPUS BARIS "emit(Result.success(null!!))" DARI SINI
 
         val result = auth.signInWithEmailAndPassword(email, password).await()
-        emit(Result.success(result))
+        val isVerified = auth.currentUser?.isEmailVerified ?: result.user?.isEmailVerified ?: false
+        emit(
+            Result.success(
+                AuthRepository.AuthOutcome(
+                    authResult = result,
+                    isEmailVerified = isVerified,
+                    verificationEmailSent = false
+                )
+            )
+        )
     }.catch { exception ->
         emit(Result.failure(exception))
     }
@@ -32,7 +40,7 @@ class AuthRepositoryImpl @Inject constructor(
         phone: String,
         password: String,
         address: UserAddress
-    ): Flow<Result<AuthResult>> = flow {
+    ): Flow<Result<AuthRepository.AuthOutcome>> = flow {
         // HAPUS BARIS "emit(Result.success(null!!))" DARI SINI
 
         val sanitizedEmail = email.trim()
@@ -53,7 +61,16 @@ class AuthRepositoryImpl @Inject constructor(
             firestore.collection("users").document(firebaseUser.uid).set(newUser).await()
             val saveResult = addressRepository.saveAddress(firebaseUser.uid, address)
             if (saveResult.isSuccess) {
-                emit(Result.success(authResult))
+                firebaseUser.sendEmailVerification().await()
+                emit(
+                    Result.success(
+                        AuthRepository.AuthOutcome(
+                            authResult = authResult,
+                            isEmailVerified = firebaseUser.isEmailVerified,
+                            verificationEmailSent = true
+                        )
+                    )
+                )
             } else {
                 emit(Result.failure(saveResult.exceptionOrNull()!!))
             }
@@ -66,5 +83,19 @@ class AuthRepositoryImpl @Inject constructor(
 
     override fun logout() {
         auth.signOut()
+    }
+    override suspend fun sendEmailVerification(): Result<Unit> {
+        val user = auth.currentUser ?: return Result.failure(IllegalStateException("Pengguna tidak ditemukan."))
+        return runCatching {
+            user.sendEmailVerification().await()
+        }
+    }
+
+    override suspend fun refreshEmailVerificationStatus(): Result<Boolean> {
+        val user = auth.currentUser ?: return Result.failure(IllegalStateException("Pengguna tidak ditemukan."))
+        return runCatching {
+            user.reload().await()
+            user.isEmailVerified
+        }
     }
 }

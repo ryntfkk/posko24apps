@@ -133,8 +133,19 @@ class RegisterViewModel @Inject constructor(
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             authRepository.register(fullName, email, phone, password, address).collect { result ->
-                result.onSuccess { authResult ->
-                    _authState.value = AuthState.Success(authResult)
+                result.onSuccess { outcome ->
+                    val emailAddress = outcome.authResult.user?.email ?: email
+                    val message = if (outcome.verificationEmailSent) {
+                        "Email verifikasi telah dikirim ke $emailAddress. Silakan cek inbox atau folder spam."
+                    } else {
+                        "Akun berhasil dibuat, namun gagal mengirim email verifikasi. Silakan coba kirim ulang."
+                    }
+                    _authState.value = AuthState.VerificationRequired(
+                        authResult = outcome.authResult,
+                        email = emailAddress,
+                        verificationEmailSent = outcome.verificationEmailSent,
+                        message = message
+                    )
                 }.onFailure { exception ->
                     _authState.value = AuthState.Error(exception.message ?: "Gagal mendaftar")
                 }
