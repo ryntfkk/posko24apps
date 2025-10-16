@@ -1,6 +1,7 @@
 package com.example.posko24.data.repository
 
 import com.google.firebase.auth.AuthResult
+import com.google.firebase.auth.PhoneAuthCredential
 import kotlinx.coroutines.flow.Flow
 import com.example.posko24.data.model.UserAddress
 
@@ -32,7 +33,8 @@ interface AuthRepository {
         email: String,
         phone: String,
         password: String,
-        address: UserAddress
+        address: UserAddress,
+        phoneCredential: PhoneAuthCredential
     ): Flow<Result<AuthOutcome>>
 
     /**

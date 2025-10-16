@@ -3,6 +3,7 @@ package com.example.posko24.data.repository
 import com.example.posko24.data.model.User
 import com.example.posko24.data.model.UserAddress
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -39,7 +40,8 @@ class AuthRepositoryImpl @Inject constructor(
         email: String,
         phone: String,
         password: String,
-        address: UserAddress
+        address: UserAddress,
+        phoneCredential: PhoneAuthCredential
     ): Flow<Result<AuthRepository.AuthOutcome>> = flow {
         // HAPUS BARIS "emit(Result.success(null!!))" DARI SINI
 
@@ -50,6 +52,12 @@ class AuthRepositoryImpl @Inject constructor(
         val firebaseUser = authResult.user
 
         if (firebaseUser != null) {
+            try {
+                firebaseUser.updatePhoneNumber(phoneCredential).await()
+            } catch (e: Exception) {
+                runCatching { firebaseUser.delete().await() }
+                throw e
+            }
             val newUser = User(
                 uid = firebaseUser.uid,
                 fullName = fullName,

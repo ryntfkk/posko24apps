@@ -1,6 +1,9 @@
 package com.example.posko24.ui.auth
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import android.widget.Toast
 import android.util.Patterns
@@ -45,8 +48,10 @@ fun RegisterScreen(
     var confirmPasswordError by remember { mutableStateOf(false) }
     var emailTouched by remember { mutableStateOf(false) }
     var phoneTouched by remember { mutableStateOf(false) }
+    var otpCode by remember { mutableStateOf("") }
     val authState by viewModel.authState.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val phoneVerification = uiState.phoneVerification
     val context = LocalContext.current
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val cameraPositionState = rememberCameraPositionState { position = uiState.cameraPosition }
@@ -92,6 +97,19 @@ fun RegisterScreen(
                 viewModel.resetState()
             }
             else -> Unit
+        }
+    }
+
+    LaunchedEffect(phoneVerification.errorMessage) {
+        phoneVerification.errorMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    LaunchedEffect(phoneVerification.autoRetrievedCode) {
+        val autoCode = phoneVerification.autoRetrievedCode
+        if (!autoCode.isNullOrBlank()) {
+            otpCode = autoCode
         }
     }
 
@@ -159,6 +177,13 @@ fun RegisterScreen(
                         onValueChange = {
                             phoneNumber = it
                             phoneTouched = true
+                            val newSanitized = it.filterNot(Char::isWhitespace)
+                            if ((phoneVerification.isOtpRequested || phoneVerification.isOtpVerified) &&
+                                newSanitized != phoneVerification.sanitizedPhone
+                            ) {
+                                viewModel.resetPhoneVerification()
+                                otpCode = ""
+                            }
                         },
                         label = { Text("Nomor Telepon") },
                         modifier = Modifier.fillMaxWidth(),
@@ -174,6 +199,92 @@ fun RegisterScreen(
                             }
                         }
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Nomor telepon wajib diverifikasi melalui OTP sebelum melanjutkan.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            otpCode = ""
+                            viewModel.startPhoneNumberVerification(
+                                sanitizedPhone,
+                                context.findActivity()
+                            )
+                        },
+                        enabled = isPhoneValid && sanitizedPhone.isNotBlank() &&
+                                !phoneVerification.isRequestingOtp && !phoneVerification.isOtpVerified,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (phoneVerification.isRequestingOtp) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Text("Kirim Kode OTP")
+                        }
+                    }
+
+                    if (phoneVerification.isOtpRequested) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = otpCode,
+                            onValueChange = { value ->
+                                otpCode = value.filter(Char::isDigit).take(6)
+                            },
+                            label = { Text("Kode OTP") },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { viewModel.verifyOtp(otpCode) },
+                            enabled = otpCode.length >= 6 && !phoneVerification.isVerifyingOtp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (phoneVerification.isVerifyingOtp) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else {
+                                Text("Verifikasi OTP")
+                            }
+                        }
+                        if (!phoneVerification.isOtpVerified) {
+                            TextButton(
+                                onClick = {
+                                    otpCode = ""
+                                    viewModel.resendVerificationCode(context.findActivity())
+                                },
+                                enabled = !phoneVerification.isRequestingOtp && !phoneVerification.isVerifyingOtp
+                            ) {
+                                Text("Kirim ulang OTP")
+                            }
+                        }
+                    }
+
+                    phoneVerification.errorMessage?.let {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+
+                    if (phoneVerification.isOtpVerified) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Nomor telepon berhasil diverifikasi.",
+                            color = MaterialTheme.colorScheme.secondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
 
                     OutlinedTextField(
@@ -215,7 +326,9 @@ fun RegisterScreen(
                     val step1Valid = fullName.isNotBlank() &&
                             sanitizedEmail.isNotBlank() && isEmailValid &&
                             sanitizedPhone.isNotBlank() && isPhoneValid &&
-                            password.isNotBlank() && confirmPassword.isNotBlank()
+                            password.isNotBlank() && confirmPassword.isNotBlank() &&
+                            phoneVerification.isOtpVerified &&
+                            phoneVerification.sanitizedPhone == sanitizedPhone
 
                     Button(
                         onClick = {
@@ -297,7 +410,7 @@ fun RegisterScreen(
                     Button(
                         onClick = { viewModel.register(fullName, sanitizedEmail, sanitizedPhone, password) },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = step2Valid && authState != AuthState.Loading
+                        enabled = step2Valid && authState != AuthState.Loading && phoneVerification.isOtpVerified
                     ) {
                         if (authState == AuthState.Loading) {
                             CircularProgressIndicator(
@@ -477,6 +590,11 @@ private fun AddressDropdowns(
     }
 }
 
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
 @Preview(showBackground = true)
 @Composable
 fun RegisterScreenPreview() {
