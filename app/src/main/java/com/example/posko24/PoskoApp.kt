@@ -6,6 +6,7 @@ import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+import com.google.firebase.auth.FirebaseAuth
 import com.midtrans.sdk.uikit.api.model.CustomColorTheme
 import com.midtrans.sdk.uikit.external.UiKitApi
 import dagger.hilt.android.HiltAndroidApp
@@ -20,6 +21,11 @@ class PoskoApp : Application() {
         FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
             DebugAppCheckProviderFactory.getInstance()
         )
+        if (BuildConfig.DEBUG) {
+            FirebaseAuth.getInstance().firebaseAuthSettings.setAppVerificationDisabledForTesting(
+                true
+            )
+        }
         val clientKey = BuildConfig.CLIENT_KEY
         val baseUrl = BuildConfig.BASE_URL
 
