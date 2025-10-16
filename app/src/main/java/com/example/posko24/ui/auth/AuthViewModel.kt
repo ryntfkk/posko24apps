@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.google.firebase.auth.PhoneAuthCredential
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
@@ -52,12 +53,14 @@ class AuthViewModel @Inject constructor(
         email: String,
         phone: String,
         password: String,
-        address: UserAddress
+        address: UserAddress,
+        phoneCredential: PhoneAuthCredential // 1. Tambahkan parameter ini
     ) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
 
-            repository.register(fullName, email, phone, password, address).collect { result ->
+            // 2. Teruskan parameter ke pemanggilan repository
+            repository.register(fullName, email, phone, password, address, phoneCredential).collect { result ->
                 result.onSuccess { outcome ->
                     val emailAddress = outcome.authResult.user?.email ?: email
                     val message = if (outcome.verificationEmailSent) {
