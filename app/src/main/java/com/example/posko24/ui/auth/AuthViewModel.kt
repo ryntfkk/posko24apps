@@ -38,12 +38,11 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun register(fullName: String, contact: String, password: String, address: UserAddress) {
-        viewModelScope.launch {
+    fun register(fullName: String, email: String, phone: String, password: String, address: UserAddress) {        viewModelScope.launch {
             // 1. Set state ke Loading SEBELUM memanggil repository
             _authState.value = AuthState.Loading
 
-            repository.register(fullName, contact, password, address).collect { result ->
+        repository.register(fullName, email, phone, password, address).collect { result ->
                 result.onSuccess { authResult ->
                     // authResult tidak akan pernah null di sini
                     _authState.value = AuthState.Success(authResult)

@@ -3,6 +3,7 @@ package com.example.posko24.ui.auth
 import android.Manifest
 import android.content.pm.PackageManager
 import android.widget.Toast
+import android.util.Patterns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -37,10 +38,13 @@ fun RegisterScreen(
 ) {
     var currentStep by remember { mutableStateOf(1) }
     var fullName by remember { mutableStateOf("") }
-    var contact by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var confirmPasswordError by remember { mutableStateOf(false) }
+    var emailTouched by remember { mutableStateOf(false) }
+    var phoneTouched by remember { mutableStateOf(false) }
     val authState by viewModel.authState.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -107,6 +111,9 @@ fun RegisterScreen(
             Text("Buat Akun Baru", style = MaterialTheme.typography.headlineMedium)
             Spacer(modifier = Modifier.height(32.dp))
 
+            val sanitizedEmail = email.trim()
+            val sanitizedPhone = phoneNumber.filterNot(Char::isWhitespace)
+
             when (currentStep) {
                 1 -> {
                     OutlinedTextField(
@@ -117,12 +124,49 @@ fun RegisterScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    val isEmailValid = Patterns.EMAIL_ADDRESS.matcher(sanitizedEmail).matches()
                     OutlinedTextField(
-                        value = contact,
-                        onValueChange = { contact = it },
-                        label = { Text("Email atau Nomor Telepon") },
+                        value = email,
+                        onValueChange = {
+                            email = it
+                            emailTouched = true
+                        },
+                        label = { Text("Email") },
                         modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        isError = emailTouched && sanitizedEmail.isNotBlank() && !isEmailValid,
+                        supportingText = {
+                            if (emailTouched && sanitizedEmail.isNotBlank() && !isEmailValid) {
+                                Text(
+                                    text = "Format email tidak valid",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    val isPhoneValid = Patterns.PHONE.matcher(sanitizedPhone).matches()
+                    OutlinedTextField(
+                        value = phoneNumber,
+                        onValueChange = {
+                            phoneNumber = it
+                            phoneTouched = true
+                        },
+                        label = { Text("Nomor Telepon") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        isError = phoneTouched && sanitizedPhone.isNotBlank() && !isPhoneValid,
+                        supportingText = {
+                            if (phoneTouched && sanitizedPhone.isNotBlank() && !isPhoneValid) {
+                                Text(
+                                    text = "Format nomor telepon tidak valid",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -162,20 +206,41 @@ fun RegisterScreen(
                     )
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    val step1Valid = fullName.isNotBlank() && contact.isNotBlank() &&
+                    val step1Valid = fullName.isNotBlank() &&
+                            sanitizedEmail.isNotBlank() && isEmailValid &&
+                            sanitizedPhone.isNotBlank() && isPhoneValid &&
                             password.isNotBlank() && confirmPassword.isNotBlank()
 
                     Button(
                         onClick = {
-                            if (password == confirmPassword) {
-                                currentStep = 2
-                            } else {
-                                confirmPasswordError = true
-                                Toast.makeText(
-                                    context,
-                                    "Kata sandi dan konfirmasi tidak cocok",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                            when {
+                                password != confirmPassword -> {
+                                    confirmPasswordError = true
+                                    Toast.makeText(
+                                        context,
+                                        "Kata sandi dan konfirmasi tidak cocok",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                !isEmailValid -> {
+                                    emailTouched = true
+                                    Toast.makeText(
+                                        context,
+                                        "Format email tidak valid",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                !isPhoneValid -> {
+                                    phoneTouched = true
+                                    Toast.makeText(
+                                        context,
+                                        "Format nomor telepon tidak valid",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                else -> {
+                                    currentStep = 2
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -224,7 +289,7 @@ fun RegisterScreen(
                     val step2Valid = uiState.selectedDistrict != null &&
                             uiState.addressDetail.isNotBlank() && uiState.mapCoordinates != null
                     Button(
-                        onClick = { viewModel.register(fullName, contact, password) },
+                        onClick = { viewModel.register(fullName, sanitizedEmail, sanitizedPhone, password) },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = step2Valid && authState != AuthState.Loading
                     ) {

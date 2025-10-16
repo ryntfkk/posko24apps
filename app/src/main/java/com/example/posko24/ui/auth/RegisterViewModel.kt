@@ -121,7 +121,7 @@ class RegisterViewModel @Inject constructor(
         _uiState.update { it.copy(mapCoordinates = geoPoint) }
     }
 
-    fun register(fullName: String, contact: String, password: String) {
+    fun register(fullName: String, email: String, phone: String, password: String) {
         val current = _uiState.value
         val address = UserAddress(
             province = current.selectedProvince?.name ?: "",
@@ -132,7 +132,7 @@ class RegisterViewModel @Inject constructor(
         )
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            authRepository.register(fullName, contact, password, address).collect { result ->
+            authRepository.register(fullName, email, phone, password, address).collect { result ->
                 result.onSuccess { authResult ->
                     _authState.value = AuthState.Success(authResult)
                 }.onFailure { exception ->

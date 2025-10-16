@@ -28,23 +28,25 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun register(
         fullName: String,
-        contact: String,
+        email: String,
+        phone: String,
         password: String,
         address: UserAddress
     ): Flow<Result<AuthResult>> = flow {
         // HAPUS BARIS "emit(Result.success(null!!))" DARI SINI
 
-        val authResult = auth.createUserWithEmailAndPassword(contact, password).await()
+        val sanitizedEmail = email.trim()
+        val sanitizedPhone = phone.filterNot(Char::isWhitespace)
+
+        val authResult = auth.createUserWithEmailAndPassword(sanitizedEmail, password).await()
         val firebaseUser = authResult.user
 
         if (firebaseUser != null) {
-            val email = if (contact.contains("@")) contact else ""
-            val phoneNumber = if (!contact.contains("@")) contact else ""
             val newUser = User(
                 uid = firebaseUser.uid,
                 fullName = fullName,
-                email = email,
-                phoneNumber = phoneNumber,
+                email = sanitizedEmail,
+                phoneNumber = sanitizedPhone,
                 roles = listOf("customer")
 
             )

@@ -23,7 +23,8 @@ interface AuthRepository {
      */
     suspend fun register(
         fullName: String,
-        contact: String,
+        email: String,
+        phone: String,
         password: String,
         address: UserAddress
     ): Flow<Result<AuthResult>>
