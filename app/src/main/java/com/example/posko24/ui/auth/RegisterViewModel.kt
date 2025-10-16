@@ -1,6 +1,7 @@
 package com.example.posko24.ui.auth
 
 import android.app.Activity
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.UserAddress
@@ -11,6 +12,7 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
@@ -37,7 +39,8 @@ data class PhoneVerificationState(
     val forceResendingToken: PhoneAuthProvider.ForceResendingToken? = null,
     val credential: PhoneAuthCredential? = null,
     val autoRetrievedCode: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val lastDebugEvent: String? = null
 )
 
 data class RegisterUiState(
@@ -63,6 +66,10 @@ class RegisterViewModel @Inject constructor(
     private val addressRepository: AddressRepository,
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "RegisterViewModel"
+    }
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
     val authState = _authState.asStateFlow()
@@ -152,10 +159,12 @@ class RegisterViewModel @Inject constructor(
     fun startPhoneNumberVerification(phoneNumber: String, activity: Activity?) {
         val sanitizedPhone = phoneNumber.filterNot(Char::isWhitespace)
         if (sanitizedPhone.isBlank()) {
+            Log.w(TAG, "startPhoneNumberVerification called with blank phone input.")
             updatePhoneState { it.copy(errorMessage = "Nomor telepon belum dimasukkan.") }
             return
         }
         if (activity == null) {
+            Log.e(TAG, "startPhoneNumberVerification failed: activity reference is null for phone=$sanitizedPhone")
             updatePhoneState {
                 it.copy(
                     errorMessage = "Tidak dapat mengakses aktivitas untuk verifikasi.",
@@ -164,6 +173,15 @@ class RegisterViewModel @Inject constructor(
             }
             return
         }
+
+        val firebaseApp = firebaseAuth.app
+        Log.d(
+            TAG,
+            "Starting phone verification | phone=$sanitizedPhone | activity=${activity::class.java.simpleName} | " +
+                    "appName=${firebaseApp?.name} | projectId=${firebaseApp?.options?.projectId} | " +
+                    "appIdSuffix=${firebaseApp?.options?.applicationId?.takeLast(6)} | " +
+                    "appVerifierDisabled=${firebaseAuth.firebaseAuthSettings.appVerificationDisabledForTesting}"
+        )
 
         updatePhoneState {
             it.copy(
@@ -175,28 +193,38 @@ class RegisterViewModel @Inject constructor(
                 verificationId = null,
                 forceResendingToken = null,
                 autoRetrievedCode = null,
-                errorMessage = null
+                errorMessage = null,
+                lastDebugEvent = "Start verification requested for $sanitizedPhone"
             )
         }
 
         val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
             override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                Log.d(TAG, "onVerificationCompleted called | phone=$sanitizedPhone | smsCode=${credential.smsCode}")
                 updatePhoneState {
                     it.copy(
                         isRequestingOtp = false,
                         isOtpRequested = true,
                         autoRetrievedCode = credential.smsCode ?: it.autoRetrievedCode,
-                        errorMessage = null
+                        errorMessage = null,
+                        lastDebugEvent = "Auto verification completed for $sanitizedPhone"
                     )
                 }
                 finalizeCredentialVerification(credential)
             }
 
             override fun onVerificationFailed(e: FirebaseException) {
+                val firebaseAuthErrorCode = if (e is FirebaseAuthException) e.errorCode else "N/A"
+                Log.e(
+                    TAG,
+                    "onVerificationFailed | phone=$sanitizedPhone | errorCode=$firebaseAuthErrorCode | message=${e.localizedMessage}",
+                    e
+                )
                 updatePhoneState {
                     it.copy(
                         isRequestingOtp = false,
-                        errorMessage = e.localizedMessage ?: "Gagal mengirim OTP. Coba lagi nanti."
+                        errorMessage = e.localizedMessage ?: "Gagal mengirim OTP. Coba lagi nanti.",
+                        lastDebugEvent = "Verification failed for $sanitizedPhone with code=$firebaseAuthErrorCode"
                     )
                 }
             }
@@ -205,13 +233,18 @@ class RegisterViewModel @Inject constructor(
                 verificationId: String,
                 token: PhoneAuthProvider.ForceResendingToken
             ) {
+                Log.d(
+                    TAG,
+                    "onCodeSent | phone=$sanitizedPhone | verificationIdSuffix=${verificationId.takeLast(6)} | token=$token"
+                )
                 updatePhoneState {
                     it.copy(
                         isRequestingOtp = false,
                         isOtpRequested = true,
                         verificationId = verificationId,
                         forceResendingToken = token,
-                        errorMessage = null
+                        errorMessage = null,
+                        lastDebugEvent = "OTP sent to $sanitizedPhone"
                     )
                 }
             }
@@ -224,6 +257,7 @@ class RegisterViewModel @Inject constructor(
             .setCallbacks(callbacks)
             .build()
 
+        Log.d(TAG, "Invoking PhoneAuthProvider.verifyPhoneNumber for phone=$sanitizedPhone with timeout=60s")
         PhoneAuthProvider.verifyPhoneNumber(options)
     }
 
@@ -232,34 +266,56 @@ class RegisterViewModel @Inject constructor(
         val sanitizedPhone = currentPhoneState.sanitizedPhone
         val token = currentPhoneState.forceResendingToken
         if (sanitizedPhone.isBlank()) {
+            Log.w(TAG, "resendVerificationCode called without sanitized phone")
             updatePhoneState { it.copy(errorMessage = "Nomor telepon belum dimasukkan.") }
             return
         }
         if (activity == null) {
+            Log.e(TAG, "resendVerificationCode failed: activity reference is null for phone=$sanitizedPhone")
             updatePhoneState { it.copy(errorMessage = "Tidak dapat mengakses aktivitas untuk verifikasi.") }
             return
         }
 
-        updatePhoneState { it.copy(isRequestingOtp = true, errorMessage = null) }
+        Log.d(
+            TAG,
+            "Resending OTP | phone=$sanitizedPhone | hasForceToken=${token != null} | activity=${activity::class.java.simpleName}"
+        )
+
+        updatePhoneState {
+            it.copy(
+                isRequestingOtp = true,
+                errorMessage = null,
+                lastDebugEvent = "Resend verification requested for $sanitizedPhone"
+            )
+        }
 
         val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
             override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                Log.d(TAG, "onVerificationCompleted (resend) | phone=$sanitizedPhone | smsCode=${credential.smsCode}")
                 updatePhoneState {
                     it.copy(
                         isRequestingOtp = false,
                         isOtpRequested = true,
                         autoRetrievedCode = credential.smsCode ?: it.autoRetrievedCode,
-                        errorMessage = null
+                        errorMessage = null,
+                        lastDebugEvent = "Auto verification completed (resend) for $sanitizedPhone"
                     )
                 }
                 finalizeCredentialVerification(credential)
             }
 
             override fun onVerificationFailed(e: FirebaseException) {
+                val firebaseAuthErrorCode = if (e is FirebaseAuthException) e.errorCode else "N/A"
+                Log.e(
+                    TAG,
+                    "onVerificationFailed (resend) | phone=$sanitizedPhone | errorCode=$firebaseAuthErrorCode | message=${e.localizedMessage}",
+                    e
+                )
                 updatePhoneState {
                     it.copy(
                         isRequestingOtp = false,
-                        errorMessage = e.localizedMessage ?: "Gagal mengirim ulang OTP."
+                        errorMessage = e.localizedMessage ?: "Gagal mengirim ulang OTP.",
+                        lastDebugEvent = "Resend failed for $sanitizedPhone with code=$firebaseAuthErrorCode"
                     )
                 }
             }
@@ -268,13 +324,18 @@ class RegisterViewModel @Inject constructor(
                 verificationId: String,
                 token: PhoneAuthProvider.ForceResendingToken
             ) {
+                Log.d(
+                    TAG,
+                    "onCodeSent (resend) | phone=$sanitizedPhone | verificationIdSuffix=${verificationId.takeLast(6)} | token=$token"
+                )
                 updatePhoneState {
                     it.copy(
                         isRequestingOtp = false,
                         isOtpRequested = true,
                         verificationId = verificationId,
                         forceResendingToken = token,
-                        errorMessage = null
+                        errorMessage = null,
+                        lastDebugEvent = "OTP resent to $sanitizedPhone"
                     )
                 }
             }
@@ -290,30 +351,38 @@ class RegisterViewModel @Inject constructor(
             builder.setForceResendingToken(token)
         }
 
+        Log.d(TAG, "Invoking PhoneAuthProvider.verifyPhoneNumber (resend) for phone=$sanitizedPhone with timeout=60s")
         PhoneAuthProvider.verifyPhoneNumber(builder.build())
     }
 
     fun verifyOtp(code: String) {
         val trimmedCode = code.filterNot(Char::isWhitespace)
         if (trimmedCode.length < 6) {
+            Log.w(TAG, "verifyOtp called with invalid code length=${trimmedCode.length}")
             updatePhoneState { it.copy(errorMessage = "Kode OTP harus terdiri dari 6 digit.") }
             return
         }
         val verificationId = _uiState.value.phoneVerification.verificationId
         if (verificationId.isNullOrBlank()) {
+            Log.w(TAG, "verifyOtp called but verificationId is missing")
             updatePhoneState { it.copy(errorMessage = "OTP belum dikirim. Mohon kirim kode terlebih dahulu.") }
             return
         }
 
+        Log.d(TAG, "Manually verifying OTP | verificationIdSuffix=${verificationId.takeLast(6)}")
         val credential = PhoneAuthProvider.getCredential(verificationId, trimmedCode)
         finalizeCredentialVerification(credential)
     }
 
     private fun finalizeCredentialVerification(credential: PhoneAuthCredential) {
         viewModelScope.launch {
+            Log.d(
+                TAG,
+                "finalizeCredentialVerification called | smsCode=${credential.smsCode} | provider=${credential.provider}")
             updatePhoneState { it.copy(isVerifyingOtp = true, errorMessage = null) }
             try {
                 firebaseAuth.signInWithCredential(credential).await()
+                Log.d(TAG, "Temporary sign-in with credential succeeded. Cleaning up session...")
                 firebaseAuth.signOut()
                 updatePhoneState {
                     it.copy(
@@ -322,25 +391,30 @@ class RegisterViewModel @Inject constructor(
                         isOtpVerified = true,
                         errorMessage = null,
                         autoRetrievedCode = credential.smsCode ?: it.autoRetrievedCode,
-                        isOtpRequested = true
+                        isOtpRequested = true,
+                        lastDebugEvent = "OTP verification succeeded"
                     )
                 }
             } catch (e: FirebaseAuthInvalidCredentialsException) {
+                Log.e(TAG, "OTP verification failed: invalid credential", e)
                 updatePhoneState {
                     it.copy(
                         isVerifyingOtp = false,
                         isOtpVerified = false,
                         credential = null,
-                        errorMessage = "Kode OTP tidak valid."
+                        errorMessage = "Kode OTP tidak valid.",
+                        lastDebugEvent = "OTP verification failed: invalid credential"
                     )
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "OTP verification failed with unexpected error", e)
                 updatePhoneState {
                     it.copy(
                         isVerifyingOtp = false,
                         isOtpVerified = false,
                         credential = null,
-                        errorMessage = e.localizedMessage ?: "Verifikasi OTP gagal."
+                        errorMessage = e.localizedMessage ?: "Verifikasi OTP gagal.",
+                        lastDebugEvent = "OTP verification failed: ${e.localizedMessage}"
                     )
                 }
             }
@@ -348,6 +422,7 @@ class RegisterViewModel @Inject constructor(
     }
 
     fun resetPhoneVerification() {
+        Log.d(TAG, "Resetting phone verification state")
         updatePhoneState { PhoneVerificationState() }
     }
 
