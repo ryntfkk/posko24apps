@@ -24,9 +24,11 @@ class PoskoApp : Application() {
             firebaseAppCheck.installAppCheckProviderFactory(
                 DebugAppCheckProviderFactory.getInstance()
             )
-            FirebaseAuth.getInstance().firebaseAuthSettings.setAppVerificationDisabledForTesting(
-                true
-            )
+            if (BuildConfig.FLAVOR == "firebaseTest") {
+                FirebaseAuth.getInstance().firebaseAuthSettings.setAppVerificationDisabledForTesting(
+                    true
+                )
+            }
         } else {
             firebaseAppCheck.installAppCheckProviderFactory(
                 PlayIntegrityAppCheckProviderFactory.getInstance()
