@@ -42,17 +42,6 @@ android {
         }
     }
 
-    flavorDimensions += "testing"
-    productFlavors {
-        create("standard") {
-            dimension = "testing"
-        }
-        create("firebaseTest") {
-            dimension = "testing"
-            applicationIdSuffix = ".firebasetest"
-            versionNameSuffix = "-firebaseTest"
-        }
-    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
