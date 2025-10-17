@@ -143,7 +143,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideFirebaseFunctions(): FirebaseFunctions = Firebase.functions("us-central1")
+    fun provideFirebaseFunctions(): FirebaseFunctions = Firebase.functions("asia-southeast2")
     @Provides
     @Singleton
     fun provideRetrofit(): Retrofit = Retrofit.Builder()

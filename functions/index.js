@@ -1,6 +1,11 @@
 'use strict';
 
 const functions = require('firebase-functions/v2');
+// IMpor setGlobalOptions dari firebase-functions/v2
+const { setGlobalOptions } = require("firebase-functions/v2");
+
+// Tetapkan region untuk semua fungsi di file ini ke Jakarta
+setGlobalOptions({ region: "asia-southeast2" });
 const { onDocumentUpdated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
@@ -63,6 +68,12 @@ function resolveConfigString(...paths) {
   const config = getFunctionsConfig();
 
   for (const segments of paths) {
+      const envKey = segments.join('_').toUpperCase();
+      const envValue = readOptionalString(process.env[envKey]);
+      if (envValue) {
+        return envValue;
+      }
+
     let current = config;
     let found = true;
     for (const segment of segments) {
@@ -88,6 +99,12 @@ function resolveConfigBoolean(...paths) {
   const config = getFunctionsConfig();
 
   for (const segments of paths) {
+      const envKey = segments.join('_').toUpperCase();
+      const envValue = readBoolean(process.env[envKey]);
+      if (envValue !== null) {
+        return envValue;
+      }
+
     let current = config;
     let found = true;
     for (const segment of segments) {
@@ -1758,7 +1775,7 @@ async function callIdentityToolkit(endpoint, payload) {
 
   return json || {};
 }
-exports.sendEmailOtp = onCall({ region: 'us-central1' }, async (request) => {
+exports.sendEmailOtp = onCall(async (request) => {
   const email = sanitizeEmailInput(request.data?.email);
   if (!email) {
     throw new HttpsError('invalid-argument', 'Email wajib diisi.');
@@ -1823,7 +1840,7 @@ function mapEmailOtpVerificationError(errorCode) {
       return new HttpsError('failed-precondition', 'Verifikasi OTP email gagal.');
   }
 }
-exports.verifyEmailOtp = onCall({ region: 'us-central1' }, async (request) => {
+exports.verifyEmailOtp = onCall(async (request) => {
   const rawCode = String(request.data?.code || '').trim();
   const email = sanitizeEmailInput(request.data?.email);
 
