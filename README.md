@@ -19,10 +19,9 @@ await upgradeToProvider();
 
 ## Konfigurasi Lingkungan
 
-Beberapa fungsi callable membutuhkan konfigurasi tambahan melalui variabel lingkungan. Untuk mengaktifkan pengiriman OTP email menggunakan layanan bawaan Firebase Authentication, setel nilai `FIREBASE_WEB_API_KEY` sebelum melakukan deploy fungsi:
-
+Beberapa fungsi callable membutuhkan konfigurasi tambahan melalui variabel lingkungan. Untuk mengaktifkan pengiriman OTP email menggunakan layanan bawaan Firebase Authentication, setel nilai `firebase.web_api_key` sebelum melakukan deploy fungsi:
 ```bash
-firebase functions:config:set FIREBASE_WEB_API_KEY="<web-api-key-project-anda>"
+firebase functions:config:set firebase.web_api_key="<web-api-key-project-anda>"
 ```
 
-Web API key dapat ditemukan di konsol Firebase pada pengaturan proyek bagian *General*.
+Web API key dapat ditemukan di konsol Firebase pada pengaturan proyek bagian *General*. Selama pengembangan lokal Anda juga dapat menggunakan variabel lingkungan `FIREBASE_WEB_API_KEY` apabila lebih nyaman.

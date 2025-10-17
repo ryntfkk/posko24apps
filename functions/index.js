@@ -1503,13 +1503,26 @@ async function createChatRoom(orderData, orderId) {
     functions.logger.error('[CHAT_CREATE_FAILED]', { orderId, message: error?.message || 'Unknown error' });
   }
 }
+function resolveWebApiKey() {
+  if (process.env.FIREBASE_WEB_API_KEY) {
+    return process.env.FIREBASE_WEB_API_KEY;
+  }
+
+  const config = functions.config() || {};
+  return (
+    config.firebase?.web_api_key ||
+    config.firebase?.web?.api_key ||
+    null
+  );
+}
+
 async function callIdentityToolkit(endpoint, payload) {
-  const apiKey = process.env.FIREBASE_WEB_API_KEY;
+  const apiKey = resolveWebApiKey();
   if (!apiKey) {
     throw new HttpsError(
       'failed-precondition',
-      'Konfigurasi Firebase belum lengkap. Set nilai FIREBASE_WEB_API_KEY.'
-    );
+ 'Konfigurasi Firebase belum lengkap. Set nilai FIREBASE_WEB_API_KEY atau firebase.web_api_key.'
+     );
   }
 
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/${endpoint}?key=${apiKey}`, {
