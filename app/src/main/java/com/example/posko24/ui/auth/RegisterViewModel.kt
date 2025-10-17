@@ -442,9 +442,13 @@ class RegisterViewModel @Inject constructor(
             action: String
         ): Boolean {
             val message = exception.localizedMessage.orEmpty()
+            val messageLower = message.lowercase()
             val isAppNotAuthorized = firebaseAuthErrorCode == "ERROR_APP_NOT_AUTHORIZED" ||
-                    message.contains("play_integrity_token", ignoreCase = true) ||
-                    message.contains("not authorized", ignoreCase = true)
+                    messageLower.contains("play_integrity_token") ||
+                    messageLower.contains("playintegrity") ||
+                    messageLower.contains("play integrity token") ||
+                    messageLower.contains("app not recognized by play store") ||
+                    messageLower.contains("not authorized")
 
             if (isAppNotAuthorized && !forceRecaptchaForVerification) {
                 Log.w(
