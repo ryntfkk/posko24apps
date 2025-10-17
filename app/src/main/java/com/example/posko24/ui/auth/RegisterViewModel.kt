@@ -2,6 +2,7 @@ package com.example.posko24.ui.auth
 
 import android.app.Activity
 import android.util.Log
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.BuildConfig
@@ -19,6 +20,8 @@ import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.firestore.GeoPoint
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,14 +67,27 @@ data class RegisterUiState(
     ),
     val provincesLoading: Boolean = false,
     val provinceLoadError: String? = null,
-    val phoneVerification: PhoneVerificationState = PhoneVerificationState()
+    val phoneVerification: PhoneVerificationState = PhoneVerificationState(),
+    val emailVerification: EmailVerificationState = EmailVerificationState()
+)
+
+data class EmailVerificationState(
+    val sanitizedEmail: String = "",
+    val sessionId: String? = null,
+    val isRequestingOtp: Boolean = false,
+    val isOtpRequested: Boolean = false,
+    val isVerifyingOtp: Boolean = false,
+    val isOtpVerified: Boolean = false,
+    val errorMessage: String? = null,
+    val lastDebugEvent: String? = null
 )
 
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val addressRepository: AddressRepository,
-    private val firebaseAuth: FirebaseAuth
+    private val firebaseAuth: FirebaseAuth,
+    private val firebaseFunctions: FirebaseFunctions
 ) : ViewModel() {
 
     companion object {
@@ -92,6 +108,10 @@ class RegisterViewModel @Inject constructor(
 
     private fun updatePhoneState(transform: (PhoneVerificationState) -> PhoneVerificationState) {
         _uiState.update { current -> current.copy(phoneVerification = transform(current.phoneVerification)) }
+    }
+
+    private fun updateEmailState(transform: (EmailVerificationState) -> EmailVerificationState) {
+        _uiState.update { current -> current.copy(emailVerification = transform(current.emailVerification)) }
     }
 
     private fun loadProvinces() {
@@ -484,6 +504,13 @@ class RegisterViewModel @Inject constructor(
             try {
                 firebaseAuth.signInWithCredential(credential).await()
                 Log.d(TAG, "Temporary sign-in with credential succeeded. Cleaning up session...")
+                val tempUser = firebaseAuth.currentUser
+                try {
+                    tempUser?.delete()?.await()
+                    Log.d(TAG, "Temporary phone-auth user removed after verification")
+                } catch (cleanupError: Exception) {
+                    Log.w(TAG, "Failed to remove temporary phone-auth user", cleanupError)
+                }
                 firebaseAuth.signOut()
                 updatePhoneState {
                     it.copy(
@@ -536,8 +563,135 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
+    fun resetEmailVerification() {
+        Log.d(TAG, "Resetting email verification state")
+        updateEmailState { EmailVerificationState() }
+    }
+
+    fun requestEmailOtp(rawEmail: String) {
+        val sanitizedEmail = rawEmail.trim()
+        if (!Patterns.EMAIL_ADDRESS.matcher(sanitizedEmail).matches()) {
+            updateEmailState {
+                it.copy(errorMessage = "Format email tidak valid.")
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            updateEmailState {
+                it.copy(
+                    sanitizedEmail = sanitizedEmail,
+                    isRequestingOtp = true,
+                    errorMessage = null,
+                    lastDebugEvent = "Requesting email OTP"
+                )
+            }
+            try {
+                val result = firebaseFunctions
+                    .getHttpsCallable("sendEmailOtp")
+                    .call(mapOf("email" to sanitizedEmail))
+                    .await()
+                val data = result.data as? Map<*, *>
+                val sessionId = data?.get("sessionId") as? String
+                if (sessionId.isNullOrBlank()) {
+                    throw IllegalStateException("Response dari server tidak valid.")
+                }
+                updateEmailState {
+                    it.copy(
+                        sanitizedEmail = sanitizedEmail,
+                        sessionId = sessionId,
+                        isRequestingOtp = false,
+                        isOtpRequested = true,
+                        errorMessage = null,
+                        lastDebugEvent = "Email OTP requested"
+                    )
+                }
+            } catch (exception: Exception) {
+                Log.e(TAG, "Failed to request email OTP", exception)
+                val message = when (exception) {
+                    is FirebaseFunctionsException -> exception.message
+                    else -> exception.localizedMessage
+                } ?: "Gagal mengirim OTP email."
+                updateEmailState {
+                    it.copy(
+                        isRequestingOtp = false,
+                        errorMessage = message,
+                        lastDebugEvent = "Email OTP request failed: $message"
+                    )
+                }
+            }
+        }
+    }
+
+    fun resendEmailOtp(rawEmail: String) {
+        requestEmailOtp(rawEmail)
+    }
+
+    fun verifyEmailOtp(code: String) {
+        val current = _uiState.value.emailVerification
+        val sessionId = current.sessionId
+        if (sessionId.isNullOrBlank()) {
+            updateEmailState {
+                it.copy(errorMessage = "Silakan kirim OTP terlebih dahulu.")
+            }
+            return
+        }
+        val trimmedCode = code.trim()
+        if (trimmedCode.length < 6) {
+            updateEmailState {
+                it.copy(errorMessage = "Kode OTP harus 6 digit.")
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            updateEmailState {
+                it.copy(
+                    isVerifyingOtp = true,
+                    errorMessage = null,
+                    lastDebugEvent = "Verifying email OTP"
+                )
+            }
+            try {
+                firebaseFunctions
+                    .getHttpsCallable("verifyEmailOtp")
+                    .call(
+                        mapOf(
+                            "sessionId" to sessionId,
+                            "code" to trimmedCode,
+                            "email" to current.sanitizedEmail
+                        )
+                    )
+                    .await()
+                updateEmailState {
+                    it.copy(
+                        isVerifyingOtp = false,
+                        isOtpVerified = true,
+                        errorMessage = null,
+                        lastDebugEvent = "Email OTP verification succeeded"
+                    )
+                }
+            } catch (exception: Exception) {
+                Log.e(TAG, "Failed to verify email OTP", exception)
+                val message = when (exception) {
+                    is FirebaseFunctionsException -> exception.message
+                    else -> exception.localizedMessage
+                } ?: "Verifikasi OTP email gagal."
+                updateEmailState {
+                    it.copy(
+                        isVerifyingOtp = false,
+                        isOtpVerified = false,
+                        errorMessage = message,
+                        lastDebugEvent = "Email OTP verification failed: $message"
+                    )
+                }
+            }
+        }
+    }
+
     fun register(fullName: String, email: String, phone: String, password: String) {
         val current = _uiState.value
+        val emailState = current.emailVerification
         val address = UserAddress(
             province = current.selectedProvince?.name ?: "",
             city = current.selectedCity?.name ?: "",
@@ -547,6 +701,15 @@ class RegisterViewModel @Inject constructor(
         )
         val phoneState = current.phoneVerification
         val credential = phoneState.credential
+        if (!emailState.isOtpVerified) {
+            _authState.value = AuthState.Error("Email harus diverifikasi terlebih dahulu.")
+            return
+        }
+        val sanitizedEmail = emailState.sanitizedEmail.ifBlank { email.trim() }
+        if (!Patterns.EMAIL_ADDRESS.matcher(sanitizedEmail).matches()) {
+            _authState.value = AuthState.Error("Format email tidak valid atau belum diverifikasi.")
+            return
+        }
         if (!phoneState.isOtpVerified || credential == null) {
             _authState.value = AuthState.Error("Nomor telepon harus diverifikasi terlebih dahulu.")
             return
@@ -555,7 +718,7 @@ class RegisterViewModel @Inject constructor(
 
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            authRepository.register(fullName, email, sanitizedPhone, password, address, credential).collect { result ->
+            authRepository.register(fullName, sanitizedEmail, sanitizedPhone, password, address, credential).collect { result ->
                 result.onSuccess { outcome ->
                     val emailAddress = outcome.authResult.user?.email ?: email
                     val message = if (outcome.verificationEmailSent) {

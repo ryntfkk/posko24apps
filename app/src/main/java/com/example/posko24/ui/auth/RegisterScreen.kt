@@ -7,6 +7,7 @@ import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import android.widget.Toast
 import android.util.Patterns
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -48,10 +49,16 @@ fun RegisterScreen(
     var confirmPasswordError by remember { mutableStateOf(false) }
     var emailTouched by remember { mutableStateOf(false) }
     var phoneTouched by remember { mutableStateOf(false) }
+    var phoneOtpCode by remember { mutableStateOf("") }
+    var emailOtpCode by remember { mutableStateOf("") }
+    var verificationTarget by remember { mutableStateOf(VerificationTarget.PHONE) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
+    var pendingNavigation by remember { mutableStateOf<(() -> Unit)?>(null) }
     var otpCode by remember { mutableStateOf("") }
     val authState by viewModel.authState.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val phoneVerification = uiState.phoneVerification
+    val emailVerification = uiState.emailVerification
     val context = LocalContext.current
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val cameraPositionState = rememberCameraPositionState { position = uiState.cameraPosition }
@@ -106,10 +113,29 @@ fun RegisterScreen(
         }
     }
 
+    LaunchedEffect(emailVerification.errorMessage) {
+        emailVerification.errorMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+    }
+
     LaunchedEffect(phoneVerification.autoRetrievedCode) {
         val autoCode = phoneVerification.autoRetrievedCode
         if (!autoCode.isNullOrBlank()) {
-            otpCode = autoCode
+            phoneOtpCode = autoCode
+        }
+    }
+
+    val addressComplete = remember(uiState.selectedDistrict, uiState.addressDetail, uiState.mapCoordinates) {
+        uiState.selectedDistrict != null && uiState.addressDetail.isNotBlank() && uiState.mapCoordinates != null
+    }
+
+    BackHandler(enabled = currentStep == 2 && authState !is AuthState.VerificationRequired) {
+        if (addressComplete) {
+            currentStep = 1
+        } else {
+            pendingNavigation = { currentStep = 1 }
+            showLeaveConfirmation = true
         }
     }
 
@@ -154,6 +180,13 @@ fun RegisterScreen(
                         onValueChange = {
                             email = it
                             emailTouched = true
+                            val newSanitized = it.trim()
+                            if ((emailVerification.isOtpRequested || emailVerification.isOtpVerified) &&
+                                newSanitized != emailVerification.sanitizedEmail
+                            ) {
+                                viewModel.resetEmailVerification()
+                                emailOtpCode = ""
+                            }
                         },
                         label = { Text("Email") },
                         modifier = Modifier.fillMaxWidth(),
@@ -182,7 +215,7 @@ fun RegisterScreen(
                                 newSanitized != phoneVerification.sanitizedPhone
                             ) {
                                 viewModel.resetPhoneVerification()
-                                otpCode = ""
+                                phoneOtpCode = ""
                             }
                         },
                         label = { Text("Nomor Telepon") },
@@ -199,99 +232,199 @@ fun RegisterScreen(
                             }
                         }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Nomor telepon wajib diverifikasi melalui OTP sebelum melanjutkan.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    if (phoneVerification.recaptchaFallbackTriggered) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Kami mendeteksi masalah verifikasi perangkat. reCAPTCHA telah diaktifkan, silakan kirim ulang kode jika diperlukan.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                    Button(
-                        onClick = {
-                            otpCode = ""
-                            viewModel.startPhoneNumberVerification(
-                                sanitizedPhone,
-                                context.findActivity()
-                            )
-                        },
-                        enabled = isPhoneValid && sanitizedPhone.isNotBlank() &&
-                                !phoneVerification.isRequestingOtp && !phoneVerification.isOtpVerified,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (phoneVerification.isRequestingOtp) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        } else {
-                            Text("Kirim Kode OTP")
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    if (phoneVerification.isOtpRequested) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = otpCode,
-                            onValueChange = { value ->
-                                otpCode = value.filter(Char::isDigit).take(6)
-                            },
-                            label = { Text("Kode OTP") },
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    Text("Verifikasi Kontak", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SingleChoiceSegmentedButtonRow {
+                        SegmentedButton(
+                            selected = verificationTarget == VerificationTarget.EMAIL,
+                            onClick = { verificationTarget = VerificationTarget.EMAIL },
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                            label = { Text("Email") }
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = { viewModel.verifyOtp(otpCode) },
-                            enabled = otpCode.length >= 6 && !phoneVerification.isVerifyingOtp,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            if (phoneVerification.isVerifyingOtp) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            } else {
-                                Text("Verifikasi OTP")
-                            }
-                        }
-                        if (!phoneVerification.isOtpVerified) {
-                            TextButton(
+                        SegmentedButton(
+                            selected = verificationTarget == VerificationTarget.PHONE,
+                            onClick = { verificationTarget = VerificationTarget.PHONE },
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                            label = { Text("Nomor Telepon") }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    when (verificationTarget) {
+                        VerificationTarget.EMAIL -> {
+                            Text(
+                                text = "Masukkan kode OTP yang dikirim ke email.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
                                 onClick = {
-                                    otpCode = ""
-                                    viewModel.resendVerificationCode(context.findActivity())
+                                    emailOtpCode = ""
+                                    viewModel.requestEmailOtp(sanitizedEmail)
                                 },
-                                enabled = !phoneVerification.isRequestingOtp && !phoneVerification.isVerifyingOtp
+                                enabled = sanitizedEmail.isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(sanitizedEmail).matches() &&
+                                        !emailVerification.isRequestingOtp && !emailVerification.isOtpVerified,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Kirim ulang OTP")
+                                if (emailVerification.isRequestingOtp) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                } else {
+                                    Text("Kirim OTP Email")
+                                }
+                            }
+                            if (emailVerification.isOtpRequested) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = emailOtpCode,
+                                    onValueChange = { emailOtpCode = it.filter(Char::isDigit).take(6) },
+                                    label = { Text("Kode OTP Email") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = { viewModel.verifyEmailOtp(emailOtpCode) },
+                                    enabled = emailOtpCode.length >= 6 && !emailVerification.isVerifyingOtp,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    if (emailVerification.isVerifyingOtp) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    } else {
+                                        Text("Verifikasi OTP Email")
+                                    }
+                                }
+                                if (!emailVerification.isOtpVerified) {
+                                    TextButton(
+                                        onClick = {
+                                            emailOtpCode = ""
+                                            viewModel.resendEmailOtp(sanitizedEmail)
+                                        },
+                                        enabled = !emailVerification.isRequestingOtp && !emailVerification.isVerifyingOtp
+                                    ) {
+                                        Text("Kirim ulang OTP Email")
+                                    }
+                                }
+                            }
+                            emailVerification.errorMessage?.let {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = it,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            if (emailVerification.isOtpVerified) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Email berhasil diverifikasi.",
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
                             }
                         }
-                    }
 
-                    phoneVerification.errorMessage?.let {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = it,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
+                        VerificationTarget.PHONE -> {
+                            Text(
+                                text = "Nomor telepon wajib diverifikasi melalui OTP sebelum melanjutkan.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            if (phoneVerification.recaptchaFallbackTriggered) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Kami mendeteksi masalah verifikasi perangkat. reCAPTCHA telah diaktifkan, silakan kirim ulang kode jika diperlukan.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                            Button(
+                                onClick = {
+                                    phoneOtpCode = ""
+                                    viewModel.startPhoneNumberVerification(
+                                        sanitizedPhone,
+                                        context.findActivity()
+                                    )
+                                },
+                                enabled = isPhoneValid && sanitizedPhone.isNotBlank() &&
+                                        !phoneVerification.isRequestingOtp && !phoneVerification.isOtpVerified,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                if (phoneVerification.isRequestingOtp) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                } else {
+                                    Text("Kirim Kode OTP")
+                                }
+                            }
+                            if (phoneVerification.isOtpRequested) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = phoneOtpCode,
+                                    onValueChange = { value ->
+                                        phoneOtpCode = value.filter(Char::isDigit).take(6)
+                                    },
+                                    label = { Text("Kode OTP") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = { viewModel.verifyOtp(phoneOtpCode) },
+                                    enabled = phoneOtpCode.length >= 6 && !phoneVerification.isVerifyingOtp,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    if (phoneVerification.isVerifyingOtp) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    } else {
+                                        Text("Verifikasi OTP")
+                                    }
+                                }
+                                if (!phoneVerification.isOtpVerified) {
+                                    TextButton(
+                                        onClick = {
+                                            phoneOtpCode = ""
+                                            viewModel.resendVerificationCode(context.findActivity())
+                                        },
+                                        enabled = !phoneVerification.isRequestingOtp && !phoneVerification.isVerifyingOtp
+                                    ) {
+                                        Text("Kirim ulang OTP")
+                                    }
+                                }
+                            }
 
-                    if (phoneVerification.isOtpVerified) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Nomor telepon berhasil diverifikasi.",
-                            color = MaterialTheme.colorScheme.secondary,
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                            phoneVerification.errorMessage?.let {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = it,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            if (phoneVerification.isOtpVerified) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Nomor telepon berhasil diverifikasi.",
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -337,7 +470,9 @@ fun RegisterScreen(
                             sanitizedPhone.isNotBlank() && isPhoneValid &&
                             password.isNotBlank() && confirmPassword.isNotBlank() &&
                             phoneVerification.isOtpVerified &&
-                            phoneVerification.sanitizedPhone == sanitizedPhone
+                            phoneVerification.sanitizedPhone == sanitizedPhone &&
+                            emailVerification.isOtpVerified &&
+                            emailVerification.sanitizedEmail.equals(sanitizedEmail, ignoreCase = true)
 
                     Button(
                         onClick = {
@@ -363,6 +498,22 @@ fun RegisterScreen(
                                     Toast.makeText(
                                         context,
                                         "Format nomor telepon tidak valid",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                !emailVerification.isOtpVerified -> {
+                                    verificationTarget = VerificationTarget.EMAIL
+                                    Toast.makeText(
+                                        context,
+                                        "Silakan selesaikan verifikasi email terlebih dahulu.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                !phoneVerification.isOtpVerified -> {
+                                    verificationTarget = VerificationTarget.PHONE
+                                    Toast.makeText(
+                                        context,
+                                        "Silakan selesaikan verifikasi nomor telepon terlebih dahulu.",
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -419,7 +570,10 @@ fun RegisterScreen(
                     Button(
                         onClick = { viewModel.register(fullName, sanitizedEmail, sanitizedPhone, password) },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = step2Valid && authState != AuthState.Loading && phoneVerification.isOtpVerified
+                        enabled = step2Valid &&
+                                authState != AuthState.Loading &&
+                                phoneVerification.isOtpVerified &&
+                                emailVerification.isOtpVerified
                     ) {
                         if (authState == AuthState.Loading) {
                             CircularProgressIndicator(
@@ -433,10 +587,54 @@ fun RegisterScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            TextButton(onClick = onNavigateToLogin) {
+            TextButton(
+                onClick = {
+                    if (currentStep == 2 && authState !is AuthState.VerificationRequired && !addressComplete) {
+                        pendingNavigation = onNavigateToLogin
+                        showLeaveConfirmation = true
+                    } else {
+                        onNavigateToLogin()
+                    }
+                }
+            ) {
                 Text("Sudah punya akun? Login")
             }
         }
+    }
+
+    if (showLeaveConfirmation) {
+        AlertDialog(
+            onDismissRequest = {
+                showLeaveConfirmation = false
+                pendingNavigation = null
+            },
+            title = { Text("Batalkan pendaftaran?") },
+            text = { Text("Data Anda belum lengkap. Jika keluar sekarang, proses registrasi akan dibatalkan. Lanjutkan?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val action = pendingNavigation
+                        showLeaveConfirmation = false
+                        pendingNavigation = null
+                        if (action != null) {
+                            action()
+                        } else {
+                            currentStep = 1
+                        }
+                    }
+                ) {
+                    Text("Ya, Batalkan")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showLeaveConfirmation = false
+                    pendingNavigation = null
+                }) {
+                    Text("Lanjut Isi")
+                }
+            }
+        )
     }
 }
 
@@ -611,3 +809,5 @@ fun RegisterScreenPreview() {
         RegisterScreen(onRegisterSuccess = {}, onNavigateToLogin = {})
     }
 }
+
+private enum class VerificationTarget { EMAIL, PHONE }

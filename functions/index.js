@@ -2,8 +2,11 @@
 
 const functions = require('firebase-functions/v2');
 const { onDocumentUpdated, onDocumentWritten } = require('firebase-functions/v2/firestore');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const midtransClient = require('midtrans-client');
+const nodemailer = require('nodemailer');
+const crypto = require('node:crypto');
 const { ADMIN_FEE } = require('./config');
 const { calculateRefundBreakdown } = require('./refund');
 
@@ -18,6 +21,47 @@ const ACTIVE_PROVIDER_ORDER_STATUSES = [
   'awaiting_confirmation',
   'awaiting_provider_confirmation',
 ];
+
+const EMAIL_OTP_COLLECTION = 'emailOtps';
+const EMAIL_OTP_TTL_SECONDS = 5 * 60;
+let cachedEmailTransporter = null;
+
+function sanitizeEmailInput(rawEmail) {
+  if (typeof rawEmail !== 'string') {
+    return '';
+  }
+  return rawEmail.trim().toLowerCase();
+}
+
+function getEmailTransporter() {
+  if (cachedEmailTransporter) {
+    return cachedEmailTransporter;
+  }
+  const host = process.env.SMTP_HOST;
+  const port = parseInt(process.env.SMTP_PORT || '587', 10);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const secure = String(process.env.SMTP_SECURE || '').toLowerCase() === 'true';
+
+  if (!host || !user || !pass) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Konfigurasi SMTP belum lengkap. Set nilai SMTP_HOST, SMTP_USER, dan SMTP_PASS.'
+    );
+  }
+
+  cachedEmailTransporter = nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+  });
+  return cachedEmailTransporter;
+}
+
+function hashOtp(code) {
+  return crypto.createHash('sha256').update(String(code)).digest('hex');
+}
 
 function normalizeScheduledDate(rawDate) {
   if (typeof rawDate !== 'string') {
@@ -1492,3 +1536,98 @@ async function createChatRoom(orderData, orderId) {
     functions.logger.error('[CHAT_CREATE_FAILED]', { orderId, message: error?.message || 'Unknown error' });
   }
 }
+
+exports.sendEmailOtp = onCall({ region: 'us-central1' }, async (request) => {
+  const email = sanitizeEmailInput(request.data?.email);
+  if (!email) {
+    throw new HttpsError('invalid-argument', 'Email wajib diisi.');
+  }
+
+  const transporter = getEmailTransporter();
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const sessionId = crypto.randomUUID();
+  const expiresAt = admin.firestore.Timestamp.fromDate(
+    new Date(Date.now() + EMAIL_OTP_TTL_SECONDS * 1000)
+  );
+  const codeHash = hashOtp(code);
+
+  const existing = await db
+    .collection(EMAIL_OTP_COLLECTION)
+    .where('email', '==', email)
+    .get();
+  if (!existing.empty) {
+    const batch = db.batch();
+    for (const doc of existing.docs) {
+      batch.delete(doc.ref);
+    }
+    await batch.commit();
+  }
+
+  await db
+    .collection(EMAIL_OTP_COLLECTION)
+    .doc(sessionId)
+    .set({
+      email,
+      codeHash,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt,
+      verified: false,
+      attempts: 0,
+    });
+
+  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER;
+  await transporter.sendMail({
+    to: email,
+    from: fromAddress,
+    subject: 'Kode OTP Verifikasi Email Posko24',
+    text: `Kode OTP verifikasi Anda adalah ${code}. Kode berlaku selama 5 menit.`,
+    html: `<p>Kode OTP verifikasi Anda adalah <strong>${code}</strong>. Kode berlaku selama 5 menit.</p>`,
+  });
+
+  functions.logger.info('[EMAIL_OTP_SENT]', { email, sessionId: sessionId.slice(0, 8) });
+  return { sessionId, expiresInSeconds: EMAIL_OTP_TTL_SECONDS };
+});
+
+exports.verifyEmailOtp = onCall({ region: 'us-central1' }, async (request) => {
+  const sessionId = String(request.data?.sessionId || '').trim();
+  const rawCode = String(request.data?.code || '').trim();
+  const email = sanitizeEmailInput(request.data?.email);
+
+  if (!sessionId || !rawCode || rawCode.length < 6 || !email) {
+    throw new HttpsError('invalid-argument', 'Data verifikasi OTP tidak lengkap.');
+  }
+
+  const docRef = db.collection(EMAIL_OTP_COLLECTION).doc(sessionId);
+  const snapshot = await docRef.get();
+  if (!snapshot.exists) {
+    throw new HttpsError('not-found', 'Sesi OTP tidak ditemukan.');
+  }
+
+  const data = snapshot.data() || {};
+  if (sanitizeEmailInput(data.email) !== email) {
+    throw new HttpsError('permission-denied', 'Email tidak sesuai dengan sesi OTP.');
+  }
+
+  const expiresAt = data.expiresAt?.toDate ? data.expiresAt.toDate() : null;
+  if (!expiresAt || expiresAt.getTime() < Date.now()) {
+    await docRef.delete();
+    throw new HttpsError('deadline-exceeded', 'Kode OTP sudah kedaluwarsa.');
+  }
+
+  if (data.verified) {
+    return { success: true };
+  }
+
+  const hashed = hashOtp(rawCode);
+  if (hashed !== data.codeHash) {
+    await docRef.update({ attempts: (data.attempts || 0) + 1 });
+    throw new HttpsError('permission-denied', 'Kode OTP salah.');
+  }
+
+  await docRef.update({
+    verified: true,
+    verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  functions.logger.info('[EMAIL_OTP_VERIFIED]', { email, sessionId: sessionId.slice(0, 8) });
+  return { success: true };
+});
