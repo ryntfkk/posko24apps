@@ -30,6 +30,7 @@ android {
 
         val midtransClientKey: String = (localProperties.getProperty("MIDTRANS_CLIENT_KEY") ?: "").trim()
         var merchantBaseUrl: String = (localProperties.getProperty("MIDTRANS_BASE_URL") ?: "").trim()
+        val mapsApiKey: String = (localProperties.getProperty("MAPS_API_KEY") ?: "").trim()
         if (merchantBaseUrl.isNotEmpty() && !merchantBaseUrl.endsWith("/")) merchantBaseUrl += "/"
         val forcePhoneAuthTesting: Boolean =
             localProperties.getProperty("FORCE_PHONE_AUTH_TESTING")?.trim()?.equals("true", true)
@@ -38,6 +39,8 @@ android {
         buildConfigField("String", "CLIENT_KEY", "\"$midtransClientKey\"")
         buildConfigField("String", "BASE_URL", "\"$merchantBaseUrl\"")
         buildConfigField("boolean", "FORCE_PHONE_AUTH_TESTING", forcePhoneAuthTesting.toString())
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+
     }
 
     buildTypes {

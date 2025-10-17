@@ -21,7 +21,7 @@
         tools:replace="android:allowBackup">
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyAhtmgvhnp9ukCKkR-jC9AZVVJPyk4_85M" />
+            android:value="${MAPS_API_KEY}" />
 
         <activity
             android:name=".MainActivity"
