@@ -14,7 +14,6 @@ composeBom = "2024.06.00" # BoM ini kompatibel dengan Kotlin 2.0.0
 navigationCompose = "2.7.7"
 lifecycleViewmodelCompose = "2.7.0"
 hiltNavigationCompose = "1.2.0"
-composeCompiler = "1.6.1" # Versi compiler yang cocok untuk Kotlin 2.0.0
 
 # Testing
 junit = "4.13.2"
@@ -107,4 +106,5 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }
 hilt-android-gradle-plugin = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+jetbrains-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 
