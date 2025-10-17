@@ -1519,6 +1519,29 @@ function resolveWebApiKey() {
   );
 }
 
+function resolveEmailOtpContinueUrl() {
+  if (process.env.EMAIL_OTP_CONTINUE_URL) {
+    return process.env.EMAIL_OTP_CONTINUE_URL;
+  }
+
+  const config = functions.config() || {};
+  const continueUrl =
+      config.app?.email_otp_continue_url ||
+      config.identity?.email_otp_continue_url ||
+      config.identity?.continue_url ||
+      config.email?.otp_continue_url ||
+    null;
+
+  if (continueUrl) {
+    return continueUrl;
+  }
+
+  throw new HttpsError(
+    'failed-precondition',
+    'Konfigurasi Firebase belum lengkap. Set nilai EMAIL_OTP_CONTINUE_URL atau app.email_otp_continue_url.'
+  );
+}
+
 async function callIdentityToolkit(endpoint, payload) {
   const apiKey = resolveWebApiKey();
   if (!apiKey) {
@@ -1558,13 +1581,18 @@ exports.sendEmailOtp = onCall({ region: 'us-central1' }, async (request) => {
     throw new HttpsError('invalid-argument', 'Email wajib diisi.');
   }
 
-   try {
-      await callIdentityToolkit('accounts:sendOobCode', {
-        requestType: 'EMAIL_SIGNIN',
+     const continueUrl = resolveEmailOtpContinueUrl();
+
+     try {
+       await callIdentityToolkit('accounts:sendOobCode', {
+         requestType: 'EMAIL_SIGNIN',
       email,
+       continueUrl,
+            handleCodeInApp: true,
+            canHandleCodeInApp: true,
     });
 
- } catch (error) {
+  } catch (error) {
     const identityErrorCode = error?.details?.identityErrorCode;
     if (identityErrorCode === 'TOO_MANY_ATTEMPTS_TRY_LATER') {
       throw new HttpsError('resource-exhausted', 'Terlalu banyak permintaan. Silakan coba lagi nanti.');
@@ -1572,7 +1600,7 @@ exports.sendEmailOtp = onCall({ region: 'us-central1' }, async (request) => {
     throw new HttpsError('failed-precondition', 'Gagal mengirim OTP email.');
   }
   functions.logger.info('[EMAIL_OTP_SENT]', { email });
-    return { expiresInSeconds: EMAIL_OTP_TTL_SECONDS };
+return { expiresInSeconds: EMAIL_OTP_TTL_SECONDS };
 });
 function mapEmailOtpVerificationError(errorCode) {
   switch (errorCode) {
