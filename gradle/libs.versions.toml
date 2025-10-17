@@ -1,6 +1,6 @@
 [versions]
 # Android & Gradle - Versi yang kompatibel satu sama lain
-agp = "8.2.2"
+agp = "8.3.2"
 kotlin = "1.9.22"
 compileSdk = "34"
 minSdk = "24"
