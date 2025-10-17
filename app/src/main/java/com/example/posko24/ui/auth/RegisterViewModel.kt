@@ -28,6 +28,8 @@ import kotlinx.coroutines.tasks.await
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
+private const val DEFAULT_FORCE_RECAPTCHA_FOR_VERIFICATION = false
+
 // UiState holding address dropdown selections, map state, and phone verification
 
 data class PhoneVerificationState(
@@ -42,7 +44,7 @@ data class PhoneVerificationState(
     val autoRetrievedCode: String? = null,
     val errorMessage: String? = null,
     val lastDebugEvent: String? = null,
-    val isUsingRecaptchaVerification: Boolean = BuildConfig.DEBUG,
+    val isUsingRecaptchaVerification: Boolean = DEFAULT_FORCE_RECAPTCHA_FOR_VERIFICATION,
     val recaptchaFallbackTriggered: Boolean = false
 )
 
@@ -73,7 +75,7 @@ class RegisterViewModel @Inject constructor(
     companion object {
         private const val TAG = "RegisterViewModel"
     }
-    private var forceRecaptchaForVerification: Boolean = BuildConfig.DEBUG
+    private var forceRecaptchaForVerification: Boolean = DEFAULT_FORCE_RECAPTCHA_FOR_VERIFICATION
     private var recaptchaFallbackActivated: Boolean = false
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
@@ -187,6 +189,7 @@ class RegisterViewModel @Inject constructor(
                     "appIdSuffix=${firebaseApp?.options?.applicationId?.takeLast(6)} | "
         )
 
+        logVerificationStrategy(action = "initial request")
         ensurePhoneVerificationFlow()
 
         updatePhoneState {
@@ -297,6 +300,7 @@ class RegisterViewModel @Inject constructor(
             "Resending OTP | phone=$sanitizedPhone | hasForceToken=${token != null} | activity=${activity::class.java.simpleName}"
         )
 
+        logVerificationStrategy(action = "resend request")
         ensurePhoneVerificationFlow()
 
         updatePhoneState {
@@ -403,23 +407,31 @@ class RegisterViewModel @Inject constructor(
     }
     private fun ensurePhoneVerificationFlow() {
         val authSettings = firebaseAuth.firebaseAuthSettings
-            if (forceRecaptchaForVerification) {
-                val reason = if (BuildConfig.DEBUG && !recaptchaFallbackActivated) {
-                    "debug build"
-                } else if (recaptchaFallbackActivated) {
-                    "Play Integrity fallback"
-                } else {
-                    "manual override"
-                }
-                Log.d(TAG, "Forcing reCAPTCHA-based verification flow ($reason)")
-                authSettings.forceRecaptchaFlowForTesting(true)
-                authSettings.setAppVerificationDisabledForTesting(false)
+        if (forceRecaptchaForVerification) {
+            val reason = if (BuildConfig.DEBUG && !recaptchaFallbackActivated) {
+                "debug build"
+            } else if (recaptchaFallbackActivated) {
+                "Play Integrity fallback"
             } else {
-                Log.d(TAG, "Using default Play Integrity / SafetyNet verification flow")
-                authSettings.forceRecaptchaFlowForTesting(false)
-                authSettings.setAppVerificationDisabledForTesting(false)
+                "manual override"
             }
+            Log.d(TAG, "Forcing reCAPTCHA-based verification flow ($reason)")
+            authSettings.forceRecaptchaFlowForTesting(true)
+            authSettings.setAppVerificationDisabledForTesting(false)
+        } else {
+            Log.d(TAG, "Using default Play Integrity / SafetyNet verification flow")
+            authSettings.forceRecaptchaFlowForTesting(false)
+            authSettings.setAppVerificationDisabledForTesting(false)
         }
+    }
+
+    private fun logVerificationStrategy(action: String) {
+        val strategy = if (forceRecaptchaForVerification) "reCAPTCHA" else "Play Integrity"
+        Log.d(
+            TAG,
+            "Phone verification strategy for $action: $strategy (fallbackActivated=$recaptchaFallbackActivated)"
+        )
+    }
 
         private fun handleAppNotAuthorizedFailure(
             sanitizedPhone: String,
