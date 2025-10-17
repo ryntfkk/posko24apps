@@ -28,7 +28,9 @@ import kotlinx.coroutines.tasks.await
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
-private const val DEFAULT_FORCE_RECAPTCHA_FOR_VERIFICATION = false
+private fun defaultForceRecaptchaForVerification(): Boolean {
+    return BuildConfig.DEBUG && BuildConfig.FORCE_PHONE_AUTH_TESTING
+}
 
 // UiState holding address dropdown selections, map state, and phone verification
 
@@ -44,7 +46,7 @@ data class PhoneVerificationState(
     val autoRetrievedCode: String? = null,
     val errorMessage: String? = null,
     val lastDebugEvent: String? = null,
-    val isUsingRecaptchaVerification: Boolean = DEFAULT_FORCE_RECAPTCHA_FOR_VERIFICATION,
+    val isUsingRecaptchaVerification: Boolean = defaultForceRecaptchaForVerification(),
     val recaptchaFallbackTriggered: Boolean = false
 )
 
@@ -75,7 +77,7 @@ class RegisterViewModel @Inject constructor(
     companion object {
         private const val TAG = "RegisterViewModel"
     }
-    private var forceRecaptchaForVerification: Boolean = DEFAULT_FORCE_RECAPTCHA_FOR_VERIFICATION
+    private var forceRecaptchaForVerification: Boolean = defaultForceRecaptchaForVerification()
     private var recaptchaFallbackActivated: Boolean = false
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
@@ -518,9 +520,16 @@ class RegisterViewModel @Inject constructor(
 
     fun resetPhoneVerification() {
         Log.d(TAG, "Resetting phone verification state")
-        forceRecaptchaForVerification = BuildConfig.DEBUG
+        forceRecaptchaForVerification = defaultForceRecaptchaForVerification()
         recaptchaFallbackActivated = false
-        updatePhoneState { PhoneVerificationState() }
+        _uiState.update {
+            it.copy(
+                phoneVerification = PhoneVerificationState(
+                    isUsingRecaptchaVerification = forceRecaptchaForVerification,
+                    recaptchaFallbackTriggered = recaptchaFallbackActivated
+                )
+            )
+        }
     }
 
     fun register(fullName: String, email: String, phone: String, password: String) {
