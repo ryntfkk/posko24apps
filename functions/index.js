@@ -8,6 +8,107 @@ const midtransClient = require('midtrans-client');
 const { ADMIN_FEE } = require('./config');
 const { calculateRefundBreakdown } = require('./refund');
 
+const fetchWithFallback = (() => {
+  if (typeof globalThis.fetch === 'function') {
+    const boundFetch = globalThis.fetch.bind(globalThis);
+    return async (input, init) => boundFetch(input, init);
+  }
+
+  let fetchPromise;
+  return async (input, init) => {
+    if (!fetchPromise) {
+      fetchPromise = import('node-fetch').then((mod) => mod.default);
+    }
+    const fetch = await fetchPromise;
+    return fetch(input, init);
+  };
+})();
+
+function getFunctionsConfig() {
+  try {
+    return functions.config() || {};
+  } catch (error) {
+    functions.logger.debug('[FUNCTIONS_CONFIG_UNAVAILABLE]', {
+      message: error?.message,
+    });
+    return {};
+  }
+}
+
+function readOptionalString(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function readBoolean(value) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) {
+      return true;
+    }
+    if (['false', '0', 'no', 'n', 'off'].includes(normalized)) {
+      return false;
+    }
+  }
+  return null;
+}
+
+function resolveConfigString(...paths) {
+  const config = getFunctionsConfig();
+
+  for (const segments of paths) {
+    let current = config;
+    let found = true;
+    for (const segment of segments) {
+      if (current && typeof current === 'object' && segment in current) {
+        current = current[segment];
+      } else {
+        found = false;
+        break;
+      }
+    }
+    if (found) {
+      const value = readOptionalString(current);
+      if (value) {
+        return value;
+      }
+    }
+  }
+
+  return null;
+}
+
+function resolveConfigBoolean(...paths) {
+  const config = getFunctionsConfig();
+
+  for (const segments of paths) {
+    let current = config;
+    let found = true;
+    for (const segment of segments) {
+      if (current && typeof current === 'object' && segment in current) {
+        current = current[segment];
+      } else {
+        found = false;
+        break;
+      }
+    }
+    if (found) {
+      const parsed = readBoolean(current);
+      if (parsed !== null) {
+        return parsed;
+      }
+    }
+  }
+
+  return null;
+}
+
 admin.initializeApp();
 const db = admin.firestore();
 
@@ -703,7 +804,7 @@ exports.createMidtransTransaction = functions.https.onCall(
       try {
         const base = resolved.isProduction ? 'https://app.midtrans.com' : 'https://app.sandbox.midtrans.com';
         const auth = Buffer.from(`${resolved.serverKey}:`).toString('base64');
-        const resp = await fetch(`${base}/snap/v1/transactions`, {
+        const resp = await fetchWithFallback(`${base}/snap/v1/transactions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1504,32 +1605,32 @@ async function createChatRoom(orderData, orderId) {
   }
 }
 function resolveWebApiKey() {
-  if (process.env.FIREBASE_WEB_API_KEY) {
-    return process.env.FIREBASE_WEB_API_KEY;
+    const envValue = readOptionalString(process.env.FIREBASE_WEB_API_KEY);
+    if (envValue) {
+      return envValue;
   }
 
-  const config = functions.config() || {};
   return (
-      config.app?.firebase_web_api_key ||
-      config.identity?.web_api_key ||
-      config.identity?.toolkit_api_key ||
-    config.firebase?.web_api_key ||
-    config.firebase?.web?.api_key ||
+      resolveConfigString(['app', 'firebase_web_api_key']) ||
+           resolveConfigString(['identity', 'web_api_key']) ||
+           resolveConfigString(['identity', 'toolkit_api_key']) ||
+         resolveConfigString(['firebase', 'web_api_key']) ||
+         resolveConfigString(['firebase', 'web', 'api_key']) ||
     null
   );
 }
 
 function resolveEmailOtpContinueUrl() {
-  if (process.env.EMAIL_OTP_CONTINUE_URL) {
-    return process.env.EMAIL_OTP_CONTINUE_URL;
+    const envValue = readOptionalString(process.env.EMAIL_OTP_CONTINUE_URL);
+    if (envValue) {
+      return envValue;
   }
 
-  const config = functions.config() || {};
   const continueUrl =
-      config.app?.email_otp_continue_url ||
-      config.identity?.email_otp_continue_url ||
-      config.identity?.continue_url ||
-      config.email?.otp_continue_url ||
+      resolveConfigString(['app', 'email_otp_continue_url']) ||
+            resolveConfigString(['identity', 'email_otp_continue_url']) ||
+            resolveConfigString(['identity', 'continue_url']) ||
+            resolveConfigString(['email', 'otp_continue_url']) ||
     null;
 
   if (continueUrl) {
@@ -1541,17 +1642,94 @@ function resolveEmailOtpContinueUrl() {
     'Konfigurasi Firebase belum lengkap. Set nilai EMAIL_OTP_CONTINUE_URL atau app.email_otp_continue_url.'
   );
 }
+function resolveEmailOtpActionCodeSettings() {
+  const continueUrl = resolveEmailOtpContinueUrl();
+
+  const dynamicLinkDomain =
+      readOptionalString(process.env.EMAIL_OTP_DYNAMIC_LINK_DOMAIN) ||
+      resolveConfigString(['app', 'email_otp_dynamic_link_domain']) ||
+      resolveConfigString(['identity', 'email_otp_dynamic_link_domain']) ||
+      resolveConfigString(['email', 'otp_dynamic_link_domain']) ||
+    null;
+
+  const iosBundleId =
+      readOptionalString(process.env.EMAIL_OTP_IOS_BUNDLE_ID) ||
+      resolveConfigString(['app', 'email_otp_ios_bundle_id']) ||
+      resolveConfigString(['identity', 'email_otp_ios_bundle_id']) ||
+      resolveConfigString(['email', 'otp_ios_bundle_id']) ||
+    null;
+
+  const androidPackageName =
+      readOptionalString(process.env.EMAIL_OTP_ANDROID_PACKAGE_NAME) ||
+      resolveConfigString(['app', 'email_otp_android_package_name']) ||
+      resolveConfigString(['identity', 'email_otp_android_package_name']) ||
+      resolveConfigString(['email', 'otp_android_package_name']) ||
+    null;
+
+  const androidMinimumVersion =
+      readOptionalString(process.env.EMAIL_OTP_ANDROID_MIN_VERSION) ||
+      resolveConfigString(['app', 'email_otp_android_min_version']) ||
+      resolveConfigString(['identity', 'email_otp_android_min_version']) ||
+      resolveConfigString(['email', 'otp_android_min_version']) ||
+    null;
+
+  const androidInstallAppPref =
+      readBoolean(process.env.EMAIL_OTP_ANDROID_INSTALL_APP) ??
+      resolveConfigBoolean(['app', 'email_otp_android_install_app']) ??
+      resolveConfigBoolean(['identity', 'email_otp_android_install_app']) ??
+      resolveConfigBoolean(['email', 'otp_android_install_app']);
+
+  const handleCodeInAppPref =
+      readBoolean(process.env.EMAIL_OTP_HANDLE_IN_APP) ??
+      resolveConfigBoolean(['app', 'email_otp_handle_in_app']) ??
+      resolveConfigBoolean(['identity', 'email_otp_handle_in_app']) ??
+      resolveConfigBoolean(['email', 'otp_handle_in_app']);
+
+  const handleCodeInApp =
+    handleCodeInAppPref !== null
+      ? handleCodeInAppPref
+      : Boolean(dynamicLinkDomain || iosBundleId || androidPackageName);
+
+  const settings = {
+    continueUrl,
+    handleCodeInApp,
+  };
+
+  if (handleCodeInApp) {
+    settings.canHandleCodeInApp = true;
+  }
+
+  if (dynamicLinkDomain) {
+    settings.dynamicLinkDomain = dynamicLinkDomain;
+  }
+
+  if (iosBundleId) {
+    settings.iOSBundleId = iosBundleId;
+  }
+
+  if (androidPackageName) {
+    settings.androidPackageName = androidPackageName;
+    if (androidMinimumVersion) {
+      settings.androidMinimumVersion = androidMinimumVersion;
+    }
+    if (androidInstallAppPref !== null) {
+      settings.androidInstallApp = androidInstallAppPref;
+    }
+  }
+
+  return settings;
+}
 
 async function callIdentityToolkit(endpoint, payload) {
   const apiKey = resolveWebApiKey();
   if (!apiKey) {
     throw new HttpsError(
       'failed-precondition',
- 'Konfigurasi Firebase belum lengkap. Set nilai FIREBASE_WEB_API_KEY atau firebase.web_api_key.'
-     );
+      'Konfigurasi Firebase belum lengkap. Set nilai FIREBASE_WEB_API_KEY atau firebase.web_api_key.'
+    );
   }
 
-  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/${endpoint}?key=${apiKey}`, {
+  const response = await fetchWithFallback(`https://identitytoolkit.googleapis.com/v1/${endpoint}?key=${apiKey}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1568,6 +1746,11 @@ async function callIdentityToolkit(endpoint, payload) {
 
   if (!response.ok) {
     const message = json?.error?.message || 'UNKNOWN_ERROR';
+        functions.logger.error('[IDENTITY_TOOLKIT_REQUEST_FAILED]', {
+          endpoint,
+          status: response.status,
+          identityErrorCode: message,
+        });
     const error = new HttpsError('failed-precondition', 'Permintaan ke Firebase Auth gagal.');
     error.details = { identityErrorCode: message };
     throw error;
@@ -1581,26 +1764,51 @@ exports.sendEmailOtp = onCall({ region: 'us-central1' }, async (request) => {
     throw new HttpsError('invalid-argument', 'Email wajib diisi.');
   }
 
-     const continueUrl = resolveEmailOtpContinueUrl();
+  const actionCodeSettings = resolveEmailOtpActionCodeSettings();
+  const payload = {
+    requestType: 'EMAIL_SIGNIN',
+    email,
+    continueUrl: actionCodeSettings.continueUrl,
+    handleCodeInApp: Boolean(actionCodeSettings.handleCodeInApp),
+  };
+
+   if (actionCodeSettings.canHandleCodeInApp) {
+       payload.canHandleCodeInApp = true;
+     }
+     if (actionCodeSettings.dynamicLinkDomain) {
+       payload.dynamicLinkDomain = actionCodeSettings.dynamicLinkDomain;
+     }
+     if (actionCodeSettings.iOSBundleId) {
+       payload.iOSBundleId = actionCodeSettings.iOSBundleId;
+     }
+     if (actionCodeSettings.androidPackageName) {
+       payload.androidPackageName = actionCodeSettings.androidPackageName;
+     }
+     if (actionCodeSettings.androidMinimumVersion) {
+       payload.androidMinimumVersion = actionCodeSettings.androidMinimumVersion;
+     }
+     if (typeof actionCodeSettings.androidInstallApp === 'boolean') {
+       payload.androidInstallApp = actionCodeSettings.androidInstallApp;
+     }
 
      try {
-       await callIdentityToolkit('accounts:sendOobCode', {
-         requestType: 'EMAIL_SIGNIN',
-      email,
-       continueUrl,
-            handleCodeInApp: true,
-            canHandleCodeInApp: true,
-    });
+       await callIdentityToolkit('accounts:sendOobCode', payload);
 
   } catch (error) {
     const identityErrorCode = error?.details?.identityErrorCode;
     if (identityErrorCode === 'TOO_MANY_ATTEMPTS_TRY_LATER') {
       throw new HttpsError('resource-exhausted', 'Terlalu banyak permintaan. Silakan coba lagi nanti.');
     }
+    functions.logger.error('[EMAIL_OTP_SEND_FAILED]', {
+          email,
+          identityErrorCode,
+          message: error?.message,
+        });
     throw new HttpsError('failed-precondition', 'Gagal mengirim OTP email.');
   }
   functions.logger.info('[EMAIL_OTP_SENT]', { email });
-return { expiresInSeconds: EMAIL_OTP_TTL_SECONDS };
+  return { expiresInSeconds: EMAIL_OTP_TTL_SECONDS };
+
 });
 function mapEmailOtpVerificationError(errorCode) {
   switch (errorCode) {
@@ -1624,7 +1832,7 @@ exports.verifyEmailOtp = onCall({ region: 'us-central1' }, async (request) => {
   }
 
   let response;
-    try {
+  try {
       response = await callIdentityToolkit('accounts:signInWithEmailLink', {
         email,
         oobCode: rawCode,
@@ -1635,13 +1843,18 @@ exports.verifyEmailOtp = onCall({ region: 'us-central1' }, async (request) => {
       if (typeof identityErrorCode === 'string') {
         throw mapEmailOtpVerificationError(identityErrorCode);
       }
+      functions.logger.error('[EMAIL_OTP_VERIFY_FAILED]', {
+        email,
+        identityErrorCode,
+        message: error?.message,
+      });
       throw new HttpsError('failed-precondition', 'Verifikasi OTP email gagal.');
   }
 
   if (!response || response.email !== email) {
-      throw new HttpsError('failed-precondition', 'Verifikasi OTP email gagal.');
+    throw new HttpsError('failed-precondition', 'Verifikasi OTP email gagal.');
   }
 
-functions.logger.info('[EMAIL_OTP_VERIFIED]', { email });
+  functions.logger.info('[EMAIL_OTP_VERIFIED]', { email });
   return { success: true };
 });

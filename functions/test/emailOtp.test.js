@@ -17,6 +17,12 @@ async function run() {
   const originalEnv = {
     FIREBASE_WEB_API_KEY: process.env.FIREBASE_WEB_API_KEY,
     EMAIL_OTP_CONTINUE_URL: process.env.EMAIL_OTP_CONTINUE_URL,
+        EMAIL_OTP_HANDLE_IN_APP: process.env.EMAIL_OTP_HANDLE_IN_APP,
+        EMAIL_OTP_DYNAMIC_LINK_DOMAIN: process.env.EMAIL_OTP_DYNAMIC_LINK_DOMAIN,
+        EMAIL_OTP_ANDROID_PACKAGE_NAME: process.env.EMAIL_OTP_ANDROID_PACKAGE_NAME,
+        EMAIL_OTP_ANDROID_MIN_VERSION: process.env.EMAIL_OTP_ANDROID_MIN_VERSION,
+        EMAIL_OTP_ANDROID_INSTALL_APP: process.env.EMAIL_OTP_ANDROID_INSTALL_APP,
+        EMAIL_OTP_IOS_BUNDLE_ID: process.env.EMAIL_OTP_IOS_BUNDLE_ID,
   };
   const originalInitializeApp = admin.initializeApp;
   const originalFirestoreDescriptor = Object.getOwnPropertyDescriptor(admin, 'firestore');
@@ -33,7 +39,12 @@ async function run() {
     delete require.cache[indexPath];
     process.env.FIREBASE_WEB_API_KEY = 'test-key';
     process.env.EMAIL_OTP_CONTINUE_URL = 'https://example.com/continue';
-
+    process.env.EMAIL_OTP_HANDLE_IN_APP = 'true';
+    process.env.EMAIL_OTP_DYNAMIC_LINK_DOMAIN = 'example.page.link';
+    process.env.EMAIL_OTP_ANDROID_PACKAGE_NAME = 'com.example.app';
+    process.env.EMAIL_OTP_ANDROID_MIN_VERSION = '21';
+    process.env.EMAIL_OTP_ANDROID_INSTALL_APP = 'true';
+    process.env.EMAIL_OTP_IOS_BUNDLE_ID = 'com.example.ios';
     const requests = [];
     global.fetch = async (url, options) => {
       requests.push({ url, options });
@@ -58,9 +69,20 @@ async function run() {
     assert.strictEqual(payload.handleCodeInApp, true);
     assert.strictEqual(payload.canHandleCodeInApp, true);
     assert.strictEqual(payload.requestType, 'EMAIL_SIGNIN');
+    assert.strictEqual(payload.dynamicLinkDomain, 'example.page.link');
+    assert.strictEqual(payload.iOSBundleId, 'com.example.ios');
+    assert.strictEqual(payload.androidPackageName, 'com.example.app');
+    assert.strictEqual(payload.androidMinimumVersion, '21');
+    assert.strictEqual(payload.androidInstallApp, true);
 
     delete require.cache[indexPath];
     delete process.env.EMAIL_OTP_CONTINUE_URL;
+    delete process.env.EMAIL_OTP_HANDLE_IN_APP;
+    delete process.env.EMAIL_OTP_DYNAMIC_LINK_DOMAIN;
+    delete process.env.EMAIL_OTP_ANDROID_PACKAGE_NAME;
+    delete process.env.EMAIL_OTP_ANDROID_MIN_VERSION;
+    delete process.env.EMAIL_OTP_ANDROID_INSTALL_APP;
+    delete process.env.EMAIL_OTP_IOS_BUNDLE_ID;
 
     const { sendEmailOtp: sendEmailOtpMissingConfig } = require(indexPath);
     const callableMissing = getCallable(sendEmailOtpMissingConfig);
@@ -99,6 +121,36 @@ async function run() {
     } else {
       process.env.EMAIL_OTP_CONTINUE_URL = originalEnv.EMAIL_OTP_CONTINUE_URL;
     }
+     if (originalEnv.EMAIL_OTP_HANDLE_IN_APP === undefined) {
+          delete process.env.EMAIL_OTP_HANDLE_IN_APP;
+        } else {
+          process.env.EMAIL_OTP_HANDLE_IN_APP = originalEnv.EMAIL_OTP_HANDLE_IN_APP;
+        }
+        if (originalEnv.EMAIL_OTP_DYNAMIC_LINK_DOMAIN === undefined) {
+          delete process.env.EMAIL_OTP_DYNAMIC_LINK_DOMAIN;
+        } else {
+          process.env.EMAIL_OTP_DYNAMIC_LINK_DOMAIN = originalEnv.EMAIL_OTP_DYNAMIC_LINK_DOMAIN;
+        }
+        if (originalEnv.EMAIL_OTP_ANDROID_PACKAGE_NAME === undefined) {
+          delete process.env.EMAIL_OTP_ANDROID_PACKAGE_NAME;
+        } else {
+          process.env.EMAIL_OTP_ANDROID_PACKAGE_NAME = originalEnv.EMAIL_OTP_ANDROID_PACKAGE_NAME;
+        }
+        if (originalEnv.EMAIL_OTP_ANDROID_MIN_VERSION === undefined) {
+          delete process.env.EMAIL_OTP_ANDROID_MIN_VERSION;
+        } else {
+          process.env.EMAIL_OTP_ANDROID_MIN_VERSION = originalEnv.EMAIL_OTP_ANDROID_MIN_VERSION;
+        }
+        if (originalEnv.EMAIL_OTP_ANDROID_INSTALL_APP === undefined) {
+          delete process.env.EMAIL_OTP_ANDROID_INSTALL_APP;
+        } else {
+          process.env.EMAIL_OTP_ANDROID_INSTALL_APP = originalEnv.EMAIL_OTP_ANDROID_INSTALL_APP;
+        }
+        if (originalEnv.EMAIL_OTP_IOS_BUNDLE_ID === undefined) {
+          delete process.env.EMAIL_OTP_IOS_BUNDLE_ID;
+        } else {
+          process.env.EMAIL_OTP_IOS_BUNDLE_ID = originalEnv.EMAIL_OTP_IOS_BUNDLE_ID;
+        }
   }
 }
 
