@@ -206,6 +206,15 @@ fun RegisterScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+                    if (phoneVerification.recaptchaFallbackTriggered) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Kami mendeteksi masalah verifikasi perangkat. reCAPTCHA telah diaktifkan, silakan kirim ulang kode jika diperlukan.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                     Button(
                         onClick = {
                             otpCode = ""

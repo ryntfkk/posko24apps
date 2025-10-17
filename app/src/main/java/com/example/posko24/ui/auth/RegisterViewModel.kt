@@ -41,7 +41,9 @@ data class PhoneVerificationState(
     val credential: PhoneAuthCredential? = null,
     val autoRetrievedCode: String? = null,
     val errorMessage: String? = null,
-    val lastDebugEvent: String? = null
+    val lastDebugEvent: String? = null,
+    val isUsingRecaptchaVerification: Boolean = BuildConfig.DEBUG,
+    val recaptchaFallbackTriggered: Boolean = false
 )
 
 data class RegisterUiState(
@@ -71,6 +73,8 @@ class RegisterViewModel @Inject constructor(
     companion object {
         private const val TAG = "RegisterViewModel"
     }
+    private var forceRecaptchaForVerification: Boolean = BuildConfig.DEBUG
+    private var recaptchaFallbackActivated: Boolean = false
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
     val authState = _authState.asStateFlow()
@@ -196,7 +200,9 @@ class RegisterViewModel @Inject constructor(
                 forceResendingToken = null,
                 autoRetrievedCode = null,
                 errorMessage = null,
-                lastDebugEvent = "Start verification requested for $sanitizedPhone"
+                lastDebugEvent = "Start verification requested for $sanitizedPhone",
+                isUsingRecaptchaVerification = forceRecaptchaForVerification,
+                recaptchaFallbackTriggered = recaptchaFallbackActivated
             )
         }
 
@@ -222,12 +228,20 @@ class RegisterViewModel @Inject constructor(
                     "onVerificationFailed | phone=$sanitizedPhone | errorCode=$firebaseAuthErrorCode | message=${e.localizedMessage}",
                     e
                 )
-                updatePhoneState {
-                    it.copy(
-                        isRequestingOtp = false,
-                        errorMessage = e.localizedMessage ?: "Gagal mengirim OTP. Coba lagi nanti.",
-                        lastDebugEvent = "Verification failed for $sanitizedPhone with code=$firebaseAuthErrorCode"
+                if (!handleAppNotAuthorizedFailure(
+                        sanitizedPhone = sanitizedPhone,
+                        firebaseAuthErrorCode = firebaseAuthErrorCode,
+                        exception = e,
+                        action = "initial"
                     )
+                ) {
+                    updatePhoneState {
+                        it.copy(
+                            isRequestingOtp = false,
+                            errorMessage = e.localizedMessage ?: "Gagal mengirim OTP. Coba lagi nanti.",
+                            lastDebugEvent = "Verification failed for $sanitizedPhone with code=$firebaseAuthErrorCode"
+                        )
+                    }
                 }
             }
 
@@ -283,11 +297,15 @@ class RegisterViewModel @Inject constructor(
             "Resending OTP | phone=$sanitizedPhone | hasForceToken=${token != null} | activity=${activity::class.java.simpleName}"
         )
 
+        ensurePhoneVerificationFlow()
+
         updatePhoneState {
             it.copy(
                 isRequestingOtp = true,
                 errorMessage = null,
-                lastDebugEvent = "Resend verification requested for $sanitizedPhone"
+                lastDebugEvent = "Resend verification requested for $sanitizedPhone",
+                isUsingRecaptchaVerification = forceRecaptchaForVerification,
+                recaptchaFallbackTriggered = recaptchaFallbackActivated
             )
         }
 
@@ -313,12 +331,20 @@ class RegisterViewModel @Inject constructor(
                     "onVerificationFailed (resend) | phone=$sanitizedPhone | errorCode=$firebaseAuthErrorCode | message=${e.localizedMessage}",
                     e
                 )
-                updatePhoneState {
-                    it.copy(
-                        isRequestingOtp = false,
-                        errorMessage = e.localizedMessage ?: "Gagal mengirim ulang OTP.",
-                        lastDebugEvent = "Resend failed for $sanitizedPhone with code=$firebaseAuthErrorCode"
+                if (!handleAppNotAuthorizedFailure(
+                        sanitizedPhone = sanitizedPhone,
+                        firebaseAuthErrorCode = firebaseAuthErrorCode,
+                        exception = e,
+                        action = "resend"
                     )
+                ) {
+                    updatePhoneState {
+                        it.copy(
+                            isRequestingOtp = false,
+                            errorMessage = e.localizedMessage ?: "Gagal mengirim ulang OTP.",
+                            lastDebugEvent = "Resend failed for $sanitizedPhone with code=$firebaseAuthErrorCode"
+                        )
+                    }
                 }
             }
 
@@ -349,8 +375,6 @@ class RegisterViewModel @Inject constructor(
             .setActivity(activity)
             .setCallbacks(callbacks)
 
-        ensurePhoneVerificationFlow()
-
         if (token != null) {
             builder.setForceResendingToken(token)
         }
@@ -377,17 +401,61 @@ class RegisterViewModel @Inject constructor(
         val credential = PhoneAuthProvider.getCredential(verificationId, trimmedCode)
         finalizeCredentialVerification(credential)
     }
-
     private fun ensurePhoneVerificationFlow() {
         val authSettings = firebaseAuth.firebaseAuthSettings
-        if (BuildConfig.DEBUG) {
-            Log.d(TAG, "Enabling reCAPTCHA-based flow for debug build")
-            authSettings.forceRecaptchaFlowForTesting(true)
-            authSettings.setAppVerificationDisabledForTesting(false)
-        } else {
-            authSettings.forceRecaptchaFlowForTesting(false)
+            if (forceRecaptchaForVerification) {
+                val reason = if (BuildConfig.DEBUG && !recaptchaFallbackActivated) {
+                    "debug build"
+                } else if (recaptchaFallbackActivated) {
+                    "Play Integrity fallback"
+                } else {
+                    "manual override"
+                }
+                Log.d(TAG, "Forcing reCAPTCHA-based verification flow ($reason)")
+                authSettings.forceRecaptchaFlowForTesting(true)
+                authSettings.setAppVerificationDisabledForTesting(false)
+            } else {
+                Log.d(TAG, "Using default Play Integrity / SafetyNet verification flow")
+                authSettings.forceRecaptchaFlowForTesting(false)
+                authSettings.setAppVerificationDisabledForTesting(false)
+            }
         }
-    }
+
+        private fun handleAppNotAuthorizedFailure(
+            sanitizedPhone: String,
+            firebaseAuthErrorCode: String,
+            exception: FirebaseException,
+            action: String
+        ): Boolean {
+            val message = exception.localizedMessage.orEmpty()
+            val isAppNotAuthorized = firebaseAuthErrorCode == "ERROR_APP_NOT_AUTHORIZED" ||
+                    message.contains("play_integrity_token", ignoreCase = true) ||
+                    message.contains("not authorized", ignoreCase = true)
+
+            if (isAppNotAuthorized && !forceRecaptchaForVerification) {
+                Log.w(
+                    TAG,
+                    "Play Integrity verification failed for $sanitizedPhone during $action flow. Enabling reCAPTCHA fallback.",
+                    exception
+                )
+                forceRecaptchaForVerification = true
+                recaptchaFallbackActivated = true
+                ensurePhoneVerificationFlow()
+                updatePhoneState {
+                    it.copy(
+                        isRequestingOtp = false,
+                        isOtpRequested = false,
+                        errorMessage = "Verifikasi gagal karena konfigurasi keamanan perangkat. Silakan kirim ulang kode.",
+                        lastDebugEvent = "Play Integrity failure detected; reCAPTCHA fallback enabled",
+                        isUsingRecaptchaVerification = true,
+                        recaptchaFallbackTriggered = true
+                    )
+                }
+                return true
+            }
+
+            return false
+        }
 
     private fun finalizeCredentialVerification(credential: PhoneAuthCredential) {
         viewModelScope.launch {
@@ -438,6 +506,8 @@ class RegisterViewModel @Inject constructor(
 
     fun resetPhoneVerification() {
         Log.d(TAG, "Resetting phone verification state")
+        forceRecaptchaForVerification = BuildConfig.DEBUG
+        recaptchaFallbackActivated = false
         updatePhoneState { PhoneVerificationState() }
     }
 
