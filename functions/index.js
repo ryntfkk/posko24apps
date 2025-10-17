@@ -1510,6 +1510,9 @@ function resolveWebApiKey() {
 
   const config = functions.config() || {};
   return (
+      config.app?.firebase_web_api_key ||
+      config.identity?.web_api_key ||
+      config.identity?.toolkit_api_key ||
     config.firebase?.web_api_key ||
     config.firebase?.web?.api_key ||
     null
