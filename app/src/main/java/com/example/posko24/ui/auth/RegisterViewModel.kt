@@ -73,7 +73,6 @@ data class RegisterUiState(
 
 data class EmailVerificationState(
     val sanitizedEmail: String = "",
-    val sessionId: String? = null,
     val isRequestingOtp: Boolean = false,
     val isOtpRequested: Boolean = false,
     val isVerifyingOtp: Boolean = false,
@@ -587,19 +586,13 @@ class RegisterViewModel @Inject constructor(
                 )
             }
             try {
-                val result = firebaseFunctions
+                firebaseFunctions
                     .getHttpsCallable("sendEmailOtp")
                     .call(mapOf("email" to sanitizedEmail))
                     .await()
-                val data = result.data as? Map<*, *>
-                val sessionId = data?.get("sessionId") as? String
-                if (sessionId.isNullOrBlank()) {
-                    throw IllegalStateException("Response dari server tidak valid.")
-                }
                 updateEmailState {
                     it.copy(
                         sanitizedEmail = sanitizedEmail,
-                        sessionId = sessionId,
                         isRequestingOtp = false,
                         isOtpRequested = true,
                         errorMessage = null,
@@ -629,8 +622,7 @@ class RegisterViewModel @Inject constructor(
 
     fun verifyEmailOtp(code: String) {
         val current = _uiState.value.emailVerification
-        val sessionId = current.sessionId
-        if (sessionId.isNullOrBlank()) {
+        if (!current.isOtpRequested) {
             updateEmailState {
                 it.copy(errorMessage = "Silakan kirim OTP terlebih dahulu.")
             }
@@ -657,7 +649,6 @@ class RegisterViewModel @Inject constructor(
                     .getHttpsCallable("verifyEmailOtp")
                     .call(
                         mapOf(
-                            "sessionId" to sessionId,
                             "code" to trimmedCode,
                             "email" to current.sanitizedEmail
                         )
