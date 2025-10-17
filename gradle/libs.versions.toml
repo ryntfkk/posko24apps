@@ -1,7 +1,7 @@
 [versions]
 # Android & Gradle - Versi yang kompatibel satu sama lain
-agp = "8.3.2"
-kotlin = "1.9.22"
+agp = "8.4.2"
+kotlin = "2.0.0"
 compileSdk = "34"
 minSdk = "24"
 targetSdk = "34"
@@ -10,11 +10,11 @@ targetSdk = "34"
 coreKtx = "1.12.0"
 lifecycleRuntimeKtx = "2.7.0"
 activityCompose = "1.8.2"
-composeBom = "2024.02.01" # BoM ini kompatibel dengan Kotlin 1.9.22
+composeBom = "2024.06.00" # BoM ini kompatibel dengan Kotlin 2.0.0
 navigationCompose = "2.7.7"
 lifecycleViewmodelCompose = "2.7.0"
 hiltNavigationCompose = "1.2.0"
-composeCompiler = "1.5.8" # Versi compiler yang cocok untuk Kotlin 1.9.22
+composeCompiler = "1.6.1" # Versi compiler yang cocok untuk Kotlin 2.0.0
 
 # Testing
 junit = "4.13.2"
