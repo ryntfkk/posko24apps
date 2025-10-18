@@ -1,8 +1,13 @@
 'use strict';
 
 const functions = require('firebase-functions/v2');
-// IMpor setGlobalOptions dari firebase-functions/v2
 const { setGlobalOptions } = require("firebase-functions/v2");
+// Impor defineString di sini
+const { defineString } = require('firebase-functions/params');
+
+// Tambahkan baris ini
+const appWebApiKey = defineString('APP_WEB_API_KEY');
+const emailOtpContinueUrl = defineString('EMAIL_OTP_CONTINUE_URL');
 
 // Tetapkan region untuk semua fungsi di file ini ke Jakarta
 setGlobalOptions({ region: "asia-southeast2" });
@@ -1622,25 +1627,39 @@ async function createChatRoom(orderData, orderId) {
   }
 }
 function resolveWebApiKey() {
-    const envValue = readOptionalString(process.env.FIREBASE_WEB_API_KEY);
-    if (envValue) {
-      return envValue;
+  try {
+    // Coba baca dari parameter yang sudah didefinisikan
+    const key = appWebApiKey.value();
+    if (key) return key;
+  } catch (error) {
+    functions.logger.debug('Gagal membaca parameter FIREBASE_WEB_API_KEY.', error.message);
   }
 
-  return (
-      resolveConfigString(['app', 'firebase_web_api_key']) ||
-           resolveConfigString(['identity', 'web_api_key']) ||
-           resolveConfigString(['identity', 'toolkit_api_key']) ||
-         resolveConfigString(['firebase', 'web_api_key']) ||
-         resolveConfigString(['firebase', 'web', 'api_key']) ||
-    null
-  );
+  // Jika parameter tidak ada, fallback ke metode lama (sebagai pengaman)
+  const fallbackKey = resolveConfigString(['app', 'firebase_web_api_key']);
+  if (fallbackKey) return fallbackKey;
+
+  return null; // Kembalikan null jika tidak ditemukan sama sekali
 }
 
 function resolveEmailOtpContinueUrl() {
-    const envValue = readOptionalString(process.env.EMAIL_OTP_CONTINUE_URL);
-    if (envValue) {
-      return envValue;
+     let parameterValue = null;
+      try {
+        parameterValue = readOptionalString(emailOtpContinueUrl.value());
+      } catch (error) {
+        functions.logger.debug('[PARAM_UNAVAILABLE]', {
+          param: 'EMAIL_OTP_CONTINUE_URL',
+          message: error?.message,
+        });
+      }
+
+      if (parameterValue) {
+        return parameterValue;
+      }
+
+      const envValue = readOptionalString(process.env.APP_EMAIL_OTP_CONTINUE_URL);
+      if (envValue) {
+        return envValue;
   }
 
   const continueUrl =

@@ -25,3 +25,15 @@ firebase functions:config:set firebase.web_api_key="<web-api-key-project-anda>"
 ```
 
 Web API key dapat ditemukan di konsol Firebase pada pengaturan proyek bagian *General*. Selama pengembangan lokal Anda juga dapat menggunakan variabel lingkungan `FIREBASE_WEB_API_KEY` apabila lebih nyaman.
+
+Untuk parameter `EMAIL_OTP_CONTINUE_URL`, sertakan nilai yang sesuai ketika melakukan deploy fungsi:
+
+```bash
+firebase deploy --only functions --set-env-vars EMAIL_OTP_CONTINUE_URL="https://posko24-80fa4.firebaseapp.com"
+```
+
+Perintah yang sama dapat digunakan bersama emulator agar parameter tersedia selama pengembangan lokal:
+
+```bash
+firebase emulators:start --only functions --set-env-vars EMAIL_OTP_CONTINUE_URL="https://posko24-80fa4.firebaseapp.com"
+```
