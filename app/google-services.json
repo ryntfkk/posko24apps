@@ -12,7 +12,16 @@
           "package_name": "com.example.posko24"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "846396752050-er2tnd3r0tsmdss197fk14c5c56t4vnl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.posko24",
+            "certificate_hash": "76d58e27b2ad35827c30c11ea4d56d857e43ffc9"
+          }
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAhtmgvhnp9ukCKkR-jC9AZVVJPyk4_85M"
