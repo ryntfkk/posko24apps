@@ -1627,17 +1627,34 @@ async function createChatRoom(orderData, orderId) {
   }
 }
 function resolveWebApiKey() {
+  let parameterValue = null;
   try {
-    // Coba baca dari parameter yang sudah didefinisikan
-    const key = appWebApiKey.value();
-    if (key) return key;
+      parameterValue = readOptionalString(appWebApiKey.value());
   } catch (error) {
-    functions.logger.debug('Gagal membaca parameter FIREBASE_WEB_API_KEY.', error.message);
+    functions.logger.debug('[PARAM_UNAVAILABLE]', {
+      param: 'APP_WEB_API_KEY',
+      message: error?.message,
+    });
   }
 
-  // Jika parameter tidak ada, fallback ke metode lama (sebagai pengaman)
-  const fallbackKey = resolveConfigString(['app', 'firebase_web_api_key']);
-  if (fallbackKey) return fallbackKey;
+   if (parameterValue) {
+     return parameterValue;
+   }
+
+   const envValue = readOptionalString(process.env.FIREBASE_WEB_API_KEY);
+   if (envValue) {
+     return envValue;
+   }
+
+   const firebaseConfigValue = resolveConfigString(['firebase', 'web_api_key']);
+   if (firebaseConfigValue) {
+     return firebaseConfigValue;
+   }
+
+   const appConfigValue = resolveConfigString(['app', 'firebase_web_api_key']);
+   if (appConfigValue) {
+     return appConfigValue;
+   }
 
   return null; // Kembalikan null jika tidak ditemukan sama sekali
 }
