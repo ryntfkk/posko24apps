@@ -33,7 +33,8 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun upgradeToProvider(): Flow<Result<Boolean>> = flow {
-        functions.getHttpsCallable("upgradeToProvider").call().await()
+        val upgradeToProvider = functions.getHttpsCallable("upgradeToProvider")
+        upgradeToProvider.call().await()
         emit(Result.success(true))
     }.catch {
         emit(Result.failure(it))
