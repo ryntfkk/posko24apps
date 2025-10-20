@@ -171,7 +171,7 @@ class ServiceRepositoryImpl @Inject constructor(
         emit(Result.failure(exception))
     }
 
-    // UBAH: SELURUH FUNGSI DI BAWAH INI DIGANTI TOTAL
+    // UBAH: Fungsi getNearbyProviders
     override fun getNearbyProviders(
         currentLocation: GeoPoint,
         maxDistanceKm: Double
@@ -189,7 +189,6 @@ class ServiceRepositoryImpl @Inject constructor(
             return@flow
         }
 
-        // Menggunakan coroutineScope untuk memproses profil secara paralel
         val profiles = coroutineScope {
             users.map { user ->
                 async {
@@ -201,9 +200,8 @@ class ServiceRepositoryImpl @Inject constructor(
                         .document(user.uid)
                         .get().await()
 
-                    // Ambil profil dasar
+                    // Ambil profil dasar (sekarang sudah benar berkat perbaikan di Mappers.kt)
                     profileDoc.toProviderProfileWithDefaults()?.let { profile ->
-                        // Hitung jarak
                         val distance = profile.location?.let { loc ->
                             distanceInKm(
                                 currentLocation.latitude,
@@ -213,10 +211,13 @@ class ServiceRepositoryImpl @Inject constructor(
                             )
                         }
 
-                        // Jika jarak dalam batas maksimum, lengkapi datanya
                         if (distance != null && distance <= maxDistanceKm) {
                             val stats = fetchProviderPublicStats(user.uid)
                             val addressDistrict = runCatching { fetchPrimaryAddressDistrict(user.uid) }.getOrNull()?.trim()
+
+                            // BARU: Logika untuk mengambil harga, sama seperti di getProvidersByCategory
+                            val startingPrice = profile.startingPrice
+                                ?: fetchProviderStartingPrice(user.uid)
 
                             val resolvedCompletedOrders = profile.completedOrders?.takeIf { it > 0 }
                                 ?: stats?.completedOrders
@@ -259,20 +260,20 @@ class ServiceRepositoryImpl @Inject constructor(
                                 fullName = user.fullName,
                                 profilePictureUrl = user.profilePictureUrl,
                                 profileBannerUrl = user.profileBannerUrl,
-                                distanceKm = distance, // Data Jarak
-                                district = resolvedDistrict, // Data Distrik
-                                serviceCategory = profile.serviceCategory, // Data Jasa
-                                completedOrders = resolvedCompletedOrders // Data Order Selesai
+                                distanceKm = distance,
+                                district = resolvedDistrict,
+                                serviceCategory = profile.serviceCategory, // Ini sudah benar
+                                completedOrders = resolvedCompletedOrders,
+                                startingPrice = startingPrice // BARU: Masukkan harga yang sudah diambil
                             )
                         } else {
-                            null // Di luar jangkauan
+                            null
                         }
                     }
                 }
-            }.awaitAll().filterNotNull() // Ambil semua hasil yang tidak null
+            }.awaitAll().filterNotNull()
         }
 
-        // Urutkan berdasarkan jarak terdekat
         val sortedProfiles = profiles.sortedBy { it.distanceKm }
 
         emit(Result.success(sortedProfiles))
@@ -515,9 +516,7 @@ class ServiceRepositoryImpl @Inject constructor(
         )
     }
 
-    // --- IMPLEMENTASI FUNGSI BARU DI SINI ---
     override fun getProviderDetails(providerId: String): Flow<Result<ProviderProfile?>> = flow {
-        // 1. Ambil data dari 'provider_profiles'
         val profileDoc = firestore.collection("provider_profiles").document(providerId).get().await()
         val providerProfile = profileDoc.toProviderProfileWithDefaults()
 
@@ -526,16 +525,15 @@ class ServiceRepositoryImpl @Inject constructor(
             return@flow
         }
 
-        // 2. Ambil data dari 'users'
         val userDoc = firestore.collection("users").document(providerId).get().await()
         val user = userDoc.toObject(User::class.java)
 
-        // 3. Gabungkan data
         val combinedProfile = user?.let {
             providerProfile.copy(
                 fullName = it.fullName,
                 profilePictureUrl = it.profilePictureUrl,
                 profileBannerUrl = it.profileBannerUrl
+                // Harga dan data lain sudah diambil oleh toProviderProfileWithDefaults
             )
         }
 
@@ -543,7 +541,6 @@ class ServiceRepositoryImpl @Inject constructor(
     }.catch { exception ->
         emit(Result.failure(exception))
     }
-    // --- AKHIR IMPLEMENTASI ---
 
     override fun getProviderServices(providerId: String): Flow<Result<List<ProviderService>>> = flow {
         val servicesSnapshot = firestore.collection("provider_profiles").document(providerId)

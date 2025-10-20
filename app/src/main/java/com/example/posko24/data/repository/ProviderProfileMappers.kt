@@ -33,8 +33,10 @@ private val ADMINISTRATIVE_PART_KEYS = listOf(
     "wilayah"
 )
 fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
+    // Langkah 1: Ambil data awal. `serviceCategory` sudah ada di sini
     val profile = toObject(ProviderProfile::class.java) ?: return null
 
+    // Langkah 2: Logika kustom untuk beberapa field
     val availableDates = (get("availableDates") as? List<*>)
         ?.filterIsInstance<String>()
         ?: profile.availableDates
@@ -81,12 +83,25 @@ fun DocumentSnapshot.toProviderProfileWithDefaults(): ProviderProfile? {
         }
     }
 
+    // Langkah 3: Salin SEMUA data agar tidak hilang
+    // UBAH: .copy() ini sekarang menyertakan SEMUA field dari `profile`
     return profile.copy(
         uid = resolvedUid,
         availableDates = availableDates,
         busyDates = busyDates,
         isAvailable = isAvailable,
-        district = normalizedDistrict
+        district = normalizedDistrict,
+
+        // BARU: Field-field ini ditambahkan agar nilainya dari `toObject` tidak hilang
+        primaryCategoryId = profile.primaryCategoryId,
+        bio = profile.bio,
+        acceptsBasicOrders = profile.acceptsBasicOrders,
+        averageRating = profile.averageRating,
+        totalReviews = profile.totalReviews,
+        location = profile.location,
+        serviceCategory = profile.serviceCategory, // <-- INI FIX UNTUK KATEGORI
+        startingPrice = profile.startingPrice,
+        completedOrders = profile.completedOrders
     )
 }
 
