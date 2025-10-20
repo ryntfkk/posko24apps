@@ -5,11 +5,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocationOn
@@ -27,8 +29,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.posko24.R
@@ -67,7 +71,8 @@ fun ProviderListItem(
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(provider.profilePictureUrl)
+                        // UBAH: Logika fallback jika profilePictureUrl null atau kosong
+                        .data(provider.profilePictureUrl?.takeIf { it.isNotBlank() } ?: provider.profileBannerUrl)
                         .crossfade(true)
                         .build(),
                     contentDescription = "Foto profil ${provider.fullName}",
@@ -82,21 +87,36 @@ fun ProviderListItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = provider.fullName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+
+                // Ini sekarang valid karena serviceCategory ada di ProviderProfile.kt
+                if (provider.serviceCategory.isNotBlank()) {
+                    Text(
+                        text = provider.serviceCategory,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
                 val startingPriceText = provider.startingPrice
                     ?.takeIf { it > 0 }
                     ?.let { formatCurrency(it) }
                     ?: "N/A"
+
                 Text(
                     text = "Mulai dari $startingPriceText",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF2E7D32)
                 )
@@ -109,7 +129,7 @@ fun ProviderListItem(
                         imageVector = Icons.Default.Star,
                         contentDescription = "Rating",
                         tint = Color(0xFFFFC107),
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                     val ratingText = if (provider.totalReviews > 0) {
                         String.format(Locale.getDefault(), "%.1f", provider.averageRating)
@@ -118,44 +138,49 @@ fun ProviderListItem(
                     }
                     Text(
                         text = ratingText,
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.labelSmall
                     )
-                    Text(
-                        text = "·",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = "Order selesai",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                     Text(
                         text = "${provider.completedOrders ?: 0} selesai",
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.labelSmall
                     )
                 }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.LocationOn,
                         contentDescription = "Lokasi",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(14.dp)
                     )
 
-                    val districtText = provider.district.ifBlank { "Lokasi tidak tersedia" }
+                    val districtText = provider.district.takeIf { it.isNotBlank() }
                     val distanceText = provider.distanceKm?.let {
                         String.format(Locale.getDefault(), "%.1f km", it)
                     }
-                    val locationText = distanceText?.let { "$it - $districtText" } ?: districtText
+
+                    val locationText = listOfNotNull(distanceText, districtText)
+                        .joinToString(" - ")
+                        .ifBlank { "Lokasi tidak tersedia" }
+
                     Text(
                         text = locationText,
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

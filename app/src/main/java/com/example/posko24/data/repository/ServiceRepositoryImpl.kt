@@ -83,7 +83,7 @@ class ServiceRepositoryImpl @Inject constructor(
                 }
             }.awaitAll().toMap()
         }
-            val combinedProfiles = coroutineScope {
+        val combinedProfiles = coroutineScope {
             providerProfiles.map { profile ->
                 async {
                     val user = usersMap[profile.uid]
@@ -170,6 +170,8 @@ class ServiceRepositoryImpl @Inject constructor(
     }.catch { exception ->
         emit(Result.failure(exception))
     }
+
+    // UBAH: SELURUH FUNGSI DI BAWAH INI DIGANTI TOTAL
     override fun getNearbyProviders(
         currentLocation: GeoPoint,
         maxDistanceKm: Double
@@ -195,7 +197,13 @@ class ServiceRepositoryImpl @Inject constructor(
                         .document(user.uid)
                         .get().await()
 
+                    val userSnapshot = firestore.collection("users")
+                        .document(user.uid)
+                        .get().await()
+
+                    // Ambil profil dasar
                     profileDoc.toProviderProfileWithDefaults()?.let { profile ->
+                        // Hitung jarak
                         val distance = profile.location?.let { loc ->
                             distanceInKm(
                                 currentLocation.latitude,
@@ -208,30 +216,71 @@ class ServiceRepositoryImpl @Inject constructor(
                         // Jika jarak dalam batas maksimum, lengkapi datanya
                         if (distance != null && distance <= maxDistanceKm) {
                             val stats = fetchProviderPublicStats(user.uid)
-                            val finalDistrict = profile.district.ifBlank {
-                                stats?.district ?: stats?.addressLabel ?: ""
+                            val addressDistrict = runCatching { fetchPrimaryAddressDistrict(user.uid) }.getOrNull()?.trim()
+
+                            val resolvedCompletedOrders = profile.completedOrders?.takeIf { it > 0 }
+                                ?: stats?.completedOrders
+                                ?: 0
+
+                            val statsDistrict = sequenceOf(
+                                stats?.district,
+                                stats?.addressLabel,
+                                listOfNotNull(
+                                    stats?.addressDetail,
+                                    stats?.addressDistrict,
+                                    stats?.addressCity,
+                                    stats?.addressProvince
+                                )
+                                    .map { it.trim() }
+                                    .filter { it.isNotEmpty() }
+                                    .distinctBy { it.lowercase() }
+                                    .joinToString(", ")
+                                    .takeIf { it.isNotBlank() }
+                            )
+                                .mapNotNull { it }
+                                .map { it.trim() }
+                                .firstOrNull { it.isNotEmpty() }
+
+                            val userSnapshotDistrict = extractDistrictFromUserSnapshot(userSnapshot)
+
+                            var resolvedDistrict = profile.district
+                            if (resolvedDistrict.isBlank()) {
+                                resolvedDistrict = addressDistrict.orEmpty()
                             }
+                            if (resolvedDistrict.isBlank()) {
+                                resolvedDistrict = statsDistrict.orEmpty()
+                            }
+                            if (resolvedDistrict.isBlank()) {
+                                resolvedDistrict = userSnapshotDistrict
+                            }
+                            resolvedDistrict = resolvedDistrict.trim()
 
                             profile.copy(
                                 fullName = user.fullName,
                                 profilePictureUrl = user.profilePictureUrl,
                                 profileBannerUrl = user.profileBannerUrl,
-                                distanceKm = distance,
-                                district = finalDistrict, // Memasukkan data distrik yang sudah diambil
-                                completedOrders = stats?.completedOrders ?: profile.completedOrders
+                                distanceKm = distance, // Data Jarak
+                                district = resolvedDistrict, // Data Distrik
+                                serviceCategory = profile.serviceCategory, // Data Jasa
+                                completedOrders = resolvedCompletedOrders // Data Order Selesai
                             )
                         } else {
-                            null
+                            null // Di luar jangkauan
                         }
                     }
                 }
-            }.awaitAll().filterNotNull()
+            }.awaitAll().filterNotNull() // Ambil semua hasil yang tidak null
         }
 
-        emit(Result.success(profiles))
+        // Urutkan berdasarkan jarak terdekat
+        val sortedProfiles = profiles.sortedBy { it.distanceKm }
+
+        emit(Result.success(sortedProfiles))
     }.catch { exception ->
         emit(Result.failure(exception))
     }
+    // AKHIR DARI FUNGSI YANG DIUBAH
+
     private data class ProviderPublicStats(
         val completedOrders: Int?,
         val district: String?,
