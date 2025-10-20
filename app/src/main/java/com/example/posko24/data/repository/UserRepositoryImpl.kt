@@ -11,7 +11,8 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val functions: FirebaseFunctions
 ) : UserRepository {
 
     // ... getUserProfile dan getProviderProfile tetap sama ...
@@ -32,7 +33,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun upgradeToProvider(): Flow<Result<Boolean>> = flow {
-        FirebaseFunctions.getInstance().getHttpsCallable("upgradeToProvider").call().await()
+        functions.getHttpsCallable("upgradeToProvider").call().await()
         emit(Result.success(true))
     }.catch {
         emit(Result.failure(it))
