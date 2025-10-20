@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @Composable
 fun ClaimOrderDatePicker(
@@ -53,7 +54,7 @@ fun ClaimOrderDatePicker(
         onDismissRequest = onDismissRequest,
         confirmButton = {
             TextButton(
-                enabled = !selectedDate.isNullOrEmpty(),
+                enabled = selectedDate != null,
                 onClick = { selectedDate?.let(onConfirm) }
             ) {
                 Text("Pilih")
