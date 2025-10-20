@@ -44,7 +44,8 @@ data class Order(
      * - `deny`
      * - `expire`
      */
-    val paymentStatus: String = "pending",    val midtransTransactionId: String? = null, // ID Transaksi dari Midtrans
+    val paymentStatus: String = "pending",
+    val midtransTransactionId: String? = null, // ID Transaksi dari Midtrans
     val paymentGatewayInfo: Map<String, Any>? = null,
 
 

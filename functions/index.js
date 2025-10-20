@@ -1674,7 +1674,7 @@ function resolveEmailOtpContinueUrl() {
         return parameterValue;
       }
 
-      const envValue = readOptionalString(process.env.APP_EMAIL_OTP_CONTINUE_URL);
+      const envValue = readOptionalString(process.env.EMAIL_OTP_CONTINUE_URL);
       if (envValue) {
         return envValue;
   }
