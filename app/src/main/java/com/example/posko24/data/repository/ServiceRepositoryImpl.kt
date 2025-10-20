@@ -54,11 +54,19 @@ class ServiceRepositoryImpl @Inject constructor(
             return@flow
         }
 
-        val usersSnapshot = firestore.collection("users").whereIn("uid", userIds).get().await()
-        val userDocumentsMap = usersSnapshot.documents.associateBy { it.id }
-        val usersMap = usersSnapshot.documents.mapNotNull { doc ->
-            doc.toObject(User::class.java)?.let { doc.id to it }
-        }.toMap()
+        val usersCollection = firestore.collection("users")
+        val userDocumentsMap = mutableMapOf<String, DocumentSnapshot>()
+        val usersMap = mutableMapOf<String, User>()
+
+        userIds.chunked(10).forEach { chunk ->
+            val usersSnapshot = usersCollection.whereIn("uid", chunk).get().await()
+            usersSnapshot.documents.forEach { doc ->
+                userDocumentsMap[doc.id] = doc
+                doc.toObject(User::class.java)?.let { user ->
+                    usersMap[doc.id] = user
+                }
+            }
+        }
         val addressDistricts = coroutineScope {
             userIds.map { userId ->
                 async {
