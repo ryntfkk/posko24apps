@@ -1,6 +1,7 @@
 package com.example.posko24.ui.profile
 
 import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -59,7 +60,11 @@ class AccountSettingsViewModel @Inject constructor(
     fun onPasswordChange(value: String) { newPassword.value = value }
 
     fun saveProfile(onResult: (Boolean) -> Unit) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = auth.currentUser?.uid ?: run {
+            Log.w(TAG, "saveProfile called without an authenticated user")
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             val data = mapOf(
                 "fullName" to fullName.value,
@@ -74,6 +79,7 @@ class AccountSettingsViewModel @Inject constructor(
 
     fun uploadProfileImage(uri: Uri, onResult: (Boolean) -> Unit) {
         val userId = auth.currentUser?.uid ?: run {
+            Log.w(TAG, "uploadProfileImage called without an authenticated user")
             onResult(false)
             return
         }
@@ -93,6 +99,7 @@ class AccountSettingsViewModel @Inject constructor(
 
     fun uploadBannerImage(uri: Uri, onResult: (Boolean) -> Unit) {
         val userId = auth.currentUser?.uid ?: run {
+            Log.w(TAG, "uploadBannerImage called without an authenticated user")
             onResult(false)
             return
         }
@@ -122,7 +129,11 @@ class AccountSettingsViewModel @Inject constructor(
     }
 
     fun updatePassword(onResult: (Boolean) -> Unit) {
-        val user = auth.currentUser ?: return
+        val user = auth.currentUser ?: run {
+            Log.w(TAG, "updatePassword called without an authenticated user")
+            onResult(false)
+            return
+        }
         val password = newPassword.value
         if (password.isBlank()) {
             onResult(false)
@@ -136,5 +147,9 @@ class AccountSettingsViewModel @Inject constructor(
                 onResult(false)
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "AccountSettingsVM"
     }
 }
