@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.repository.OrderRepository
+import com.example.posko24.data.repository.ProviderAvailabilityRepository
 import com.example.posko24.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,12 +13,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import javax.inject.Inject
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @HiltViewModel
 class MyOrdersViewModel @Inject constructor(
     private val orderRepository: OrderRepository,
     private val userRepository: UserRepository,
+    private val availabilityRepository: ProviderAvailabilityRepository,
     private val auth: FirebaseAuth
 ) : ViewModel() {
 
@@ -28,6 +33,11 @@ class MyOrdersViewModel @Inject constructor(
     private val _paymentToken = MutableStateFlow<String?>(null)
     val paymentToken = _paymentToken.asStateFlow()
 
+    private var availabilityJob: Job? = null
+
+    private val _availableDates = MutableStateFlow<List<String>>(emptyList())
+    val availableDates = _availableDates.asStateFlow()
+
 
     fun loadOrders(role: String) {
         val userId = auth.currentUser?.uid
@@ -35,6 +45,12 @@ class MyOrdersViewModel @Inject constructor(
             _ordersState.value = OrdersState.Error("Anda harus login untuk melihat pesanan.")
             return
         }
+        if (role == "provider") {
+            loadAvailability(userId)
+        } else {
+            _availableDates.value = emptyList()
+        }
+
 
         viewModelScope.launch {
             _ordersState.value = OrdersState.Loading
@@ -103,19 +119,37 @@ class MyOrdersViewModel @Inject constructor(
         }
     }
 
+    private fun loadAvailability(providerId: String) {
+        availabilityJob?.cancel()
+        availabilityJob = viewModelScope.launch {
+            availabilityRepository.getAvailability(providerId).collect { result ->
+                result.onSuccess { dates ->
+                    _availableDates.value = dates
+                }.onFailure {
+                    _availableDates.value = emptyList()
+                }
+            }
+        }
+    }
+
     fun updateOrderStatus(orderId: String, newStatus: OrderStatus) {
         viewModelScope.launch {
             orderRepository.updateOrderStatus(orderId, newStatus).collect { }
         }
     }
 
-    fun claimOrder(orderId: String, scheduledDate: String?) {
-        val normalizedDate = scheduledDate?.trim()
-        if (normalizedDate.isNullOrEmpty()) {
+    fun claimOrder(orderId: String, scheduledDate: String) {
+        val normalizedDate = scheduledDate.trim()
+        if (normalizedDate.isEmpty()) {
+            return
+        }
+        val isoDate = runCatching {
+            LocalDate.parse(normalizedDate).format(DateTimeFormatter.ISO_LOCAL_DATE)
+        }.getOrElse {
             return
         }
         viewModelScope.launch {
-            orderRepository.claimOrder(orderId, normalizedDate).collect { result ->
+            orderRepository.claimOrder(orderId, isoDate).collect { result ->
                 result.onSuccess {
                     currentRole?.let { loadOrders(it) }
                 }

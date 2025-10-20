@@ -101,7 +101,6 @@ dependencies {
 
     implementation(libs.coil.compose)
     implementation(libs.coil.svg)
-    implementation("io.coil-kt:coil-compose:2.4.0")
 
 
     implementation(libs.hilt.android)

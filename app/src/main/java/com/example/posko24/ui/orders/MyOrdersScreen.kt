@@ -33,6 +33,7 @@ fun MyOrdersScreen(
     val paymentToken by viewModel.paymentToken.collectAsState()
     val context = LocalContext.current
     val state by viewModel.ordersState.collectAsState()
+    val availableDates by viewModel.availableDates.collectAsState()
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("Sedang Berjalan", "Riwayat")
 
@@ -106,10 +107,13 @@ fun MyOrdersScreen(
                             0 -> OrderList(
                                 activeRole = activeRole,
                                 orders = currentState.ongoingOrders,
+                                availableDates = availableDates,
                                 onOrderClick = onOrderClick,
                                 onReviewClick = onReviewClick,
                                 onPay = { viewModel.continuePayment(it) },
-                                onClaim = { order -> viewModel.claimOrder(order.id, order.scheduledDate) },
+                                onClaim = { order, selectedDate ->
+                                    viewModel.claimOrder(order.id, selectedDate)
+                                },
                                 onAccept = { viewModel.updateOrderStatus(it, OrderStatus.ACCEPTED) },
                                 onStart = { viewModel.updateOrderStatus(it, OrderStatus.ONGOING) },
                                 onFinish = { viewModel.updateOrderStatus(it, OrderStatus.AWAITING_CONFIRMATION) },
@@ -118,10 +122,13 @@ fun MyOrdersScreen(
                             1 -> OrderList(
                                 activeRole = activeRole,
                                 orders = currentState.historyOrders,
+                                availableDates = availableDates,
                                 onOrderClick = onOrderClick,
                                 onReviewClick = onReviewClick,
                                 onPay = { viewModel.continuePayment(it) },
-                                onClaim = { order -> viewModel.claimOrder(order.id, order.scheduledDate) },
+                                onClaim = { order, selectedDate ->
+                                    viewModel.claimOrder(order.id, selectedDate)
+                                },
                                 onAccept = { viewModel.updateOrderStatus(it, OrderStatus.ACCEPTED) },
                                 onStart = { viewModel.updateOrderStatus(it, OrderStatus.ONGOING) },
                                 onFinish = { viewModel.updateOrderStatus(it, OrderStatus.AWAITING_CONFIRMATION) },
@@ -141,10 +148,11 @@ fun MyOrdersScreen(
 fun OrderList(
     activeRole: String,
     orders: List<Order>,
+    availableDates: List<String> = emptyList(),
     onOrderClick: (String) -> Unit,
     onReviewClick: (String) -> Unit,
     onPay: (String) -> Unit,
-    onClaim: (Order) -> Unit,
+    onClaim: (Order, String) -> Unit,
     onAccept: (String) -> Unit,
     onStart: (String) -> Unit,
     onFinish: (String) -> Unit,
@@ -160,6 +168,7 @@ fun OrderList(
                 MyOrderItem(
                     order = order,
                     activeRole = activeRole,
+                    availableDates = availableDates,
                     onOrderClick = onOrderClick,
                     onReviewClick = onReviewClick,
                     onPay = onPay,

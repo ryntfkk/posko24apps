@@ -4,26 +4,32 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.ui.components.OrderCard
+import com.example.posko24.ui.components.ClaimOrderDatePicker
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun MyOrderItem(
     order: Order,
     activeRole: String,
+    availableDates: List<String> = emptyList(),
     onOrderClick: (String) -> Unit,
     onReviewClick: (String) -> Unit,
     onPay: (String) -> Unit,
-    onClaim: (Order) -> Unit,
+    onClaim: (Order, String) -> Unit,
     onAccept: (String) -> Unit,
     onStart: (String) -> Unit,
     onFinish: (String) -> Unit
 ) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    val isoFormatter = remember { DateTimeFormatter.ISO_LOCAL_DATE }
     Column(modifier = Modifier
         .fillMaxWidth()
         .clickable { onOrderClick(order.id) }) {
@@ -60,6 +66,20 @@ fun MyOrderItem(
             }
         }
         if (activeRole == "provider") {
+            if (showDatePicker) {
+                ClaimOrderDatePicker(
+                    availableDates = availableDates,
+                    initialSelection = order.scheduledDate,
+                    onDismissRequest = { showDatePicker = false },
+                    onConfirm = { selectedDate ->
+                        val isoDate = runCatching {
+                            LocalDate.parse(selectedDate).format(isoFormatter)
+                        }.getOrElse { selectedDate }
+                        onClaim(order, isoDate)
+                        showDatePicker = false
+                    }
+                )
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -69,13 +89,13 @@ fun MyOrderItem(
             ) {
                 when (order.status) {
                     OrderStatus.SEARCHING_PROVIDER.value -> {
-                        Button(onClick = { onClaim(order) }) {
+                        Button(onClick = { showDatePicker = true }) {
                             Text("Claim")
                         }
                     }
                     OrderStatus.AWAITING_PROVIDER_CONFIRMATION.value -> {
                         if (order.providerId.isNullOrBlank()) {
-                            Button(onClick = { onClaim(order) }) {
+                            Button(onClick = { showDatePicker = true }) {
                                 Text("Claim")
                             }
                         } else {

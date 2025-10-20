@@ -13,9 +13,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posko24.data.model.Order
 import com.example.posko24.ui.components.OrderCard
+import com.example.posko24.ui.components.ClaimOrderDatePicker
 import com.example.posko24.ui.components.SkillTag
 import com.example.posko24.ui.components.CertificationCard
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -35,7 +38,9 @@ fun ProviderDashboardScreen(
     val balanceState by balanceViewModel.state.collectAsState()
     var selectedOrder by remember { mutableStateOf<Order?>(null) }
     val claimMessage by activeJobsViewModel.claimMessage.collectAsState()
+    val availableDates by activeJobsViewModel.availableDates.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var claimTargetOrder by remember { mutableStateOf<Order?>(null) }
 
     LaunchedEffect(claimMessage) {
         val message = claimMessage
@@ -64,6 +69,22 @@ fun ProviderDashboardScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
+        claimTargetOrder?.let { order ->
+            ClaimOrderDatePicker(
+                availableDates = availableDates,
+                onDismissRequest = { claimTargetOrder = null },
+                onConfirm = { selectedDate ->
+                    val isoDate = runCatching {
+                        LocalDate.parse(selectedDate).format(DateTimeFormatter.ISO_LOCAL_DATE)
+                    }.getOrElse { selectedDate }
+                    activeJobsViewModel.claimOrder(order.id, isoDate) {
+                        onOrderClick(order.id)
+                    }
+                    claimTargetOrder = null
+                }
+            )
+        }
+
         selectedOrder?.let { order ->
             val addressParts = listOfNotNull(
                 order.addressText.takeIf { it.isNotBlank() },
@@ -159,9 +180,7 @@ fun ProviderDashboardScreen(
                                 onCardClick = { selectedOrder = job },
                                 onTakeOrderClick = if (showClaim) {
                                     {
-                                        activeJobsViewModel.claimOrder(job.id, job.scheduledDate) {
-                                            onOrderClick(job.id)
-                                        }
+                                        claimTargetOrder = job
                                     }
                                 } else null
                             )
