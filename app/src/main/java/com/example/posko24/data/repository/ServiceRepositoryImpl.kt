@@ -54,6 +54,8 @@ class ServiceRepositoryImpl @Inject constructor(
             return@flow
         }
 
+        val categoryNames = fetchServiceCategoriesMap()
+
         val usersCollection = firestore.collection("users")
         val userDocumentsMap = mutableMapOf<String, DocumentSnapshot>()
         val usersMap = mutableMapOf<String, User>()
@@ -151,6 +153,10 @@ class ServiceRepositoryImpl @Inject constructor(
                                 "[ProviderDistrictMissing] Provider=${profile.uid} missing district after resolution | profileDistrict='${profile.district}' | addressDistrict='${addressDistrict.orEmpty()}' | statsDistrict='${statsDistrict.orEmpty()}' | userSnapshotDistrict='$userSnapshotDistrict' | stats=$stats"
                             )
                         }
+                        val resolvedCategoryName = categoryNames[profile.primaryCategoryId]
+                            ?.takeIf { it.isNotBlank() }
+                            ?: profile.serviceCategory.takeIf { it.isNotBlank() }
+                            ?: profile.primaryCategoryId
                         profile.copy(
                             fullName = user.fullName,
                             profilePictureUrl = user.profilePictureUrl,
@@ -158,7 +164,8 @@ class ServiceRepositoryImpl @Inject constructor(
                             startingPrice = startingPrice,
                             completedOrders = resolvedCompletedOrders,
                             district = resolvedDistrict,
-                        )
+                            serviceCategory = resolvedCategoryName,
+                            )
                     } else {
                         null
                     }
@@ -188,6 +195,8 @@ class ServiceRepositoryImpl @Inject constructor(
             emit(Result.success(emptyList()))
             return@flow
         }
+
+        val categoryNames = fetchServiceCategoriesMap()
 
         val profiles = coroutineScope {
             users.map { user ->
@@ -256,13 +265,18 @@ class ServiceRepositoryImpl @Inject constructor(
                             }
                             resolvedDistrict = resolvedDistrict.trim()
 
+                            val resolvedCategoryName = categoryNames[profile.primaryCategoryId]
+                                ?.takeIf { it.isNotBlank() }
+                                ?: profile.serviceCategory.takeIf { it.isNotBlank() }
+                                ?: profile.primaryCategoryId
+
                             profile.copy(
                                 fullName = user.fullName,
                                 profilePictureUrl = user.profilePictureUrl,
                                 profileBannerUrl = user.profileBannerUrl,
                                 distanceKm = distance,
                                 district = resolvedDistrict,
-                                serviceCategory = profile.serviceCategory, // Ini sudah benar
+                                serviceCategory = resolvedCategoryName,
                                 completedOrders = resolvedCompletedOrders,
                                 startingPrice = startingPrice // BARU: Masukkan harga yang sudah diambil
                             )
@@ -281,6 +295,27 @@ class ServiceRepositoryImpl @Inject constructor(
         emit(Result.failure(exception))
     }
     // AKHIR DARI FUNGSI YANG DIUBAH
+
+    private suspend fun fetchServiceCategoriesMap(): Map<String, String> {
+        return try {
+            firestore.collection("service_categories")
+                .get()
+                .await()
+                .documents
+                .mapNotNull { doc ->
+                    val name = doc.getString("name")?.takeIf { it.isNotBlank() }
+                    if (name != null) {
+                        doc.id to name
+                    } else {
+                        null
+                    }
+                }
+                .toMap()
+        } catch (exception: Exception) {
+            Log.e(TAG, "[ServiceCategories] Failed to fetch categories map", exception)
+            emptyMap()
+        }
+    }
 
     private data class ProviderPublicStats(
         val completedOrders: Int?,
