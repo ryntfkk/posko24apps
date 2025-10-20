@@ -187,31 +187,48 @@ class ServiceRepositoryImpl @Inject constructor(
             return@flow
         }
 
-        val profiles = users.mapNotNull { user ->
-            val profileDoc = firestore.collection("provider_profiles")
-                .document(user.uid)
-                .get().await()
-            profileDoc.toProviderProfileWithDefaults()?.let { profile ->
-                profile.copy(
-                    fullName = user.fullName,
-                    profilePictureUrl = user.profilePictureUrl,
-                    profileBannerUrl = user.profileBannerUrl
-                )
-            }
+        // Menggunakan coroutineScope untuk memproses profil secara paralel
+        val profiles = coroutineScope {
+            users.map { user ->
+                async {
+                    val profileDoc = firestore.collection("provider_profiles")
+                        .document(user.uid)
+                        .get().await()
+
+                    profileDoc.toProviderProfileWithDefaults()?.let { profile ->
+                        val distance = profile.location?.let { loc ->
+                            distanceInKm(
+                                currentLocation.latitude,
+                                currentLocation.longitude,
+                                loc.latitude,
+                                loc.longitude
+                            )
+                        }
+
+                        // Jika jarak dalam batas maksimum, lengkapi datanya
+                        if (distance != null && distance <= maxDistanceKm) {
+                            val stats = fetchProviderPublicStats(user.uid)
+                            val finalDistrict = profile.district.ifBlank {
+                                stats?.district ?: stats?.addressLabel ?: ""
+                            }
+
+                            profile.copy(
+                                fullName = user.fullName,
+                                profilePictureUrl = user.profilePictureUrl,
+                                profileBannerUrl = user.profileBannerUrl,
+                                distanceKm = distance,
+                                district = finalDistrict, // Memasukkan data distrik yang sudah diambil
+                                completedOrders = stats?.completedOrders ?: profile.completedOrders
+                            )
+                        } else {
+                            null
+                        }
+                    }
+                }
+            }.awaitAll().filterNotNull()
         }
 
-        val filtered = profiles.filter { profile ->
-            profile.location?.let { loc ->
-                distanceInKm(
-                    currentLocation.latitude,
-                    currentLocation.longitude,
-                    loc.latitude,
-                    loc.longitude
-                ) <= maxDistanceKm
-            } ?: false
-        }
-
-        emit(Result.success(filtered))
+        emit(Result.success(profiles))
     }.catch { exception ->
         emit(Result.failure(exception))
     }

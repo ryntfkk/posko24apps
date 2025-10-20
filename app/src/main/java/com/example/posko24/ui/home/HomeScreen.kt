@@ -392,7 +392,7 @@ fun CategoryListScreen(
                                     ProviderListItem(
                                         provider = provider,
                                         onClick = {},
-                                        modifier = Modifier.width(300.dp)
+                                        modifier = Modifier.width(180.dp)
                                     )
                                 }
                             }
