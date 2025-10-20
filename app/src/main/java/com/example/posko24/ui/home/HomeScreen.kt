@@ -80,7 +80,6 @@ import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import com.google.accompanist.pager.HorizontalPagerIndicator
 import com.google.accompanist.pager.rememberPagerState
-import com.google.firebase.firestore.GeoPoint
 import kotlinx.coroutines.delay
 
 data class PopularService(
@@ -153,6 +152,7 @@ fun CategoryListScreen(
 ) {
     val categoriesState by viewModel.categoriesState.collectAsState()
     val providersState by viewModel.nearbyProvidersState.collectAsState()
+    val currentLocation by viewModel.currentLocation.collectAsState()
     val bannerImageUrls by viewModel.bannerUrls.collectAsState()
     val bottomBannerUrl by viewModel.bottomBannerUrl.collectAsState()
     val activeOrderDetails by viewModel.activeOrderDetails.collectAsState()
@@ -171,8 +171,13 @@ fun CategoryListScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.loadNearbyProviders(GeoPoint(0.0, 0.0))
+        viewModel.refreshCurrentLocation()
         viewModel.loadActiveOrder()
+    }
+
+    LaunchedEffect(currentLocation) {
+        val location = currentLocation ?: return@LaunchedEffect
+        viewModel.loadNearbyProviders(location)
     }
 
     var query by remember { mutableStateOf("") }

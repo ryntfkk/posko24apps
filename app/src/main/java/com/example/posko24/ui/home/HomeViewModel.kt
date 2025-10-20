@@ -7,6 +7,7 @@ import com.example.posko24.data.model.Order
 import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ServiceCategory
+import com.example.posko24.data.repository.AddressRepository
 import com.example.posko24.data.repository.ServiceRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -14,6 +15,7 @@ import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,7 +34,8 @@ data class ActiveOrderDetails(
 class HomeViewModel @Inject constructor(
     private val serviceRepository: ServiceRepository,
     private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val addressRepository: AddressRepository
 ) : ViewModel() {
 
     private val _categoriesState = MutableStateFlow<CategoriesState>(CategoriesState.Loading)
@@ -50,17 +53,62 @@ class HomeViewModel @Inject constructor(
     private val _activeOrderDetails = MutableStateFlow<ActiveOrderDetails?>(null)
     val activeOrderDetails: StateFlow<ActiveOrderDetails?> = _activeOrderDetails
 
+    private val _currentLocation = MutableStateFlow<GeoPoint?>(null)
+    val currentLocation: StateFlow<GeoPoint?> = _currentLocation.asStateFlow()
+
+    private val fallbackLocation = GeoPoint(-6.9926, 110.4283)
+    private var locationJob: Job? = null
+    private var lastNearbyRequestLocation: GeoPoint? = null
+
     private val paymentTimeoutMillis = 24L * 60L * 60L * 1000L
 
     init {
         loadCategories()
         loadBanners()
+        refreshCurrentLocation()
         if (auth.currentUser != null) {
             loadActiveOrder()
         } else {
             Log.d(TAG, "Pengguna belum login saat inisialisasi, melewati pemuatan order aktif.")
             _activeOrderDetails.value = null
+            _currentLocation.value = fallbackLocation
         }
+    }
+
+    fun refreshCurrentLocation() {
+        locationJob?.cancel()
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            updateCurrentLocation(fallbackLocation)
+            return
+        }
+
+        locationJob = viewModelScope.launch {
+            addressRepository.getDefaultAddress(uid).collect { result ->
+                result.onSuccess { address ->
+                    val newLocation = address?.location ?: fallbackLocation
+                    updateCurrentLocation(newLocation)
+                }.onFailure { exception ->
+                    Log.e(TAG, "Gagal memuat alamat default pengguna", exception)
+                    updateCurrentLocation(fallbackLocation)
+                }
+            }
+        }
+    }
+
+    private fun updateCurrentLocation(newLocation: GeoPoint?) {
+        val oldLocation = _currentLocation.value
+        if (newLocation.isSameLocation(oldLocation)) {
+            return
+        }
+        _currentLocation.value = newLocation
+        lastNearbyRequestLocation = null
+    }
+
+    private fun GeoPoint?.isSameLocation(other: GeoPoint?): Boolean {
+        if (this == null && other == null) return true
+        if (this == null || other == null) return false
+        return this.latitude == other.latitude && this.longitude == other.longitude
     }
 
     fun loadActiveOrder() {
@@ -231,6 +279,11 @@ class HomeViewModel @Inject constructor(
     }
 
     fun loadNearbyProviders(location: GeoPoint) {
+        if (location.isSameLocation(lastNearbyRequestLocation)) {
+            Log.d(TAG, "Lokasi sama dengan permintaan sebelumnya, mengabaikan panggilan loadNearbyProviders.")
+            return
+        }
+        lastNearbyRequestLocation = location
         viewModelScope.launch {
             _nearbyProvidersState.value = NearbyProvidersState.Loading
             serviceRepository.getNearbyProviders(location).collect { result ->
@@ -239,6 +292,7 @@ class HomeViewModel @Inject constructor(
                 }.onFailure { exception ->
                     // --- PERBAIKAN DI SINI ---
                     _nearbyProvidersState.value = NearbyProvidersState.Error(exception.message ?: "Gagal memuat data")
+                    lastNearbyRequestLocation = null
                 }
             }
         }
