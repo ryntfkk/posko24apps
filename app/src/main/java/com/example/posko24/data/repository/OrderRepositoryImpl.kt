@@ -111,12 +111,8 @@ class OrderRepositoryImpl @Inject constructor(
 
         val normalizedPaymentStatus = snapshot.getString("paymentStatus")?.lowercase(Locale.ROOT)
         if (newStatus == OrderStatus.CANCELLED && normalizedPaymentStatus == "paid") {
-            docRef.update(
-                mapOf(
-                    "status" to newStatus.value,
-                    "paymentStatus" to "paid"
-                )
-            ).await()
+// Jangan ubah paymentStatus jika sudah 'paid' kecuali ada logika refund
+            docRef.update("status", newStatus.value).await()
         } else {
             docRef.update("status", newStatus.value).await()
         }

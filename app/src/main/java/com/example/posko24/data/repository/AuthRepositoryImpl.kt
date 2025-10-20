@@ -80,7 +80,7 @@ class AuthRepositoryImpl @Inject constructor(
                     )
                 )
             } else {
-                emit(Result.failure(saveResult.exceptionOrNull()!!))
+                emit(Result.failure(saveResult.exceptionOrNull() ?: Exception("Gagal menyimpan alamat saat registrasi.")))
             }
         } else {
             emit(Result.failure(Exception("Gagal membuat user.")))
