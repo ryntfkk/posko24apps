@@ -73,7 +73,7 @@ import com.example.posko24.R
 import com.example.posko24.ui.components.ActiveOrderBanner
 import com.example.posko24.ui.components.CategoryCard
 import com.example.posko24.ui.components.ProviderListItem
-import com.example.posko24.ui.main.MainViewModel
+import com.example.posko24.ui.main.MainScreenStateHolder
 import com.example.posko24.ui.main.UserState
 import com.example.posko24.ui.provider.ProviderDashboardScreen
 import com.google.accompanist.pager.ExperimentalPagerApi
@@ -112,7 +112,7 @@ val dummyVouchers = listOf(
 
 @Composable
 fun HomeScreen(
-    mainViewModel: MainViewModel,
+    mainViewModel: MainScreenStateHolder,
     homeViewModel: HomeViewModel = hiltViewModel(),
     onCategoryClick: (String) -> Unit,
     onOrderClick: (String) -> Unit

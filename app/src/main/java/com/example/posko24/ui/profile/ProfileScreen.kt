@@ -42,7 +42,7 @@ import coil.request.ImageRequest
 import com.example.posko24.MainActivity
 import com.example.posko24.R
 import com.example.posko24.data.model.User
-import com.example.posko24.ui.main.MainViewModel
+import com.example.posko24.ui.main.MainScreenStateHolder
 import java.text.NumberFormat
 import java.util.Locale
 import androidx.compose.foundation.BorderStroke
@@ -65,7 +65,7 @@ data class ProfileMenuItem(
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
-    mainViewModel: MainViewModel,
+    mainViewModel: MainScreenStateHolder,
     onNavigateToTransactions: (Float) -> Unit,
     onNavigateToAccountSettings: () -> Unit,
     onNavigateToAddressSettings: () -> Unit

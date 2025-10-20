@@ -33,14 +33,17 @@ import com.google.firebase.firestore.GeoPoint
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.example.posko24.ui.components.InteractiveMapView
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    viewModel: RegisterViewModel = hiltViewModel(),
+    viewModel: RegisterScreenStateHolder? = null,
 ) {
+    val currentViewModel: RegisterScreenStateHolder = viewModel ?: hiltViewModel<RegisterViewModel>()
     var currentStep by remember { mutableStateOf(1) }
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -56,8 +59,8 @@ fun RegisterScreen(
     var showLeaveConfirmation by remember { mutableStateOf(false) }
     var pendingNavigation by remember { mutableStateOf<(() -> Unit)?>(null) }
     var otpCode by remember { mutableStateOf("") }
-    val authState by viewModel.authState.collectAsState()
-    val uiState by viewModel.uiState.collectAsState()
+    val authState by currentViewModel.authState.collectAsState()
+    val uiState by currentViewModel.uiState.collectAsState()
     val phoneVerification = uiState.phoneVerification
     val emailVerification = uiState.emailVerification
     val context = LocalContext.current
@@ -75,7 +78,7 @@ fun RegisterScreen(
                             CameraUpdateFactory.newLatLngZoom(latLng, 15f)
                         )
                     }
-                    viewModel.onMapCoordinatesChanged(
+                    currentViewModel.onMapCoordinatesChanged(
                         GeoPoint(location.latitude, location.longitude)
                     )
                 } else {
@@ -102,7 +105,7 @@ fun RegisterScreen(
         when (val state = authState) {
             is AuthState.Error -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
-                viewModel.resetState()
+                currentViewModel.resetState()
             }
             else -> Unit
         }
@@ -159,7 +162,7 @@ fun RegisterScreen(
                     message = (authState as AuthState.VerificationRequired).message,
                     email = (authState as AuthState.VerificationRequired).email,
                     onProceedToLogin = {
-                        viewModel.resetState()
+                        currentViewModel.resetState()
                         onRegisterSuccess()
                     }
                 )
@@ -185,7 +188,7 @@ fun RegisterScreen(
                             if ((emailVerification.isOtpRequested || emailVerification.isOtpVerified) &&
                                 newSanitized != emailVerification.sanitizedEmail
                             ) {
-                                viewModel.resetEmailVerification()
+                                currentViewModel.resetEmailVerification()
                                 emailOtpCode = ""
                             }
                         },
@@ -215,7 +218,7 @@ fun RegisterScreen(
                             if ((phoneVerification.isOtpRequested || phoneVerification.isOtpVerified) &&
                                 newSanitized != phoneVerification.sanitizedPhone
                             ) {
-                                viewModel.resetPhoneVerification()
+                                currentViewModel.resetPhoneVerification()
                                 phoneOtpCode = ""
                             }
                         },
@@ -264,7 +267,7 @@ fun RegisterScreen(
                             Button(
                                 onClick = {
                                     emailOtpCode = ""
-                                    viewModel.requestEmailOtp(sanitizedEmail)
+                                    currentViewModel.requestEmailOtp(sanitizedEmail)
                                 },
                                 enabled = sanitizedEmail.isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(sanitizedEmail).matches() &&
                                         !emailVerification.isRequestingOtp && !emailVerification.isOtpVerified,
@@ -290,7 +293,7 @@ fun RegisterScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Button(
-                                    onClick = { viewModel.verifyEmailOtp(emailOtpCode) },
+                                    onClick = { currentViewModel.verifyEmailOtp(emailOtpCode) },
                                     enabled = emailOtpCode.length >= 6 && !emailVerification.isVerifyingOtp,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -307,7 +310,7 @@ fun RegisterScreen(
                                     TextButton(
                                         onClick = {
                                             emailOtpCode = ""
-                                            viewModel.resendEmailOtp(sanitizedEmail)
+                                            currentViewModel.resendEmailOtp(sanitizedEmail)
                                         },
                                         enabled = !emailVerification.isRequestingOtp && !emailVerification.isVerifyingOtp
                                     ) {
@@ -352,7 +355,7 @@ fun RegisterScreen(
                             Button(
                                 onClick = {
                                     phoneOtpCode = ""
-                                    viewModel.startPhoneNumberVerification(
+                                    currentViewModel.startPhoneNumberVerification(
                                         sanitizedPhone,
                                         context.findActivity()
                                     )
@@ -383,7 +386,7 @@ fun RegisterScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Button(
-                                    onClick = { viewModel.verifyOtp(phoneOtpCode) },
+                                    onClick = { currentViewModel.verifyOtp(phoneOtpCode) },
                                     enabled = phoneOtpCode.length >= 6 && !phoneVerification.isVerifyingOtp,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -400,7 +403,7 @@ fun RegisterScreen(
                                     TextButton(
                                         onClick = {
                                             phoneOtpCode = ""
-                                            viewModel.resendVerificationCode(context.findActivity())
+                                            currentViewModel.resendVerificationCode(context.findActivity())
                                         },
                                         enabled = !phoneVerification.isRequestingOtp && !phoneVerification.isVerifyingOtp
                                     ) {
@@ -533,14 +536,14 @@ fun RegisterScreen(
                 2 -> {
                     AddressDropdowns(
                         uiState = uiState,
-                        onProvinceSelected = viewModel::onProvinceSelected,
-                        onCitySelected = viewModel::onCitySelected,
-                        onDistrictSelected = viewModel::onDistrictSelected
+                        onProvinceSelected = currentViewModel::onProvinceSelected,
+                        onCitySelected = currentViewModel::onCitySelected,
+                        onDistrictSelected = currentViewModel::onDistrictSelected
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     OutlinedTextField(
                         value = uiState.addressDetail,
-                        onValueChange = viewModel::onAddressDetailChanged,
+                        onValueChange = currentViewModel::onAddressDetailChanged,
                         label = { Text("Detail alamat") },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -549,7 +552,7 @@ fun RegisterScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     InteractiveMapView(
                         cameraPositionState = cameraPositionState,
-                        onMapCoordinatesChanged = viewModel::onMapCoordinatesChanged
+                        onMapCoordinatesChanged = currentViewModel::onMapCoordinatesChanged
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = {
@@ -569,7 +572,7 @@ fun RegisterScreen(
                     val step2Valid = uiState.selectedDistrict != null &&
                             uiState.addressDetail.isNotBlank() && uiState.mapCoordinates != null
                     Button(
-                        onClick = { viewModel.register(fullName, sanitizedEmail, sanitizedPhone, password) },
+                        onClick = { currentViewModel.register(fullName, sanitizedEmail, sanitizedPhone, password) },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = step2Valid &&
                                 authState != AuthState.Loading &&
@@ -806,9 +809,113 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 @Preview(showBackground = true)
 @Composable
 fun RegisterScreenPreview() {
+    val fakeViewModel = remember { FakeRegisterViewModel() }
     Posko24Theme {
-        RegisterScreen(onRegisterSuccess = {}, onNavigateToLogin = {})
+        RegisterScreen(
+            onRegisterSuccess = {},
+            onNavigateToLogin = {},
+            viewModel = fakeViewModel
+        )
     }
 }
 
 private enum class VerificationTarget { EMAIL, PHONE }
+
+private class FakeRegisterViewModel : RegisterScreenStateHolder {
+    override val authState = MutableStateFlow<AuthState>(AuthState.Initial)
+    override val uiState = MutableStateFlow(
+        RegisterUiState(
+            provinces = listOf(Wilayah(docId = "p1", id = "1", name = "Jawa Tengah")),
+            selectedProvince = Wilayah(docId = "p1", id = "1", name = "Jawa Tengah"),
+            cities = listOf(Wilayah(docId = "c1", id = "10", name = "Semarang")),
+            selectedCity = Wilayah(docId = "c1", id = "10", name = "Semarang"),
+            districts = listOf(Wilayah(docId = "d1", id = "100", name = "Banyumanik")),
+            selectedDistrict = Wilayah(docId = "d1", id = "100", name = "Banyumanik"),
+            addressDetail = "Jl. Contoh 123",
+            phoneVerification = PhoneVerificationState(isOtpVerified = true, sanitizedPhone = "+6281234567890"),
+            emailVerification = EmailVerificationState(isOtpVerified = true, sanitizedEmail = "preview@example.com")
+        )
+    )
+
+    override fun resetState() {
+        authState.value = AuthState.Initial
+    }
+
+    override fun resetEmailVerification() {
+        uiState.update { it.copy(emailVerification = EmailVerificationState()) }
+    }
+
+    override fun resetPhoneVerification() {
+        uiState.update { it.copy(phoneVerification = PhoneVerificationState()) }
+    }
+
+    override fun requestEmailOtp(rawEmail: String) {
+        uiState.update {
+            it.copy(emailVerification = it.emailVerification.copy(isOtpRequested = true, sanitizedEmail = rawEmail.trim()))
+        }
+    }
+
+    override fun verifyEmailOtp(code: String) {
+        uiState.update {
+            it.copy(emailVerification = it.emailVerification.copy(isOtpVerified = code.length >= 6))
+        }
+    }
+
+    override fun resendEmailOtp(rawEmail: String) {
+        requestEmailOtp(rawEmail)
+    }
+
+    override fun startPhoneNumberVerification(phoneNumber: String, activity: Activity?) {
+        uiState.update {
+            it.copy(
+                phoneVerification = it.phoneVerification.copy(
+                    sanitizedPhone = phoneNumber,
+                    isOtpRequested = true
+                )
+            )
+        }
+    }
+
+    override fun verifyOtp(code: String) {
+        uiState.update {
+            it.copy(phoneVerification = it.phoneVerification.copy(isOtpVerified = code.length >= 6))
+        }
+    }
+
+    override fun resendVerificationCode(activity: Activity?) {
+        // no-op for previews
+    }
+
+    override fun onProvinceSelected(province: Wilayah) {
+        uiState.update {
+            it.copy(
+                selectedProvince = province,
+                provinces = listOf(province)
+            )
+        }
+    }
+
+    override fun onCitySelected(city: Wilayah) {
+        uiState.update {
+            it.copy(selectedCity = city, cities = listOf(city))
+        }
+    }
+
+    override fun onDistrictSelected(district: Wilayah) {
+        uiState.update {
+            it.copy(selectedDistrict = district, districts = listOf(district))
+        }
+    }
+
+    override fun onAddressDetailChanged(detail: String) {
+        uiState.update { it.copy(addressDetail = detail) }
+    }
+
+    override fun onMapCoordinatesChanged(geoPoint: GeoPoint) {
+        uiState.update { it.copy(mapCoordinates = geoPoint) }
+    }
+
+    override fun register(fullName: String, email: String, phone: String, password: String) {
+        authState.value = AuthState.Loading
+    }
+}

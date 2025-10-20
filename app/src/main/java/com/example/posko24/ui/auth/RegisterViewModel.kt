@@ -24,12 +24,33 @@ import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.FirebaseFunctionsException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+
+interface RegisterScreenStateHolder {
+    val authState: StateFlow<AuthState>
+    val uiState: StateFlow<RegisterUiState>
+    fun resetState()
+    fun resetEmailVerification()
+    fun resetPhoneVerification()
+    fun requestEmailOtp(rawEmail: String)
+    fun verifyEmailOtp(code: String)
+    fun resendEmailOtp(rawEmail: String)
+    fun startPhoneNumberVerification(phoneNumber: String, activity: Activity?)
+    fun verifyOtp(code: String)
+    fun resendVerificationCode(activity: Activity?)
+    fun onProvinceSelected(province: Wilayah)
+    fun onCitySelected(city: Wilayah)
+    fun onDistrictSelected(district: Wilayah)
+    fun onAddressDetailChanged(detail: String)
+    fun onMapCoordinatesChanged(geoPoint: GeoPoint)
+    fun register(fullName: String, email: String, phone: String, password: String)
+}
 
 private fun defaultForceRecaptchaForVerification(): Boolean {
     return BuildConfig.DEBUG && BuildConfig.FORCE_PHONE_AUTH_TESTING
@@ -87,7 +108,7 @@ class RegisterViewModel @Inject constructor(
     private val addressRepository: AddressRepository,
     private val firebaseAuth: FirebaseAuth,
     private val firebaseFunctions: FirebaseFunctions
-) : ViewModel() {
+) : ViewModel(), RegisterScreenStateHolder {
 
     companion object {
         private const val TAG = "RegisterViewModel"
@@ -96,10 +117,10 @@ class RegisterViewModel @Inject constructor(
     private var recaptchaFallbackActivated: Boolean = false
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
-    val authState = _authState.asStateFlow()
+    override val authState = _authState.asStateFlow()
 
     private val _uiState = MutableStateFlow(RegisterUiState())
-    val uiState = _uiState.asStateFlow()
+    override val uiState = _uiState.asStateFlow()
 
     init {
         loadProvinces()
@@ -139,7 +160,7 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
-    fun onProvinceSelected(province: Wilayah) {
+    override fun onProvinceSelected(province: Wilayah) {
         _uiState.update {
             it.copy(
                 selectedProvince = province,
@@ -158,7 +179,7 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
-    fun onCitySelected(city: Wilayah) {
+    override fun onCitySelected(city: Wilayah) {
         val provinceDocId = _uiState.value.selectedProvince?.docId ?: return
         _uiState.update {
             it.copy(selectedCity = city, districts = emptyList(), selectedDistrict = null)
@@ -172,19 +193,19 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
-    fun onDistrictSelected(district: Wilayah) {
+    override fun onDistrictSelected(district: Wilayah) {
         _uiState.update { it.copy(selectedDistrict = district) }
     }
 
-    fun onAddressDetailChanged(detail: String) {
+    override fun onAddressDetailChanged(detail: String) {
         _uiState.update { it.copy(addressDetail = detail) }
     }
 
-    fun onMapCoordinatesChanged(geoPoint: GeoPoint) {
+    override fun onMapCoordinatesChanged(geoPoint: GeoPoint) {
         _uiState.update { it.copy(mapCoordinates = geoPoint) }
     }
 
-    fun startPhoneNumberVerification(phoneNumber: String, activity: Activity?) {
+    override fun startPhoneNumberVerification(phoneNumber: String, activity: Activity?) {
         val sanitizedPhone = phoneNumber.filterNot(Char::isWhitespace)
         if (sanitizedPhone.isBlank()) {
             Log.w(TAG, "startPhoneNumberVerification called with blank phone input.")
@@ -301,7 +322,7 @@ class RegisterViewModel @Inject constructor(
         PhoneAuthProvider.verifyPhoneNumber(options)
     }
 
-    fun resendVerificationCode(activity: Activity?) {
+    override fun resendVerificationCode(activity: Activity?) {
         val currentPhoneState = _uiState.value.phoneVerification
         val sanitizedPhone = currentPhoneState.sanitizedPhone
         val token = currentPhoneState.forceResendingToken
@@ -408,7 +429,7 @@ class RegisterViewModel @Inject constructor(
         PhoneAuthProvider.verifyPhoneNumber(builder.build())
     }
 
-    fun verifyOtp(code: String) {
+    override fun verifyOtp(code: String) {
         val trimmedCode = code.filterNot(Char::isWhitespace)
         if (trimmedCode.length < 6) {
             Log.w(TAG, "verifyOtp called with invalid code length=${trimmedCode.length}")
@@ -548,7 +569,7 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
-    fun resetPhoneVerification() {
+    override fun resetPhoneVerification() {
         Log.d(TAG, "Resetting phone verification state")
         forceRecaptchaForVerification = defaultForceRecaptchaForVerification()
         recaptchaFallbackActivated = false
@@ -562,12 +583,12 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
-    fun resetEmailVerification() {
+    override fun resetEmailVerification() {
         Log.d(TAG, "Resetting email verification state")
         updateEmailState { EmailVerificationState() }
     }
 
-    fun requestEmailOtp(rawEmail: String) {
+    override fun requestEmailOtp(rawEmail: String) {
         val sanitizedEmail = rawEmail.trim()
         if (!Patterns.EMAIL_ADDRESS.matcher(sanitizedEmail).matches()) {
             updateEmailState {
@@ -616,11 +637,11 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
-    fun resendEmailOtp(rawEmail: String) {
+    override fun resendEmailOtp(rawEmail: String) {
         requestEmailOtp(rawEmail)
     }
 
-    fun verifyEmailOtp(code: String) {
+    override fun verifyEmailOtp(code: String) {
         val current = _uiState.value.emailVerification
         if (!current.isOtpRequested) {
             updateEmailState {
@@ -680,7 +701,7 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
-    fun register(fullName: String, email: String, phone: String, password: String) {
+    override fun register(fullName: String, email: String, phone: String, password: String) {
         val current = _uiState.value
         val emailState = current.emailVerification
         val address = UserAddress(
@@ -730,7 +751,7 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
-    fun resetState() {
+    override fun resetState() {
         _authState.value = AuthState.Initial
     }
 }

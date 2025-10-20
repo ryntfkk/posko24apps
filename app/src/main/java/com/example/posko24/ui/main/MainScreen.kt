@@ -15,6 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -27,9 +29,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.User
-import com.example.posko24.data.repository.UserRepository
 import com.example.posko24.navigation.BottomNavItem
 import com.example.posko24.navigation.SOS_ROUTE
 import com.example.posko24.ui.chat.ChatListScreen
@@ -38,15 +38,12 @@ import com.example.posko24.ui.orders.MyOrdersScreen
 import com.example.posko24.ui.profile.ProfileScreen
 import com.example.posko24.ui.provider.ProviderDashboardScreen
 import com.example.posko24.ui.theme.Posko24Theme
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainScreen(
-    mainViewModel: MainViewModel,
+    mainViewModel: MainScreenStateHolder,
     mainNavController: NavHostController,
     onCategoryClick: (String) -> Unit,
     onNavigateToConversation: (String) -> Unit,
@@ -232,19 +229,7 @@ fun MainScreen(
 @Preview(showBackground = true)
 @Composable
 fun MainScreenPreview() {
-    val fakeRepository = object : UserRepository {
-        override fun getUserProfile(userId: String): Flow<Result<User?>> = flowOf(Result.success(null))
-        override fun getProviderProfile(providerId: String): Flow<Result<ProviderProfile?>> = flowOf(Result.success(null))
-        override suspend fun updateActiveRole(userId: String, activeRole: String): Flow<Result<Boolean>> = flowOf(Result.success(true))
-        override suspend fun upgradeToProvider(): Flow<Result<Boolean>> = flowOf(Result.success(true))
-        override suspend fun updateUserProfile(userId: String, data: Map<String, Any?>): Result<Unit> = Result.success(Unit)
-    }
-
-    val previewViewModel = MainViewModel(
-        auth = FirebaseAuth.getInstance(),
-        firestore = FirebaseFirestore.getInstance(),
-        userRepository = fakeRepository
-    )
+    val previewViewModel = remember { FakeMainViewModel() }
 
     Posko24Theme {
         MainScreen(
@@ -258,5 +243,37 @@ fun MainScreenPreview() {
             onNavigateToAccountSettings = {},
             onNavigateToAddressSettings = {}
         )
+    }
+}
+
+private class FakeMainViewModel : MainScreenStateHolder {
+    override val intendedRoute = mutableStateOf<String?>(null)
+    private val _userState = MutableStateFlow<UserState>(
+        UserState.Authenticated(
+            User(
+                uid = "preview-user",
+                fullName = "Siti Preview",
+                email = "siti@example.com",
+                phoneNumber = "081234567890",
+                balance = 150_000.0,
+                roles = listOf("customer", "provider"),
+                activeRole = "customer"
+            )
+        )
+    )
+    override val userState = _userState
+    private val _activeRole = MutableStateFlow("customer")
+    override val activeRole = _activeRole
+
+    override fun refreshUserProfile() {
+        // no-op for previews
+    }
+
+    override fun setActiveRole(role: String) {
+        _activeRole.value = role
+        val current = _userState.value
+        if (current is UserState.Authenticated) {
+            _userState.value = UserState.Authenticated(current.user.copy(activeRole = role))
+        }
     }
 }

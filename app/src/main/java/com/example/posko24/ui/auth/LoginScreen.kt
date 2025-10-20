@@ -19,24 +19,26 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.example.posko24.ui.theme.Posko24Theme
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @Composable
 fun LoginScreen(
     // Aksi navigasi ini akan kita definisikan nanti di Fase 2
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
-    viewModel: AuthViewModel = hiltViewModel()
+    viewModel: LoginScreenStateHolder? = null
 ) {
+    val currentViewModel: LoginScreenStateHolder = viewModel ?: hiltViewModel<AuthViewModel>()
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
-    val authState by viewModel.authState.collectAsStateWithLifecycle()
+    val authState by currentViewModel.authState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshEmailVerificationStatus()
+                currentViewModel.refreshEmailVerificationStatus()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -49,11 +51,11 @@ fun LoginScreen(
             is AuthState.Authenticated -> {
                 Toast.makeText(context, "Login Berhasil!", Toast.LENGTH_SHORT).show()
                 onLoginSuccess() // Pindah ke halaman utama
-                viewModel.resetState() // Reset state setelah berhasil
+                currentViewModel.resetState() // Reset state setelah berhasil
             }
             is AuthState.Error -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
-                viewModel.resetState() // Reset state agar pesan error tidak muncul terus
+                currentViewModel.resetState() // Reset state agar pesan error tidak muncul terus
             }
             is AuthState.VerificationRequired -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
@@ -95,7 +97,7 @@ fun LoginScreen(
             Button(
                 onClick = {
                     if (email.isNotBlank() && password.isNotBlank()) {
-                        viewModel.login(email, password)
+                        currentViewModel.login(email, password)
                     } else {
                         Toast.makeText(context, "Email dan password tidak boleh kosong", Toast.LENGTH_SHORT).show()
                     }
@@ -125,7 +127,7 @@ fun LoginScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(onClick = { viewModel.resendEmailVerification() }) {
+                OutlinedButton(onClick = { currentViewModel.resendEmailVerification() }) {
                     Text("Kirim ulang email verifikasi")
                 }
             }
@@ -140,7 +142,31 @@ fun LoginScreen(
 @Preview(showBackground = true)
 @Composable
 fun LoginScreenPreview() {
+    val fakeViewModel = remember { FakeLoginViewModel() }
     Posko24Theme {
-        LoginScreen(onLoginSuccess = {}, onNavigateToRegister = {})
+        LoginScreen(
+            onLoginSuccess = {},
+            onNavigateToRegister = {},
+            viewModel = fakeViewModel
+        )
     }
+}
+
+private class FakeLoginViewModel : LoginScreenStateHolder {
+    override val authState = MutableStateFlow<AuthState>(AuthState.Initial)
+
+    override fun login(email: String, password: String) {
+        authState.value = AuthState.Loading
+    }
+
+    override fun resendEmailVerification() {
+        // no-op for previews
+    }
+
+    override fun refreshEmailVerificationStatus() {
+        // no-op for previews
+    }
+
+    override fun resetState() {
+        authState.value = AuthState.Initial    }
 }

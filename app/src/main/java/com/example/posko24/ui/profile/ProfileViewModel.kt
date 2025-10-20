@@ -8,7 +8,7 @@ import com.example.posko24.data.repository.AuthRepository
 import com.example.posko24.data.repository.ProviderAvailabilityRepository
 import com.example.posko24.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
-import com.example.posko24.ui.main.MainViewModel
+import com.example.posko24.ui.main.MainScreenStateHolder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -120,7 +120,7 @@ class ProfileViewModel @Inject constructor(
             }
         }
     }
-    fun upgradeToProvider(mainViewModel: MainViewModel) {
+    fun upgradeToProvider(mainViewModel: MainScreenStateHolder) {
         viewModelScope.launch {
             userRepository.upgradeToProvider().collect { result ->
                 result.onSuccess {

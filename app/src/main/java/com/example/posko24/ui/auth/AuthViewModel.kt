@@ -9,6 +9,7 @@ import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuthException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
@@ -16,15 +17,23 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.google.firebase.auth.PhoneAuthCredential
 
+interface LoginScreenStateHolder {
+    val authState: StateFlow<AuthState>
+    fun login(email: String, password: String)
+    fun resendEmailVerification()
+    fun refreshEmailVerificationStatus()
+    fun resetState()
+}
+
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val repository: AuthRepository
-) : ViewModel() {
+) : ViewModel(), LoginScreenStateHolder {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
-    val authState = _authState.asStateFlow()
+    override val authState = _authState.asStateFlow()
 
-    fun login(email: String, password: String) {
+    override fun login(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
 
@@ -98,7 +107,7 @@ class AuthViewModel @Inject constructor(
             }
         }
     }
-    fun resendEmailVerification() {
+    override fun resendEmailVerification() {
         viewModelScope.launch {
             val current = _authState.value
             if (current !is AuthState.VerificationRequired) return@launch
@@ -122,7 +131,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun refreshEmailVerificationStatus() {
+    override fun refreshEmailVerificationStatus() {
         viewModelScope.launch {
             val current = _authState.value
             if (current !is AuthState.VerificationRequired) return@launch
@@ -147,7 +156,7 @@ class AuthViewModel @Inject constructor(
                 }
         }
     }
-    fun resetState() {
+    override fun resetState() {
         _authState.value = AuthState.Initial
     }
 }

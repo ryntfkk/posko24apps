@@ -1,5 +1,6 @@
 package com.example.posko24.ui.main
 
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,6 +10,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.example.posko24.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -18,19 +20,27 @@ import javax.inject.Inject
  * ViewModel untuk berbagi state global di level MainScreen.
  * Sekarang bertanggung jawab untuk memuat profil user dan menentukan peran.
  */
+interface MainScreenStateHolder {
+    val intendedRoute: MutableState<String?>
+    val userState: StateFlow<UserState>
+    val activeRole: StateFlow<String>
+    fun refreshUserProfile()
+    fun setActiveRole(role: String)
+}
+
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
     private val userRepository: UserRepository
-) : ViewModel() {
+) : ViewModel(), MainScreenStateHolder {
     // Menyimpan rute yang ingin diakses pengguna sebelum diminta login
-    val intendedRoute = mutableStateOf<String?>(null)
+    override val intendedRoute = mutableStateOf<String?>(null)
 
     private val _userState = MutableStateFlow<UserState>(UserState.Loading)
-    val userState = _userState.asStateFlow()
+    override val userState = _userState.asStateFlow()
     private val _activeRole = MutableStateFlow("customer")
-    val activeRole = _activeRole.asStateFlow()
+    override val activeRole = _activeRole.asStateFlow()
 
     init {
         // Mendengarkan perubahan status autentikasi secara real-time
@@ -67,11 +77,11 @@ class MainViewModel @Inject constructor(
             }
         }
     }
-    fun refreshUserProfile() {
+    override fun refreshUserProfile() {
         val uid = auth.currentUser?.uid ?: return
         loadUserProfile(uid, forceRefresh = true)
     }
-    fun setActiveRole(role: String) {
+    override fun setActiveRole(role: String) {
         val uid = auth.currentUser?.uid ?: return
         viewModelScope.launch {
             userRepository.updateActiveRole(uid, role).collect { result ->
