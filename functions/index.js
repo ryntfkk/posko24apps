@@ -1258,17 +1258,7 @@ exports.midtransWebhookHandler = functions.https.onRequest(
 
 /**
  * ============================================================
- * 5) FIND PROVIDER FOR BASIC ORDER (Firestore Trigger v2)
- * ============================================================
- */
-exports.findProviderForBasicOrder = onDocumentUpdated('orders/{orderId}', async () => {
-  // Trigger disabled. Provider assignment is handled explicitly by claimOrder.
-  return null;
-});
-
-/**
- * ============================================================
- * 6) ON PROVIDER ASSIGNED - CREATE CHAT (Firestore Trigger v2)
+  * 5) ON PROVIDER ASSIGNED - CREATE CHAT (Firestore Trigger v2)
  * ============================================================
  */
 exports.onProviderAssigned = onDocumentUpdated('orders/{orderId}', async (event) => {
@@ -1283,7 +1273,7 @@ exports.onProviderAssigned = onDocumentUpdated('orders/{orderId}', async (event)
 });
 /**
  * ============================================================
- * 6B) SYNC PROVIDER AVAILABILITY (Firestore Trigger v2)
+ * 5B) SYNC PROVIDER AVAILABILITY (Firestore Trigger v2)
  * ============================================================
  */
 exports.syncProviderAvailability = onDocumentWritten('orders/{orderId}', async (event) => {
