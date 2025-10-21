@@ -38,6 +38,9 @@ class ProviderViewModel @Inject constructor(
     private val _providerState = MutableStateFlow<ProviderListState>(ProviderListState.Loading)
     val providerState = _providerState.asStateFlow()
 
+    private val _categoryName = MutableStateFlow("")
+    val categoryName = _categoryName.asStateFlow()
+
     init {
         val categoryId = savedStateHandle.get<String>("categoryId")
         if (categoryId.isNullOrBlank()) {
@@ -47,6 +50,12 @@ class ProviderViewModel @Inject constructor(
             viewModelScope.launch {
                 val currentLocation = fetchCurrentUserLocation()
                 loadProviders(categoryId, currentLocation)
+            }
+            viewModelScope.launch {
+                val resolvedCategoryName = resolveCategoryName(categoryId)
+                if (resolvedCategoryName.isNotBlank()) {
+                    _categoryName.value = resolvedCategoryName
+                }
             }
         }
     }
@@ -77,12 +86,29 @@ class ProviderViewModel @Inject constructor(
                 if (filteredProviders.isEmpty()) {
                     _providerState.value = ProviderListState.Empty
                 } else {
+                    if (_categoryName.value.isBlank()) {
+                        filteredProviders.firstOrNull()?.serviceCategory
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { _categoryName.value = it }
+                    }
                     _providerState.value = ProviderListState.Success(filteredProviders)
                 }
             }.onFailure { exception ->
                 _providerState.value = ProviderListState.Error(exception.message ?: "Gagal memuat data provider")
             }
         }
+    }
+
+    private suspend fun resolveCategoryName(categoryId: String): String {
+        return runCatching {
+            repository.getServiceCategories().first().getOrNull()
+        }.onFailure { exception ->
+            Log.e(TAG, "Gagal memuat nama kategori", exception)
+        }.getOrNull()
+            ?.firstOrNull { it.id == categoryId }
+            ?.name
+            ?.takeIf { it.isNotBlank() }
+            .orEmpty()
     }
 
     private suspend fun fetchCurrentUserLocation(): GeoPoint? {

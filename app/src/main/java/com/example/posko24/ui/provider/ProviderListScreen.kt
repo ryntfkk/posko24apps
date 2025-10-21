@@ -52,7 +52,11 @@ fun ProviderListScreen(
     onManageLocationClick: () -> Unit
 ) {
     val state by viewModel.providerState.collectAsState()
+    val categoryName by viewModel.categoryName.collectAsState()
     var searchQuery by rememberSaveable { mutableStateOf("") }
+
+    val categoryDisplayName = categoryName.takeIf { it.isNotBlank() } ?: "Kategori"
+    val headerTitle = "Penyedia jasa \"$categoryDisplayName\" radius 30km"
 
     Scaffold(
         topBar = {
@@ -157,8 +161,8 @@ fun ProviderListScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Penyedia dalam radius 30 km",
-                                style = MaterialTheme.typography.titleMedium
+                                text = headerTitle,
+                                style = MaterialTheme.typography.titleSmall
                             )
                             TextButton(onClick = onManageLocationClick) {
                                 Text(text = "Atur Lokasi")
@@ -210,8 +214,8 @@ fun ProviderListScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Penyedia dalam radius 30 km",
-                                style = MaterialTheme.typography.titleMedium
+                                text = headerTitle,
+                                style = MaterialTheme.typography.titleSmall
                             )
                             TextButton(onClick = onManageLocationClick) {
                                 Text(text = "Atur Lokasi")
@@ -235,8 +239,8 @@ fun ProviderListScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Penyedia dalam radius 30 km",
-                                style = MaterialTheme.typography.titleMedium
+                                text = headerTitle,
+                                style = MaterialTheme.typography.titleSmall
                             )
                             TextButton(onClick = onManageLocationClick) {
                                 Text(text = "Atur Lokasi")

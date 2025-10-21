@@ -101,8 +101,8 @@ fun ProviderListItem(
                 if (provider.serviceCategory.isNotBlank()) {
                     Text(
                         text = provider.serviceCategory,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Light,
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
