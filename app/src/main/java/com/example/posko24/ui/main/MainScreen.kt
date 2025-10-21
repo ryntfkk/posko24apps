@@ -220,7 +220,10 @@ fun MainScreen(
                     mainViewModel = mainViewModel,
                     onNavigateToTransactions = onNavigateToTransactions,
                     onNavigateToAccountSettings = onNavigateToAccountSettings,
-                    onNavigateToAddressSettings = onNavigateToAddressSettings
+                    onNavigateToAddressSettings = onNavigateToAddressSettings,
+                    onNavigateToProviderOnboarding = {
+                        mainNavController.navigate("provider_onboarding_screen")
+                    }
                 )
             }
         }

@@ -27,6 +27,7 @@ import com.example.posko24.ui.orders.ProviderOrderDetailScreen
 import com.example.posko24.ui.orders.ReviewScreen
 import com.example.posko24.ui.provider.ProviderDetailScreen
 import com.example.posko24.ui.provider.ProviderListScreen
+import com.example.posko24.ui.provider.onboarding.ProviderOnboardingScreen
 import com.example.posko24.ui.profile.TransactionHistoryScreen
 import com.example.posko24.ui.profile.AccountSettingsScreen
 import com.example.posko24.ui.profile.AddressSettingsScreen
@@ -207,6 +208,15 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("address_settings_screen") {
                             AddressSettingsScreen()
+                        }
+                        composable("provider_onboarding_screen") {
+                            ProviderOnboardingScreen(
+                                mainViewModel = mainViewModel,
+                                onSuccess = {
+                                    navController.popBackStack()
+                                },
+                                onNavigateBack = { navController.popBackStack() }
+                            )
                         }
                     }
                 }

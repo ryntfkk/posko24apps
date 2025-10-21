@@ -1011,42 +1011,219 @@ exports.upgradeToProvider = onCall(async (request) => {
     throw new HttpsError('unauthenticated', 'Anda harus login.');
   }
 
+ const uid = request.auth.uid;
+  const payload = request.data || {};
 
-   const uid = request.auth.uid;
-   const userRef = db.collection('users').doc(uid);
-   const userSnap = await userRef.get();
-   if (!userSnap.exists) {
-     throw new HttpsError('not-found', 'User tidak ditemukan.');
-   }
+   const rawCategoryId = readOptionalString(payload.primaryCategoryId);
+    if (!rawCategoryId) {
+      throw new HttpsError('invalid-argument', 'primaryCategoryId wajib diisi.');
+    }
 
-   const userData = userSnap.data() || {};
+  const rawServiceCategoryName = readOptionalString(payload.serviceCategory);
+    const bio = readOptionalString(payload.bio) || '';
+    const bannerUrl = readOptionalString(payload.profileBannerUrl);
 
-   await db.runTransaction(async (tx) => {
-     tx.update(userRef, {
-       roles: admin.firestore.FieldValue.arrayUnion('provider'),
-     });
+   const rawAcceptsBasicOrders = payload.acceptsBasicOrders;
+    let acceptsBasicOrders = true;
+    if (typeof rawAcceptsBasicOrders === 'boolean') {
+      acceptsBasicOrders = rawAcceptsBasicOrders;
+    } else {
+      const parsedAccepts = readBoolean(rawAcceptsBasicOrders);
+      if (parsedAccepts !== null) {
+        acceptsBasicOrders = parsedAccepts;
+      }
+    }
 
-     const profileRef = db.collection('provider_profiles').doc(uid);
-     const profileSnap = await tx.get(profileRef);
-     if (!profileSnap.exists) {
-       tx.set(profileRef, {
-         uid,
-         fullName: userData.fullName || '',
-         primaryCategoryId: '',
-         bio: '',
-         available: true,
-         acceptsBasicOrders: true,
-         averageRating: 0,
-         totalReviews: 0,
-         profilePictureUrl: userData.profilePictureUrl || null,
-         location: null,
-       });
-     }
-   });
+     const districtLabel = readOptionalString(payload.district);
+      if (!districtLabel) {
+        throw new HttpsError('invalid-argument', 'district wajib diisi.');
+      }
 
-    functions.logger.info('[UPGRADE_TO_PROVIDER]', { uid });
+   const rawLocation = payload.location;
+    if (!rawLocation || typeof rawLocation !== 'object') {
+      throw new HttpsError('invalid-argument', 'location wajib diisi.');
+    }
+
+    const latitude = Number(rawLocation.latitude);
+    const longitude = Number(rawLocation.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new HttpsError('invalid-argument', 'Koordinat lokasi tidak valid.');
+    }
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      throw new HttpsError('invalid-argument', 'Koordinat berada di luar jangkauan.');
+    }
+    const geoPoint = new admin.firestore.GeoPoint(latitude, longitude);
+
+    const rawServices = Array.isArray(payload.services) ? payload.services : [];
+    if (rawServices.length === 0) {
+      throw new HttpsError('invalid-argument', 'Minimal satu layanan wajib diisi.');
+    }
+
+    const normalizedServices = [];
+    rawServices.forEach((rawService, index) => {
+      const service = rawService || {};
+      const name = readOptionalString(service.name);
+      if (!name) {
+        throw new HttpsError('invalid-argument', `Nama layanan ke-${index + 1} wajib diisi.`);
+      }
+      const description = readOptionalString(service.description);
+      if (!description) {
+        throw new HttpsError('invalid-argument', `Deskripsi layanan ke-${index + 1} wajib diisi.`);
+      }
+      const price = Number(service.price);
+      if (!Number.isFinite(price) || price <= 0) {
+        throw new HttpsError('invalid-argument', `Harga layanan ke-${index + 1} tidak valid.`);
+      }
+      const priceUnit = readOptionalString(service.priceUnit);
+      if (!priceUnit) {
+        throw new HttpsError('invalid-argument', `Satuan harga layanan ke-${index + 1} wajib diisi.`);
+      }
+      normalizedServices.push({
+        name,
+        description,
+        price,
+        priceUnit,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    const normalizedSkills = Array.isArray(payload.skills)
+      ? Array.from(
+          new Set(
+            payload.skills
+              .map((skill) => readOptionalString(skill))
+              .filter((value) => typeof value === 'string' && value.length > 0),
+          ),
+        )
+      : [];
+
+    const normalizedCertifications = Array.isArray(payload.certifications)
+      ? Array.from(
+          new Set(
+            payload.certifications
+              .map((cert) => readOptionalString(cert))
+              .filter((value) => typeof value === 'string' && value.length > 0),
+          ),
+        )
+      : [];
+
+    const availableDates = sanitizeDateList(payload.availableDates);
+
+    const categoryRef = db.collection('service_categories').doc(rawCategoryId);
+    const categorySnap = await categoryRef.get();
+    if (!categorySnap.exists) {
+      throw new HttpsError('invalid-argument', 'Kategori layanan tidak ditemukan.');
+    }
+    const categoryData = categorySnap.data() || {};
+    const resolvedCategoryName =
+      rawServiceCategoryName || readOptionalString(categoryData.name) || rawCategoryId;
+
+    const userRef = db.collection('users').doc(uid);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      throw new HttpsError('not-found', 'User tidak ditemukan.');
+    }
+
+    const userData = userSnap.data() || {};
+    const fullName = readOptionalString(userData.fullName) || '';
+    const profilePictureUrl = readOptionalString(userData.profilePictureUrl);
+
+    const profileRef = db.collection('provider_profiles').doc(uid);
+
+    await db.runTransaction(async (tx) => {
+      const userDoc = await tx.get(userRef);
+      if (!userDoc.exists) {
+        throw new HttpsError('not-found', 'User tidak ditemukan.');
+      }
+
+      const profileSnap = await tx.get(profileRef);
+      const existingProfileData = profileSnap.exists ? profileSnap.data() || {} : {};
+
+      const payloadToSave = {
+        uid,
+        fullName,
+        primaryCategoryId: rawCategoryId,
+        serviceCategory: resolvedCategoryName,
+        bio,
+        profileBannerUrl: bannerUrl || existingProfileData.profileBannerUrl || null,
+        profilePictureUrl: profilePictureUrl || existingProfileData.profilePictureUrl || null,
+        acceptsBasicOrders,
+        availableDates,
+        busyDates: Array.isArray(existingProfileData.busyDates)
+          ? existingProfileData.busyDates
+          : [],
+        location: geoPoint,
+        district: districtLabel,
+        isAvailable: true,
+        available: true,
+        startingPrice: Math.min(...normalizedServices.map((service) => service.price)),
+        completedOrders: existingProfileData.completedOrders || 0,
+        averageRating: existingProfileData.averageRating || 0,
+        totalReviews: existingProfileData.totalReviews || 0,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      if (!profileSnap.exists) {
+        payloadToSave.createdAt = admin.firestore.FieldValue.serverTimestamp();
+      }
+
+      tx.update(userRef, {
+        roles: admin.firestore.FieldValue.arrayUnion('provider'),
+        activeRole: 'provider',
+      });
+
+      tx.set(profileRef, payloadToSave, { merge: true });
+    });
+
+    const batch = db.batch();
+
+    const servicesCollection = profileRef.collection('services');
+    const servicesSnapshot = await servicesCollection.get();
+    servicesSnapshot.forEach((doc) => batch.delete(doc.ref));
+    normalizedServices.forEach((service) => {
+      const docRef = servicesCollection.doc();
+      batch.set(docRef, service);
+    });
+
+    const skillsCollection = profileRef.collection('skills');
+    const skillsSnapshot = await skillsCollection.get();
+    skillsSnapshot.forEach((doc) => batch.delete(doc.ref));
+    normalizedSkills.forEach((skill) => {
+      const docRef = skillsCollection.doc();
+      batch.set(docRef, {
+        name: skill,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    const certificationsCollection = profileRef.collection('certifications');
+    const certificationsSnapshot = await certificationsCollection.get();
+    certificationsSnapshot.forEach((doc) => batch.delete(doc.ref));
+    normalizedCertifications.forEach((cert) => {
+      const docRef = certificationsCollection.doc();
+      batch.set(docRef, {
+        title: cert,
+        issuer: '',
+        credentialUrl: '',
+        dateIssued: null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    await batch.commit();
+
+    functions.logger.info('[UPGRADE_TO_PROVIDER]', {
+      uid,
+      primaryCategoryId: rawCategoryId,
+      services: normalizedServices.length,
+      skills: normalizedSkills.length,
+      certifications: normalizedCertifications.length,
+    });
+
     return { success: true };
   });
+
 
  /**
   * ============================================================

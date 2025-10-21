@@ -68,7 +68,8 @@ fun ProfileScreen(
     mainViewModel: MainScreenStateHolder,
     onNavigateToTransactions: (Float) -> Unit,
     onNavigateToAccountSettings: () -> Unit,
-    onNavigateToAddressSettings: () -> Unit
+    onNavigateToAddressSettings: () -> Unit,
+    onNavigateToProviderOnboarding: () -> Unit
 ) {
     val state by viewModel.profileState.collectAsState()
     val activeRole by mainViewModel.activeRole.collectAsState()
@@ -167,7 +168,7 @@ fun ProfileScreen(
 
                         if (!user.roles.contains("provider")) {
                             item {
-                                UpgradeProviderButton { viewModel.upgradeToProvider(mainViewModel) }
+                                UpgradeProviderButton(onClick = onNavigateToProviderOnboarding)
                             }
                         }
 

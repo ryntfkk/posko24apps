@@ -1,5 +1,6 @@
 package com.example.posko24.data.repository
 
+import com.example.posko24.data.model.ProviderOnboardingPayload
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.User
 import kotlinx.coroutines.flow.Flow
@@ -18,9 +19,9 @@ interface UserRepository {
      */
     suspend fun updateActiveRole(userId: String, activeRole: String): Flow<Result<Boolean>>
     /**
-     * Meng-upgrade pengguna saat ini menjadi provider.
+     * Meng-upgrade pengguna saat ini menjadi provider dengan data onboarding lengkap.
      */
-    suspend fun upgradeToProvider(): Flow<Result<Boolean>>
+    suspend fun upgradeToProvider(payload: ProviderOnboardingPayload): Flow<Result<Boolean>>
     /**
      * Memperbarui data profil pengguna seperti nama, nomor telepon, atau foto profil.
      * Mengembalikan [Result] yang menandakan apakah operasi berhasil atau gagal.

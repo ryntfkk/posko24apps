@@ -1,5 +1,6 @@
 package com.example.posko24.data.repository
 
+import com.example.posko24.data.model.ProviderOnboardingPayload
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.User
 import com.google.firebase.firestore.FirebaseFirestore
@@ -32,9 +33,34 @@ class UserRepositoryImpl @Inject constructor(
         emit(Result.failure(it))
     }
 
-    override suspend fun upgradeToProvider(): Flow<Result<Boolean>> = flow {
+    override suspend fun upgradeToProvider(payload: ProviderOnboardingPayload): Flow<Result<Boolean>> = flow {
         val upgradeToProvider = functions.getHttpsCallable("upgradeToProvider")
-        upgradeToProvider.call().await()
+        val requestPayload = hashMapOf<String, Any?>()
+        requestPayload["primaryCategoryId"] = payload.primaryCategoryId
+        requestPayload["serviceCategory"] = payload.serviceCategoryName
+        requestPayload["bio"] = payload.bio
+        requestPayload["acceptsBasicOrders"] = payload.acceptsBasicOrders
+        requestPayload["availableDates"] = payload.availableDates
+        requestPayload["district"] = payload.district
+        requestPayload["skills"] = payload.skills
+        requestPayload["certifications"] = payload.certifications
+        requestPayload["profileBannerUrl"] = payload.profileBannerUrl
+        payload.location?.let { location ->
+            requestPayload["location"] = mapOf(
+                "latitude" to location.latitude,
+                "longitude" to location.longitude
+            )
+        }
+        requestPayload["services"] = payload.services.map { service ->
+            mapOf(
+                "name" to service.name,
+                "description" to service.description,
+                "price" to service.price,
+                "priceUnit" to service.priceUnit
+            )
+        }
+
+        upgradeToProvider.call(requestPayload).await()
         emit(Result.success(true))
     }.catch {
         emit(Result.failure(it))
