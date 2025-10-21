@@ -1005,9 +1005,9 @@ exports.claimOrder = functions.https.onCall(async (request) => {
  * 3) UPGRADE TO PROVIDER (Callable v2)
   * ============================================================
   */
-exports.upgradeToProvider = functions.https.onCall(async (request) => {
+exports.upgradeToProvider = onCall(async (request) => {
   if (!request.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Anda harus login.');
+    throw new HttpsError('unauthenticated', 'Anda harus login.');
   }
 
 
@@ -1015,7 +1015,7 @@ exports.upgradeToProvider = functions.https.onCall(async (request) => {
    const userRef = db.collection('users').doc(uid);
    const userSnap = await userRef.get();
    if (!userSnap.exists) {
-     throw new functions.https.HttpsError('not-found', 'User tidak ditemukan.');
+     throw new HttpsError('not-found', 'User tidak ditemukan.');
    }
 
    const userData = userSnap.data() || {};
@@ -1052,7 +1052,7 @@ exports.upgradeToProvider = functions.https.onCall(async (request) => {
   * 3B) GET PROVIDER PUBLIC STATS (Callable v2)
   * ============================================================
   */
- exports.getProviderPublicStats = functions.https.onCall(async (request) => {
+ exports.getProviderPublicStats = onCall(async (request) => {
    if (!request.auth) {
           functions.logger.info('[GET_PROVIDER_PUBLIC_STATS_UNAUTH]', {
             providerId: request.data?.providerId,
@@ -1061,12 +1061,12 @@ exports.upgradeToProvider = functions.https.onCall(async (request) => {
 
    const rawProviderId = request.data?.providerId;
    if (typeof rawProviderId !== 'string') {
-     throw new functions.https.HttpsError('invalid-argument', 'providerId wajib berupa string.');
+     throw new HttpsError('invalid-argument', 'providerId wajib berupa string.');
    }
 
    const providerId = rawProviderId.trim();
    if (!providerId) {
-     throw new functions.https.HttpsError('invalid-argument', 'providerId tidak boleh kosong.');
+     throw new HttpsError('invalid-argument', 'providerId tidak boleh kosong.');
    }
 
    try {
@@ -1171,7 +1171,7 @@ exports.upgradeToProvider = functions.https.onCall(async (request) => {
        providerId,
        message: error?.message || 'Unknown error',
      });
-     throw new functions.https.HttpsError('internal', 'Gagal mengambil statistik penyedia.');
+     throw new HttpsError('internal', 'Gagal mengambil statistik penyedia.');
    }
  });
 
@@ -1180,7 +1180,7 @@ exports.upgradeToProvider = functions.https.onCall(async (request) => {
   * 4) MIDTRANS WEBHOOK (HTTP v2)
  * ============================================================
  */
-exports.midtransWebhookHandler = functions.https.onRequest(
+exports.midtransWebhookHandler = onRequest(
   { secrets: ['MIDTRANS_SERVER_KEY', 'MIDTRANS_CLIENT_KEY'] },
   async (req, res) => {
     try {

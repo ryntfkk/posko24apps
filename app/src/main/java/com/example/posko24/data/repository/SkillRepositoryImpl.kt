@@ -12,17 +12,34 @@ class SkillRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : SkillRepository {
     override fun getProviderSkills(providerId: String): Flow<Result<List<Skill>>> = flow {
-        val snapshot = firestore
+        val providerDocument = firestore
             .collection("provider_profiles")
             .document(providerId)
-            .collection("services")
+
+        val skillsSnapshot = providerDocument
+            .collection("skills")
             .get()
             .await()
-        val skills = snapshot.documents.mapNotNull { doc ->
-            doc.getString("name")?.let { Skill(it) }
+
+        val skills = skillsSnapshot.documents
+            .mapNotNull { doc ->
+                val name = doc.getString("name")
+                    ?: doc.getString("label")
+                    ?: doc.id.takeIf { it.isNotBlank() }
+                name?.let(::Skill)
+            }
+            .takeIf { it.isNotEmpty() }
+            ?: run {
+                val servicesSnapshot = providerDocument
+                    .collection("services")
+                    .get()
+                    .await()
+                servicesSnapshot.documents.mapNotNull { doc ->
+                    doc.getString("name")?.let(::Skill)
+                }
             }
         emit(Result.success(skills))
-        }.catch { e ->
-            emit(Result.failure(e))
+    }.catch { e ->
+        emit(Result.failure(e))
     }
 }
