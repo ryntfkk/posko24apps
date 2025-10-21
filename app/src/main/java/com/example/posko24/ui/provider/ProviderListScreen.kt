@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,7 +48,8 @@ fun ProviderListScreen(
     viewModel: ProviderViewModel = hiltViewModel(),
     onNavigateToProviderDetail: (String) -> Unit,
     onNavigateToBasicOrder: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onManageLocationClick: () -> Unit
 ) {
     val state by viewModel.providerState.collectAsState()
     var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -141,35 +144,106 @@ fun ProviderListScreen(
                         searchQuery.isBlank() || provider.fullName.contains(searchQuery, ignoreCase = true)
                     }
 
-                    if (filteredProviders.isEmpty()) {
-                        Text("Penyedia jasa tidak ditemukan untuk pencarian ini.")
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Row(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = 8.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            items(filteredProviders) { provider ->
-                                ProviderListItem(
-                                    provider = provider,
-                                    onClick = {
-                                        onNavigateToProviderDetail(provider.uid)
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                            Text(
+                                text = "Penyedia dalam radius 30 km",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            TextButton(onClick = onManageLocationClick) {
+                                Text(text = "Atur Lokasi")
+                            }
+                        }
+
+                        if (filteredProviders.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Penyedia jasa tidak ditemukan untuk pencarian ini.")
+                            }
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(filteredProviders) { provider ->
+                                    ProviderListItem(
+                                        provider = provider,
+                                        onClick = {
+                                            onNavigateToProviderDetail(provider.uid)
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
                             }
                         }
                     }
                 }
                 is ProviderListState.Empty -> {
-                    Text("Belum ada penyedia jasa di kategori ini.")
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Penyedia dalam radius 30 km",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            TextButton(onClick = onManageLocationClick) {
+                                Text(text = "Atur Lokasi")
+                            }
+                        }
+                        Text("Belum ada penyedia jasa di kategori ini.")
+                    }
                 }
                 is ProviderListState.Error -> {
-                    Text(currentState.message)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Penyedia dalam radius 30 km",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            TextButton(onClick = onManageLocationClick) {
+                                Text(text = "Atur Lokasi")
+                            }
+                        }
+                        Text(currentState.message)
+                    }
                 }
             }
         }

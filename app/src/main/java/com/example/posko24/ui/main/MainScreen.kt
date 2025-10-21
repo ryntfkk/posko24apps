@@ -188,7 +188,8 @@ fun MainScreen(
                 HomeScreen(
                     mainViewModel = mainViewModel,
                     onCategoryClick = onCategoryClick,
-                    onOrderClick = onOrderClick
+                    onOrderClick = onOrderClick,
+                    onManageLocationClick = onNavigateToAddressSettings
                 )
             }
             composable(BottomNavItem.ProviderDashboard.route) {

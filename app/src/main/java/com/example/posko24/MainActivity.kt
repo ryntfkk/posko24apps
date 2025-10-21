@@ -107,7 +107,10 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToBasicOrder = {
                                     navController.navigate("basic_order_screen/$categoryId")
                                 },
-                                onNavigateBack = { navController.popBackStack() }
+                                onNavigateBack = { navController.popBackStack() },
+                                onManageLocationClick = {
+                                    navController.navigate("address_settings_screen")
+                                }
                             )
                         }
                         composable(

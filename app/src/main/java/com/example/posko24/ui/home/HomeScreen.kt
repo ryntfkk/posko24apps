@@ -46,6 +46,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -114,7 +115,8 @@ fun HomeScreen(
     mainViewModel: MainScreenStateHolder,
     homeViewModel: HomeViewModel = hiltViewModel(),
     onCategoryClick: (String) -> Unit,
-    onOrderClick: (String) -> Unit
+    onOrderClick: (String) -> Unit,
+    onManageLocationClick: () -> Unit
 ) {
     val userState by mainViewModel.userState.collectAsState()
     val activeRole by mainViewModel.activeRole.collectAsState()
@@ -124,11 +126,21 @@ fun HomeScreen(
             if (activeRole == "provider") {
                 ProviderDashboardScreen(activeRole = activeRole, onOrderClick = onOrderClick)
             } else {
-                CategoryListScreen(viewModel = homeViewModel, onCategoryClick = onCategoryClick, onOrderClick = onOrderClick)
+                CategoryListScreen(
+                    viewModel = homeViewModel,
+                    onCategoryClick = onCategoryClick,
+                    onOrderClick = onOrderClick,
+                    onManageLocationClick = onManageLocationClick
+                )
             }
         }
         is UserState.Guest -> {
-            CategoryListScreen(viewModel = homeViewModel, onCategoryClick = onCategoryClick, onOrderClick = onOrderClick)
+            CategoryListScreen(
+                viewModel = homeViewModel,
+                onCategoryClick = onCategoryClick,
+                onOrderClick = onOrderClick,
+                onManageLocationClick = onManageLocationClick
+            )
         }
         is UserState.Loading -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -148,7 +160,8 @@ fun HomeScreen(
 fun CategoryListScreen(
     viewModel: HomeViewModel,
     onCategoryClick: (String) -> Unit,
-    onOrderClick: (String) -> Unit
+    onOrderClick: (String) -> Unit,
+    onManageLocationClick: () -> Unit
 ) {
     val categoriesState by viewModel.categoriesState.collectAsState()
     val providersState by viewModel.nearbyProvidersState.collectAsState()
@@ -354,13 +367,21 @@ fun CategoryListScreen(
             }
 
             item {
-                Text(
-                    text = "Teknisi terbaik di sekitar",
-                    style = MaterialTheme.typography.titleMedium,
+                Row(
                     modifier = Modifier
-                        .padding(top = 8.dp)
-                        .padding(horizontal = 16.dp)
-                )
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Teknisi terbaik di sekitar",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    TextButton(onClick = onManageLocationClick) {
+                        Text(text = "Atur Lokasi")
+                    }
+                }
             }
 
             // ==========================================================
