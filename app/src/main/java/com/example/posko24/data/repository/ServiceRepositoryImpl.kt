@@ -499,7 +499,7 @@ class ServiceRepositoryImpl @Inject constructor(
                 .collection("addresses")
 
             val primaryAddress = addressesCollection
-                .whereEqualTo("isPrimary", true)
+                .whereEqualTo("isDefault", true)
                 .limit(1)
                 .get()
                 .await()
@@ -512,7 +512,21 @@ class ServiceRepositoryImpl @Inject constructor(
                     .documents
                     .firstOrNull()
 
-            primaryAddress?.getString("district")?.trim()?.takeIf { it.isNotEmpty() }
+            val primaryDistrict = primaryAddress
+                ?.getString("district")
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+            if (primaryDistrict != null) {
+                return primaryDistrict
+            }
+
+            val userSnapshot = firestore.collection("users")
+                .document(userId)
+                .get()
+                .await()
+
+            val defaultAddress = userSnapshot.get("defaultAddress")
+            extractDistrictCandidate(defaultAddress)?.trim()?.takeIf { it.isNotEmpty() }
         } catch (exception: Exception) {
             Log.e(TAG, "[ProviderDistrict] Error fetching primary address for user=$userId", exception)
             null
