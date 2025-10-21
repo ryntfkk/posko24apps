@@ -122,7 +122,7 @@ class BasicOrderViewModel @Inject constructor(
                                 mapCoordinates = location,
                                 cameraPosition = location?.let { loc ->
                                     CameraPosition.fromLatLngZoom(
-                                        LatLng(loc.latitude, loc.longitude), 12f
+                                        LatLng(loc.latitude, loc.longitude), 15f
                                     )
                                 } ?: it.cameraPosition
                             )
@@ -626,7 +626,23 @@ class BasicOrderViewModel @Inject constructor(
     }
 
     fun onMapCoordinatesChanged(geoPoint: GeoPoint) {
-        _uiState.update { it.copy(mapCoordinates = geoPoint) }
+        _uiState.update { current ->
+            val currentLocation = current.mapCoordinates
+            if (currentLocation != null &&
+                currentLocation.latitude == geoPoint.latitude &&
+                currentLocation.longitude == geoPoint.longitude
+            ) {
+                current
+            } else {
+                current.copy(
+                    mapCoordinates = geoPoint,
+                    cameraPosition = CameraPosition.fromLatLngZoom(
+                        LatLng(geoPoint.latitude, geoPoint.longitude),
+                        15f
+                    )
+                )
+            }
+        }
     }
 
     fun onDateSelected(date: LocalDate) {

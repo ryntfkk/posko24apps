@@ -33,8 +33,7 @@ import com.example.posko24.data.model.ProviderService
 import com.example.posko24.data.model.Wilayah
 import com.example.posko24.ui.components.InteractiveMapView
 import com.example.posko24.ui.components.ModernTextField
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.CameraPositionState
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.midtrans.sdk.uikit.api.callback.Callback
 import com.midtrans.sdk.uikit.api.exception.SnapError
@@ -191,7 +190,13 @@ fun BasicOrderScreen(
                         onSelectTechnician = onSelectTechnician
                     )
                 }
-                item { AddressSection(viewModel = viewModel, uiState = uiState) }
+                item {
+                    AddressSection(
+                        viewModel = viewModel,
+                        uiState = uiState,
+                        cameraPositionState = cameraPositionState
+                    )
+                }
                 item {
                     PaymentAndPromoSection(
                         viewModel = viewModel,
@@ -430,12 +435,11 @@ fun ProviderServiceQuantityItem(service: ProviderService, quantity: Int, onQuant
     }
 }
     @Composable
-    fun AddressSection(viewModel: BasicOrderViewModel, uiState: BasicOrderUiState) {
-        val cameraPositionState = rememberCameraPositionState {
-            uiState.mapCoordinates?.let {
-                position = CameraPosition.fromLatLngZoom(LatLng(it.latitude, it.longitude), 15f)
-            }
-        }
+    fun AddressSection(
+        viewModel: BasicOrderViewModel,
+        uiState: BasicOrderUiState,
+        cameraPositionState: CameraPositionState
+    ) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(16.dp),
