@@ -1,5 +1,11 @@
 package com.example.posko24.ui.provider.onboarding
 
+import android.content.ContentResolver
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +35,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -48,12 +55,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.posko24.R
+import com.example.posko24.ui.components.AddressDropdown
+import com.example.posko24.ui.components.MapSelection
 import com.example.posko24.ui.main.MainScreenStateHolder
 import com.example.posko24.ui.profile.ProfileViewModel
+import com.google.maps.android.compose.rememberCameraPositionState
 import androidx.compose.ui.text.input.KeyboardType
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,6 +81,21 @@ fun ProviderOnboardingScreen(
 ) {
     val state by viewModel.onboardingState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val cameraPositionState = rememberCameraPositionState { position = state.cameraPosition }
+
+    LaunchedEffect(state.cameraPosition) {
+        cameraPositionState.position = state.cameraPosition
+    }
+
+    val bannerImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let {
+            persistReadPermission(context.contentResolver, it)
+            viewModel.uploadOnboardingBanner(it)
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.initializeOnboarding()
@@ -84,6 +114,14 @@ fun ProviderOnboardingScreen(
             snackbarHostState.showSnackbar("Profil provider berhasil dibuat.")
             viewModel.consumeOnboardingSuccess()
             onSuccess()
+        }
+    }
+
+    LaunchedEffect(state.bannerUploadMessage) {
+        val message = state.bannerUploadMessage
+        if (!message.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearBannerUploadMessage()
         }
     }
 
@@ -135,47 +173,53 @@ fun ProviderOnboardingScreen(
                     }
 
                     item {
-                        SectionTitle("Kategori Utama")
-                        CategorySelector(
-                            state = state,
-                            enabled = !state.submissionInProgress,
-                            onCategorySelected = viewModel::updateSelectedCategory
-                        )
-                    }
-
-                    item {
                         SectionTitle("Lokasi Operasional")
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            OutlinedTextField(
-                                value = state.districtLabel,
-                                onValueChange = viewModel::updateDistrictLabel,
-                                label = { Text("Label Distrik / Wilayah") },
-                                placeholder = { Text("Contoh: Kec. Kebayoran Lama") },
-                                enabled = !state.submissionInProgress,
-                                modifier = Modifier.fillMaxWidth()
+                            AddressDropdown(
+                                label = "Provinsi",
+                                options = state.provinces,
+                                selectedOption = state.selectedProvince,
+                                onOptionSelected = viewModel::updateSelectedProvince,
+                                enabled = !state.submissionInProgress
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                OutlinedTextField(
-                                    value = state.latitudeInput,
-                                    onValueChange = viewModel::updateLatitudeInput,
-                                    label = { Text("Latitude") },
-                                    placeholder = { Text("-6.2146") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    enabled = !state.submissionInProgress,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = state.longitudeInput,
-                                    onValueChange = viewModel::updateLongitudeInput,
-                                    label = { Text("Longitude") },
-                                    placeholder = { Text("106.8451") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    enabled = !state.submissionInProgress,
-                                    modifier = Modifier.weight(1f)
-                                )
+                                Box(modifier = Modifier.weight(1f)) {
+                                    AddressDropdown(
+                                        label = "Kota/Kabupaten",
+                                        options = state.cities,
+                                        selectedOption = state.selectedCity,
+                                        onOptionSelected = viewModel::updateSelectedCity,
+                                        enabled = !state.submissionInProgress && state.selectedProvince != null
+                                    )
+                                }
+                                Box(modifier = Modifier.weight(1f)) {
+                                    AddressDropdown(
+                                        label = "Kecamatan",
+                                        options = state.districts,
+                                        selectedOption = state.selectedDistrict,
+                                        onOptionSelected = viewModel::updateSelectedDistrict,
+                                        enabled = !state.submissionInProgress && state.selectedCity != null
+                                    )
+                                }
                             }
+                            OutlinedTextField(
+                                value = state.addressDetail,
+                                onValueChange = viewModel::updateAddressDetail,
+                                label = { Text("Alamat Lengkap") },
+                                placeholder = { Text("Nama jalan, nomor rumah, patokan, dll") },
+                                enabled = !state.submissionInProgress,
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 2,
+                                maxLines = 4
+                            )
+                            MapSelection(
+                                cameraPositionState = cameraPositionState,
+                                onLocationSelected = {
+                                    viewModel.updateMapLocation(it, cameraPositionState.position.zoom)
+                                }
+                            )
                             Text(
-                                text = "Pastikan koordinat sesuai agar profil Anda muncul di daftar penyedia terdekat.",
+                                text = "Geser peta hingga penanda berada di lokasi operasional Anda.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -195,14 +239,37 @@ fun ProviderOnboardingScreen(
                                 minLines = 3,
                                 maxLines = 5
                             )
-                            OutlinedTextField(
-                                value = state.bannerUrl,
-                                onValueChange = viewModel::updateBannerUrl,
-                                label = { Text("URL Foto Banner") },
-                                placeholder = { Text("https://...") },
-                                enabled = !state.submissionInProgress,
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(160.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            ) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(state.bannerUrl.ifBlank { null })
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Banner profil",
+                                    modifier = Modifier.fillMaxSize(),
+                                    placeholder = painterResource(id = R.drawable.bg_search_section),
+                                    error = painterResource(id = R.drawable.bg_search_section)
+                                )
+                            }
+                            Button(
+                                onClick = {
+                                    bannerImageLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
+                                enabled = !state.submissionInProgress && !state.isUploadingBanner,
                                 modifier = Modifier.fillMaxWidth()
-                            )
+                            ) {
+                                Text(if (state.isUploadingBanner) "Mengunggah..." else "Upload Foto Banner")
+                            }
+                            if (state.isUploadingBanner) {
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -228,6 +295,18 @@ fun ProviderOnboardingScreen(
 
                     item {
                         SectionTitle("Layanan yang Ditawarkan")
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                text = "Kategori Utama",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            CategorySelector(
+                                state = state,
+                                enabled = !state.submissionInProgress,
+                                onCategorySelected = viewModel::updateSelectedCategory
+                            )
+                        }
                     }
 
                     itemsIndexed(state.services) { index, service ->
@@ -450,5 +529,19 @@ private fun ServiceFormCard(
                 )
             }
         }
+    }
+}
+
+private fun persistReadPermission(contentResolver: ContentResolver, uri: Uri) {
+    if (uri.scheme != ContentResolver.SCHEME_CONTENT) return
+    try {
+        contentResolver.takePersistableUriPermission(
+            uri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+    } catch (_: SecurityException) {
+        // Ignore
+    } catch (_: IllegalArgumentException) {
+        // Ignore
     }
 }

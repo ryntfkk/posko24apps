@@ -1,22 +1,30 @@
 package com.example.posko24.ui.profile
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posko24.data.model.ProviderOnboardingPayload
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ProviderServicePayload
 import com.example.posko24.data.model.User
+import com.example.posko24.data.model.UserAddress
+import com.example.posko24.data.model.Wilayah
 import com.example.posko24.data.repository.AddressRepository
 import com.example.posko24.data.repository.AuthRepository
 import com.example.posko24.data.repository.ProviderAvailabilityRepository
 import com.example.posko24.data.repository.ServiceRepository
 import com.example.posko24.data.repository.UserRepository
 import com.example.posko24.ui.main.MainScreenStateHolder
+import com.example.posko24.ui.provider.onboarding.DEFAULT_CAMERA_ZOOM
+import com.example.posko24.ui.provider.onboarding.DEFAULT_LOCATION
 import com.example.posko24.ui.provider.onboarding.ProviderOnboardingUiState
 import com.example.posko24.ui.provider.onboarding.ProviderServiceForm
 import com.example.posko24.util.APP_TIME_ZONE
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.GeoPoint
+import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +38,7 @@ import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
@@ -40,8 +49,9 @@ class ProfileViewModel @Inject constructor(
     private val serviceRepository: ServiceRepository,
     private val addressRepository: AddressRepository,
     private val auth: FirebaseAuth,
+    private val storage: FirebaseStorage,
 
-) : ViewModel() {
+    ) : ViewModel() {
 
     private val _profileState = MutableStateFlow<ProfileState>(ProfileState.Loading)
     val profileState = _profileState.asStateFlow()
@@ -158,12 +168,67 @@ class ProfileViewModel @Inject constructor(
             }
 
             val categories = categoriesResult.getOrNull().orEmpty()
+            val provincesResult = addressRepository.getProvinces().first()
+            provincesResult.onFailure { error ->
+                _onboardingState.update { state ->
+                    state.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Gagal memuat provinsi."
+                    )
+                }
+                return@launch
+            }
+
+            val provinces = provincesResult.getOrNull().orEmpty()
             val uid = auth.currentUser?.uid
             val defaultAddress = if (uid != null) {
                 addressRepository.getUserAddress(uid).getOrNull()
             } else {
                 null
             }
+
+            val selectedProvince = defaultAddress?.province?.let { provinceName ->
+                provinces.firstOrNull { it.name.equals(provinceName, ignoreCase = true) }
+            }
+
+            val cities = mutableListOf<Wilayah>()
+            val districts = mutableListOf<Wilayah>()
+            val selectedCity = if (selectedProvince != null) {
+                val citiesResult = addressRepository.getCities(selectedProvince.docId).first()
+                citiesResult.onFailure { error ->
+                    _onboardingState.update { state ->
+                        state.copy(errorMessage = error.message ?: "Gagal memuat kota.")
+                    }
+                }
+                val cityList = citiesResult.getOrNull().orEmpty()
+                cities += cityList
+                cityList.firstOrNull { city ->
+                    city.name.equals(defaultAddress?.city.orEmpty(), ignoreCase = true)
+                }
+            } else {
+                null
+            }
+
+            val selectedDistrict = if (selectedProvince != null && selectedCity != null) {
+                val districtsResult = addressRepository.getDistricts(selectedProvince.docId, selectedCity.docId).first()
+                districtsResult.onFailure { error ->
+                    _onboardingState.update { state ->
+                        state.copy(errorMessage = error.message ?: "Gagal memuat kecamatan.")
+                    }
+                }
+                val districtList = districtsResult.getOrNull().orEmpty()
+                districts += districtList
+                districtList.firstOrNull { district ->
+                    district.name.equals(defaultAddress?.district.orEmpty(), ignoreCase = true)
+                }
+            } else {
+                null
+            }
+
+            val resolvedGeoPoint = defaultAddress?.location ?: DEFAULT_GEOPOINT
+            val resolvedCameraPosition = defaultAddress?.location?.let { location ->
+                CameraPosition.fromLatLngZoom(LatLng(location.latitude, location.longitude), 15f)
+            } ?: DEFAULT_CAMERA_POSITION
 
             _onboardingState.update { state ->
                 val resolvedCategoryId = state.selectedCategoryId?.takeIf { id ->
@@ -173,29 +238,22 @@ class ProfileViewModel @Inject constructor(
                     categories.firstOrNull { it.id == id }?.name
                 } ?: state.selectedCategoryName
 
-                val latitude = when {
-                    state.latitudeInput.isNotBlank() -> state.latitudeInput
-                    defaultAddress?.location != null -> defaultAddress.location.latitude.toString()
-                    else -> state.latitudeInput
-                }
-                val longitude = when {
-                    state.longitudeInput.isNotBlank() -> state.longitudeInput
-                    defaultAddress?.location != null -> defaultAddress.location.longitude.toString()
-                    else -> state.longitudeInput
-                }
-                val district = when {
-                    state.districtLabel.isNotBlank() -> state.districtLabel
-                    !defaultAddress?.district.isNullOrBlank() -> defaultAddress?.district.orEmpty()
-                    else -> state.districtLabel
-                }
 
                 state.copy(
                     categories = categories,
                     selectedCategoryId = resolvedCategoryId,
                     selectedCategoryName = resolvedCategoryName,
-                    latitudeInput = latitude,
-                    longitudeInput = longitude,
-                    districtLabel = district,
+                    provinces = provinces,
+                    cities = if (cities.isNotEmpty()) cities.toList() else state.cities,
+                    districts = if (districts.isNotEmpty()) districts.toList() else state.districts,
+                    selectedProvince = selectedProvince ?: state.selectedProvince,
+                    selectedCity = selectedCity ?: state.selectedCity,
+                    selectedDistrict = selectedDistrict ?: state.selectedDistrict,
+                    addressDetail = defaultAddress?.detail?.takeIf { it.isNotBlank() }
+                        ?: state.addressDetail,
+                    mapCoordinates = resolvedGeoPoint,
+                    cameraPosition = resolvedCameraPosition,
+                    existingAddressId = defaultAddress?.id ?: state.existingAddressId,
                     isLoading = false,
                 )
             }
@@ -211,7 +269,6 @@ class ProfileViewModel @Inject constructor(
             )
         }
     }
-
     fun updateBio(bio: String) {
         _onboardingState.update { it.copy(bio = bio) }
     }
@@ -222,18 +279,6 @@ class ProfileViewModel @Inject constructor(
 
     fun updateAcceptsBasicOrders(value: Boolean) {
         _onboardingState.update { it.copy(acceptsBasicOrders = value) }
-    }
-
-    fun updateDistrictLabel(value: String) {
-        _onboardingState.update { it.copy(districtLabel = value) }
-    }
-
-    fun updateLatitudeInput(value: String) {
-        _onboardingState.update { it.copy(latitudeInput = value) }
-    }
-
-    fun updateLongitudeInput(value: String) {
-        _onboardingState.update { it.copy(longitudeInput = value) }
     }
 
     fun updateSkillsInput(value: String) {
@@ -279,21 +324,136 @@ class ProfileViewModel @Inject constructor(
             }
         }
     }
+    fun updateSelectedProvince(province: Wilayah) {
+        _onboardingState.update { state ->
+            state.copy(
+                selectedProvince = province,
+                selectedCity = null,
+                selectedDistrict = null,
+                cities = emptyList(),
+                districts = emptyList()
+            )
+        }
+
+        viewModelScope.launch {
+            val result = addressRepository.getCities(province.docId).first()
+            result.onSuccess { cities ->
+                _onboardingState.update { it.copy(cities = cities) }
+            }.onFailure { error ->
+                _onboardingState.update { state ->
+                    state.copy(errorMessage = error.message ?: "Gagal memuat kota.")
+                }
+            }
+        }
+    }
+
+    fun updateSelectedCity(city: Wilayah) {
+        val province = _onboardingState.value.selectedProvince ?: return
+        _onboardingState.update { state ->
+            state.copy(
+                selectedCity = city,
+                selectedDistrict = null,
+                districts = emptyList()
+            )
+        }
+
+        viewModelScope.launch {
+            val result = addressRepository.getDistricts(province.docId, city.docId).first()
+            result.onSuccess { districts ->
+                _onboardingState.update { it.copy(districts = districts) }
+            }.onFailure { error ->
+                _onboardingState.update { state ->
+                    state.copy(errorMessage = error.message ?: "Gagal memuat kecamatan.")
+                }
+            }
+        }
+    }
+
+    fun updateSelectedDistrict(district: Wilayah) {
+        _onboardingState.update { it.copy(selectedDistrict = district) }
+    }
+
+    fun updateAddressDetail(value: String) {
+        _onboardingState.update { it.copy(addressDetail = value) }
+    }
+
+    fun updateMapLocation(latLng: LatLng, zoom: Float) {
+        _onboardingState.update { state ->
+            val newGeoPoint = GeoPoint(latLng.latitude, latLng.longitude)
+            state.copy(
+                mapCoordinates = newGeoPoint,
+                cameraPosition = CameraPosition.fromLatLngZoom(latLng, zoom)
+            )
+        }
+    }
+
+    fun uploadOnboardingBanner(uri: Uri) {
+        val userId = auth.currentUser?.uid ?: run {
+            _onboardingState.update {
+                it.copy(bannerUploadMessage = "Tidak dapat mengunggah banner tanpa akun aktif.")
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            _onboardingState.update { it.copy(isUploadingBanner = true, bannerUploadMessage = null) }
+            val path = "users/$userId/provider-banner.jpg"
+            val uploadResult = uploadImage(path, uri)
+            uploadResult.onSuccess { url ->
+                _onboardingState.update {
+                    it.copy(
+                        isUploadingBanner = false,
+                        bannerUrl = url,
+                        bannerUploadMessage = "Foto banner berhasil diunggah."
+                    )
+                }
+            }.onFailure { error ->
+                _onboardingState.update {
+                    it.copy(
+                        isUploadingBanner = false,
+                        bannerUploadMessage = error.message ?: "Gagal mengunggah foto banner."
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearBannerUploadMessage() {
+        _onboardingState.update { it.copy(bannerUploadMessage = null) }
+    }
 
     fun submitProviderOnboarding(mainViewModel: MainScreenStateHolder) {
         viewModelScope.launch {
-            val payloadResult = buildOnboardingPayload()
-            payloadResult.onFailure { error ->
+            val submissionResult = buildOnboardingSubmission()
+            submissionResult.onFailure { error ->
                 _onboardingState.update { state ->
                     state.copy(errorMessage = error.message ?: "Data onboarding belum lengkap.")
                 }
                 return@launch
             }
 
-            val payload = payloadResult.getOrThrow()
+            val submission = submissionResult.getOrThrow()
+            val userId = auth.currentUser?.uid ?: run {
+                _onboardingState.update { state ->
+                    state.copy(errorMessage = "Pengguna tidak ditemukan. Silakan masuk kembali.")
+                }
+                return@launch
+            }
+
             _onboardingState.update { it.copy(submissionInProgress = true, errorMessage = null) }
 
-            userRepository.upgradeToProvider(payload).collect { result ->
+            val addressResult = addressRepository.saveAddress(userId, submission.address)
+            addressResult.onFailure { error ->
+                _onboardingState.update { state ->
+                    state.copy(
+                        submissionInProgress = false,
+                        errorMessage = error.message ?: "Gagal menyimpan alamat."
+                    )
+                }
+                return@launch
+            }
+
+            userRepository.upgradeToProvider(submission.payload).collect { result ->
                 result.onSuccess {
                     loadUserProfile()
                     mainViewModel.refreshUserProfile()
@@ -349,7 +509,18 @@ class ProfileViewModel @Inject constructor(
             .distinct()
     }
 
-    private fun buildOnboardingPayload(): Result<ProviderOnboardingPayload> {
+    private suspend fun uploadImage(path: String, uri: Uri): Result<String> {
+        return try {
+            val ref = storage.reference.child(path)
+            ref.putFile(uri).await()
+            val url = ref.downloadUrl.await().toString()
+            Result.success(url)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun buildOnboardingSubmission(): Result<OnboardingSubmission> {
         val state = _onboardingState.value
 
         val categoryId = state.selectedCategoryId?.takeIf { it.isNotBlank() }
@@ -361,24 +532,33 @@ class ProfileViewModel @Inject constructor(
             state.categories.firstOrNull { it.id == categoryId }?.name
         } ?: return Result.failure(IllegalArgumentException("Nama kategori tidak ditemukan."))
 
-        val district = state.districtLabel.trim()
-        if (district.isEmpty()) {
-            return Result.failure(IllegalArgumentException("Isi label distrik operasional."))
+        val province = state.selectedProvince
+            ?: return Result.failure(IllegalArgumentException("Pilih provinsi operasional."))
+        val city = state.selectedCity
+            ?: return Result.failure(IllegalArgumentException("Pilih kota operasional."))
+        val district = state.selectedDistrict
+            ?: return Result.failure(IllegalArgumentException("Pilih kecamatan operasional."))
+
+        val detail = state.addressDetail.trim()
+        if (detail.isEmpty()) {
+            return Result.failure(IllegalArgumentException("Isi alamat lengkap operasional."))
         }
 
-        val latitude = state.latitudeInput.replace(',', '.').toDoubleOrNull()
-            ?: return Result.failure(IllegalArgumentException("Koordinat latitude tidak valid."))
-        if (latitude !in -90.0..90.0) {
-            return Result.failure(IllegalArgumentException("Latitude harus berada di antara -90 hingga 90."))
+        val location = state.mapCoordinates
+        val latitude = location.latitude
+        val longitude = location.longitude
+        if (latitude !in -90.0..90.0 || longitude !in -180.0..180.0) {
+            return Result.failure(IllegalArgumentException("Koordinat lokasi tidak valid."))
         }
 
-        val longitude = state.longitudeInput.replace(',', '.').toDoubleOrNull()
-            ?: return Result.failure(IllegalArgumentException("Koordinat longitude tidak valid."))
-        if (longitude !in -180.0..180.0) {
-            return Result.failure(IllegalArgumentException("Longitude harus berada di antara -180 hingga 180."))
-        }
-
-        val location = GeoPoint(latitude, longitude)
+        val address = UserAddress(
+            id = state.existingAddressId.orEmpty(),
+            province = province.name,
+            city = city.name,
+            district = district.name,
+            detail = detail,
+            location = location
+        )
 
         val servicesPayload = mutableListOf<ProviderServicePayload>()
         state.services.forEachIndexed { index, form ->
@@ -423,18 +603,21 @@ class ProfileViewModel @Inject constructor(
         }
 
         return Result.success(
-            ProviderOnboardingPayload(
-                primaryCategoryId = categoryId,
-                serviceCategoryName = categoryName,
-                bio = state.bio.trim(),
-                profileBannerUrl = state.bannerUrl.trim().ifBlank { null },
-                acceptsBasicOrders = state.acceptsBasicOrders,
-                location = location,
-                district = district,
-                services = servicesPayload,
-                skills = skills,
-                certifications = certifications,
-                availableDates = availableDates.distinct(),
+            OnboardingSubmission(
+                payload = ProviderOnboardingPayload(
+                    primaryCategoryId = categoryId,
+                    serviceCategoryName = categoryName,
+                    bio = state.bio.trim(),
+                    profileBannerUrl = state.bannerUrl.trim().ifBlank { null },
+                    acceptsBasicOrders = state.acceptsBasicOrders,
+                    location = location,
+                    district = district.name,
+                    services = servicesPayload,
+                    skills = skills,
+                    certifications = certifications,
+                    availableDates = availableDates.distinct(),
+                ),
+                address = address
             )
         )
     }
@@ -446,6 +629,11 @@ class ProfileViewModel @Inject constructor(
         }
         return dates.joinToString(", ")
     }
+
+    private data class OnboardingSubmission(
+        val payload: ProviderOnboardingPayload,
+        val address: UserAddress
+    )
 }
 
 sealed class ProfileState {
