@@ -33,4 +33,17 @@ class ActiveJobRepositoryImplTest {
 
         assertTrue(filtered.isEmpty())
     }
+    @Test
+    fun `basic order participates in category filter when primaryCategoryId matches`() {
+        val basicOrder = Order(
+            id = "basic",
+            orderType = "basic",
+            primaryCategoryId = "cat-basic",
+            serviceSnapshot = mapOf("categoryId" to "cat-basic")
+        )
+
+        val filtered = filterOrdersByCategory(listOf(basicOrder), "cat-basic")
+
+        assertEquals(listOf(basicOrder), filtered)
+    }
 }

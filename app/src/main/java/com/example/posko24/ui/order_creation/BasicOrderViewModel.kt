@@ -360,6 +360,7 @@ class BasicOrderViewModel @Inject constructor(
                     customerId = currentUser.uid,
                     status = "awaiting_payment",
                     paymentStatus = "pending",
+                    primaryCategoryId = currentState.category?.id?.takeIf { it.isNotBlank() },
                     addressText = currentState.addressDetail,
                     province = currentState.selectedProvince?.let { AddressComponent(it.id, it.name) },
                     city = currentState.selectedCity?.let { AddressComponent(it.id, it.name) },
@@ -371,7 +372,8 @@ class BasicOrderViewModel @Inject constructor(
                     promoCode = currentState.promoCode.ifBlank { null },
                     totalAmount = totalAmount,
                     serviceSnapshot = buildMap {
-                        currentState.category?.id?.takeIf { it.isNotBlank() }
+                        currentState.category?.id
+                            ?.takeIf { it.isNotBlank() }
                             ?.let { put("categoryId", it) }
                         put("categoryName", currentState.category?.name ?: "N/A")
                         put(
