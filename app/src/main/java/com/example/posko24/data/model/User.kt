@@ -1,7 +1,7 @@
 package com.example.posko24.data.model
 
 import com.google.firebase.Timestamp
-
+import com.example.posko24.data.model.UserAddress
 /**
  * Data class ini merepresentasikan struktur dokumen di dalam koleksi 'users' di Firestore.
  */
@@ -15,6 +15,8 @@ data class User(
     val balance: Double = 0.0,
     val roles: List<String> = listOf("customer"),
     val activeRole: String = "customer",
+    val defaultAddressId: String? = null,
+    val defaultAddress: UserAddress? = null,
     val createdAt: Timestamp = Timestamp.now()
 ) {
 
