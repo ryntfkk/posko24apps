@@ -72,6 +72,9 @@ class MainActivity : ComponentActivity() {
                                 onCategoryClick = { categoryId ->
                                     navController.navigate("provider_list_screen/$categoryId")
                                 },
+                                onProviderClick = { providerId ->
+                                    navController.navigate("provider_detail_screen/$providerId")
+                                },
                                 onNavigateToConversation = { orderId ->
                                     navController.navigate("conversation_screen/$orderId")
                                 },

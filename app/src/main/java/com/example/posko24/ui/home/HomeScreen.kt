@@ -115,6 +115,7 @@ fun HomeScreen(
     mainViewModel: MainScreenStateHolder,
     homeViewModel: HomeViewModel = hiltViewModel(),
     onCategoryClick: (String) -> Unit,
+    onProviderClick: (String) -> Unit,
     onOrderClick: (String) -> Unit,
     onManageLocationClick: () -> Unit
 ) {
@@ -129,6 +130,7 @@ fun HomeScreen(
                 CategoryListScreen(
                     viewModel = homeViewModel,
                     onCategoryClick = onCategoryClick,
+                    onProviderClick = onProviderClick,
                     onOrderClick = onOrderClick,
                     onManageLocationClick = onManageLocationClick
                 )
@@ -138,6 +140,7 @@ fun HomeScreen(
             CategoryListScreen(
                 viewModel = homeViewModel,
                 onCategoryClick = onCategoryClick,
+                onProviderClick = onProviderClick,
                 onOrderClick = onOrderClick,
                 onManageLocationClick = onManageLocationClick
             )
@@ -160,6 +163,7 @@ fun HomeScreen(
 fun CategoryListScreen(
     viewModel: HomeViewModel,
     onCategoryClick: (String) -> Unit,
+    onProviderClick: (String) -> Unit,
     onOrderClick: (String) -> Unit,
     onManageLocationClick: () -> Unit
 ) {
@@ -412,7 +416,7 @@ fun CategoryListScreen(
                                 items(providerState.providers) { provider ->
                                     ProviderListItem(
                                         provider = provider,
-                                        onClick = {},
+                                        onClick = { onProviderClick(provider.uid) },
                                         modifier = Modifier.width(180.dp)
                                     )
                                 }

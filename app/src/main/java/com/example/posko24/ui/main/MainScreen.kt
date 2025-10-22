@@ -46,6 +46,7 @@ fun MainScreen(
     mainViewModel: MainScreenStateHolder,
     mainNavController: NavHostController,
     onCategoryClick: (String) -> Unit,
+    onProviderClick: (String) -> Unit,
     onNavigateToConversation: (String) -> Unit,
     onOrderClick: (String) -> Unit,
     onReviewClick: (String) -> Unit,
@@ -188,6 +189,7 @@ fun MainScreen(
                 HomeScreen(
                     mainViewModel = mainViewModel,
                     onCategoryClick = onCategoryClick,
+                    onProviderClick = onProviderClick,
                     onOrderClick = onOrderClick,
                     onManageLocationClick = onNavigateToAddressSettings
                 )
@@ -240,6 +242,7 @@ fun MainScreenPreview() {
             mainViewModel = previewViewModel,
             mainNavController = rememberNavController(),
             onCategoryClick = {},
+            onProviderClick = {},
             onNavigateToConversation = {},
             onOrderClick = {},
             onReviewClick = {},
