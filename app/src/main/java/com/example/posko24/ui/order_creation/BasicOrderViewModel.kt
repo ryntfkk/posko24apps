@@ -302,6 +302,9 @@ class BasicOrderViewModel @Inject constructor(
                     providerId = provider.uid,
                     status = "awaiting_payment",
                     paymentStatus = "pending",
+                    primaryCategoryId = provider.primaryCategoryId.ifBlank {
+                        currentState.category?.id ?: ""
+                    }.ifBlank { null },
                     addressText = currentState.addressDetail,
                     province = currentState.selectedProvince?.let { AddressComponent(it.id, it.name) },
                     city = currentState.selectedCity?.let { AddressComponent(it.id, it.name) },
@@ -314,6 +317,10 @@ class BasicOrderViewModel @Inject constructor(
                     totalAmount = totalAmount,
                     scheduledDate = selectedDate.toString(),
                     serviceSnapshot = buildMap {
+                        val categoryId = provider.primaryCategoryId.ifBlank {
+                            currentState.category?.id ?: ""
+                        }.ifBlank { null }
+                        categoryId?.let { put("categoryId", it) }
                         val categoryName = currentState.category?.name
                             ?: provider.primaryCategoryId
                         put("categoryName", categoryName)
@@ -363,17 +370,22 @@ class BasicOrderViewModel @Inject constructor(
                     discountAmount = discount,
                     promoCode = currentState.promoCode.ifBlank { null },
                     totalAmount = totalAmount,
-                    serviceSnapshot = mapOf(
-                        "categoryName" to (currentState.category?.name ?: "N/A"),
-                        "items" to selections.map {
-                            mapOf(
-                                "serviceName" to it.service.serviceName,
-                                "basePrice" to it.service.flatPrice,
-                                "quantity" to it.quantity,
-                                "lineTotal" to it.service.flatPrice * it.quantity
-                            )
-                        }
-                    )
+                    serviceSnapshot = buildMap {
+                        currentState.category?.id?.takeIf { it.isNotBlank() }
+                            ?.let { put("categoryId", it) }
+                        put("categoryName", currentState.category?.name ?: "N/A")
+                        put(
+                            "items",
+                            selections.map {
+                                mapOf(
+                                    "serviceName" to it.service.serviceName,
+                                    "basePrice" to it.service.flatPrice,
+                                    "quantity" to it.quantity,
+                                    "lineTotal" to it.service.flatPrice * it.quantity
+                                )
+                            }
+                        )
+                    }
                 )
 
                 Log.d("BasicOrderVM", "📦 Creating order: $order")

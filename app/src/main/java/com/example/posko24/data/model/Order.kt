@@ -18,6 +18,7 @@ data class Order(
     val providerId: String? = null, // Awalnya null untuk Basic Order
     val createdByRole: String = "",
     val serviceSnapshot: Map<String, Any> = emptyMap(), // Salinan info layanan
+    val primaryCategoryId: String? = null,
     val quantity: Int = 1,
     val adminFee: Double = 0.0,
     val discountAmount: Double = 0.0,

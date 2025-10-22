@@ -6,6 +6,7 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -35,7 +36,18 @@ class ActiveJobRepositoryImpl @Inject constructor(
             emit(jobs)
         }
 
-        val unclaimedJobs = flow {
+        val providerCategory = flow {
+            val snapshot = firestore.collection("provider_profiles")
+                .document(providerId)
+                .get()
+                .await()
+            val categoryId = snapshot.getString("primaryCategoryId")
+                ?.takeIf { it.isNotBlank() }
+                ?: throw IllegalStateException("Kategori utama provider tidak ditemukan")
+            emit(categoryId)
+        }
+
+        fun unclaimedJobs(categoryId: String) = flow {
             val snapshot = firestore.collection("orders")
                 .whereEqualTo("status", "searching_provider")
                 .whereEqualTo("providerId", null)
@@ -45,13 +57,22 @@ class ActiveJobRepositoryImpl @Inject constructor(
             val jobs = snapshot.documents.mapNotNull { doc ->
                 Order.fromDocument(doc)
             }
-            emit(jobs)
+            emit(filterOrdersByCategory(jobs, categoryId))
         }
 
-        return providerJobs.combine(unclaimedJobs) { provider, unclaimed ->
-            Result.success((provider + unclaimed).sortedByDescending { it.createdAt })
+        return providerCategory.flatMapLatest { categoryId ->
+            providerJobs.combine(unclaimedJobs(categoryId)) { provider, unclaimed ->
+                Result.success((provider + unclaimed).sortedByDescending { it.createdAt })
+            }
         }.catch {
             emit(Result.failure(it))
         }
+    }
+}
+
+internal fun filterOrdersByCategory(orders: List<Order>, categoryId: String): List<Order> {
+    val normalizedCategoryId = categoryId.takeIf { it.isNotBlank() } ?: return emptyList()
+    return orders.filter { order ->
+        order.primaryCategoryId?.takeIf { it.isNotBlank() } == normalizedCategoryId
     }
 }
