@@ -920,6 +920,38 @@ exports.claimOrder = functions.https.onCall(async (request) => {
         }
 
         const profileData = profileSnap.data() || {};
+        const orderCategoryId = readOptionalString(
+                  orderData.primaryCategoryId || orderData.categoryId
+                );
+                const profileCategoryId = readOptionalString(
+                  profileData.primaryCategoryId
+                );
+
+                if (orderCategoryId && !profileCategoryId) {
+                  throw new functions.https.HttpsError(
+                    'failed-precondition',
+                    'Profil provider belum memiliki kategori utama.'
+                  );
+                }
+
+                if (
+                  orderCategoryId &&
+                  profileCategoryId &&
+                  orderCategoryId !== profileCategoryId
+                ) {
+                  const message = 'Pesanan tidak sesuai kategori layanan Anda.';
+                  const details = {
+                    reason: 'CATEGORY_MISMATCH',
+                    orderCategoryId,
+                    providerCategoryId: profileCategoryId,
+                  };
+                  throw new functions.https.HttpsError(
+                    'failed-precondition',
+                    message,
+                    details
+                  );
+                }
+
         const availableDates = sanitizeDateList(profileData.availableDates);
         if (!availableDates.includes(requestedScheduledDate)) {
           const message = 'Tanggal yang dipilih tidak ada dalam jadwal tersedia Anda.';

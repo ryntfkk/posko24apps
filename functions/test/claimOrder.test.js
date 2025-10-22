@@ -8,6 +8,8 @@ function deepClone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
 
+const DEFAULT_CATEGORY = 'category-cleaning';
+
 function createFakeFirestore() {
   const stores = {
     orders: new Map(),
@@ -201,12 +203,14 @@ async function claimOrderSucceedsWithoutConflict(handler, fakeDb) {
   fakeDb.__seedProviderProfile(providerId, {
     availableDates: ['2024-04-01', '2024-04-05'],
     available: true,
+        primaryCategoryId: DEFAULT_CATEGORY,
   });
 
   fakeDb.__seedOrder(orderId, {
     status: 'searching_provider',
     providerId: null,
     scheduledDate: null,
+        primaryCategoryId: DEFAULT_CATEGORY,
   });
 
     const result = await invokeCallable(
@@ -231,16 +235,18 @@ async function claimOrderSucceedsWithoutConflict(handler, fakeDb) {
       const providerId = 'provider-unavailable';
       const orderId = 'order-no-slot';
 
-      fakeDb.__seedProviderProfile(providerId, {
-        availableDates: ['2024-04-02'],
-        available: true,
-      });
+        fakeDb.__seedProviderProfile(providerId, {
+          availableDates: ['2024-04-02'],
+          available: true,
+          primaryCategoryId: DEFAULT_CATEGORY,
+        });
 
       fakeDb.__seedOrder(orderId, {
-        status: 'searching_provider',
-        providerId: null,
-        scheduledDate: null,
-      });
+          status: 'searching_provider',
+          providerId: null,
+          scheduledDate: null,
+          primaryCategoryId: DEFAULT_CATEGORY,
+        });
 
       try {
         await invokeCallable(
@@ -265,21 +271,24 @@ async function claimOrderFailsWhenSameDateConflict(handler, fakeDb) {
   const conflictingDate = '2024-05-01';
 
  fakeDb.__seedProviderProfile(providerId, {
-    availableDates: [conflictingDate],
-    available: true,
-  });
+   availableDates: [conflictingDate],
+   available: true,
+   primaryCategoryId: DEFAULT_CATEGORY,
+ });
 
-  fakeDb.__seedOrder('existing-order', {
-    status: 'pending',
-    providerId,
-    scheduledDate: conflictingDate,
-  });
+ fakeDb.__seedOrder('existing-order', {
+   status: 'pending',
+   providerId,
+   scheduledDate: conflictingDate,
+   primaryCategoryId: DEFAULT_CATEGORY,
+ });
 
-  fakeDb.__seedOrder('order-to-claim', {
-    status: 'searching_provider',
-    providerId: null,
-    scheduledDate: conflictingDate,
-  });
+ fakeDb.__seedOrder('order-to-claim', {
+   status: 'searching_provider',
+   providerId: null,
+   scheduledDate: conflictingDate,
+   primaryCategoryId: DEFAULT_CATEGORY,
+ });
 
   try {
     await invokeCallable(
@@ -305,18 +314,21 @@ async function claimOrderFailsWhenExistingOrderHasNoSchedule(handler, fakeDb) {
  fakeDb.__seedProviderProfile(providerId, {
     availableDates: ['2024-06-10'],
     available: true,
+      primaryCategoryId: DEFAULT_CATEGORY,
   });
 
   fakeDb.__seedOrder('active-without-schedule', {
     status: 'ongoing',
     providerId,
     scheduledDate: null,
+    primaryCategoryId: DEFAULT_CATEGORY,
   });
 
   fakeDb.__seedOrder('order-future', {
     status: 'searching_provider',
     providerId: null,
     scheduledDate: null,
+    primaryCategoryId: DEFAULT_CATEGORY,
   });
 
   try {
@@ -336,6 +348,45 @@ async function claimOrderFailsWhenExistingOrderHasNoSchedule(handler, fakeDb) {
   assert.strictEqual(untouched.status, 'searching_provider');
 }
 
+async function claimOrderFailsWhenCategoryMismatch(handler, fakeDb) {
+  fakeDb.__reset();
+  const providerId = 'provider-category';
+  const orderId = 'order-category-mismatch';
+
+  fakeDb.__seedProviderProfile(providerId, {
+    availableDates: ['2024-08-01'],
+    available: true,
+    primaryCategoryId: 'category-a',
+  });
+
+  fakeDb.__seedOrder(orderId, {
+    status: 'searching_provider',
+    providerId: null,
+    scheduledDate: null,
+    primaryCategoryId: 'category-b',
+  });
+
+  try {
+    await invokeCallable(
+      handler,
+      { orderId, scheduledDate: '2024-08-01' },
+      providerId,
+    );
+    assert.fail('Expected claimOrder to throw for category mismatch.');
+  } catch (error) {
+    assert.strictEqual(error.code, 'failed-precondition');
+    assert.match(error.message, /kategori layanan/i);
+    assert.ok(error.details);
+    assert.strictEqual(error.details.reason, 'CATEGORY_MISMATCH');
+    assert.strictEqual(error.details.orderCategoryId, 'category-b');
+    assert.strictEqual(error.details.providerCategoryId, 'category-a');
+  }
+
+  const untouched = fakeDb.__getOrder(orderId);
+  assert.strictEqual(untouched.providerId, null);
+  assert.strictEqual(untouched.status, 'searching_provider');
+}
+
 async function claimOrderSucceedsWithDifferentDate(handler, fakeDb) {
   fakeDb.__reset();
   const providerId = 'provider-1';
@@ -343,18 +394,21 @@ async function claimOrderSucceedsWithDifferentDate(handler, fakeDb) {
   fakeDb.__seedProviderProfile(providerId, {
     availableDates: ['2024-05-01', '2024-05-03'],
     available: true,
+        primaryCategoryId: DEFAULT_CATEGORY,
   });
 
   fakeDb.__seedOrder('existing-order', {
     status: 'accepted',
     providerId,
     scheduledDate: '2024-05-01',
+        primaryCategoryId: DEFAULT_CATEGORY,
   });
 
   fakeDb.__seedOrder('order-new-date', {
     status: 'searching_provider',
     providerId: null,
     scheduledDate: '2024-05-03',
+        primaryCategoryId: DEFAULT_CATEGORY,
   });
 
   const result = await invokeCallable(
@@ -468,6 +522,7 @@ async function run() {
     await claimOrderFailsWhenDateNotAvailable(claimOrderHandler, fakeDb);
     await claimOrderFailsWhenSameDateConflict(claimOrderHandler, fakeDb);
     await claimOrderFailsWhenExistingOrderHasNoSchedule(claimOrderHandler, fakeDb);
+        await claimOrderFailsWhenCategoryMismatch(claimOrderHandler, fakeDb);
     await claimOrderSucceedsWithDifferentDate(claimOrderHandler, fakeDb);
     await directOrderConsumesAvailability(syncAvailabilityHandler, fakeDb);
     await statusReleaseRestoresAvailability(syncAvailabilityHandler, fakeDb);
