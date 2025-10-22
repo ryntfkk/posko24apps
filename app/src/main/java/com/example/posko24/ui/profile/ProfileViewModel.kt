@@ -15,8 +15,8 @@ import com.example.posko24.data.repository.ProviderAvailabilityRepository
 import com.example.posko24.data.repository.ServiceRepository
 import com.example.posko24.data.repository.UserRepository
 import com.example.posko24.ui.main.MainScreenStateHolder
-import com.example.posko24.ui.provider.onboarding.DEFAULT_CAMERA_ZOOM
-import com.example.posko24.ui.provider.onboarding.DEFAULT_LOCATION
+import com.example.posko24.ui.provider.onboarding.DEFAULT_CAMERA_POSITION
+import com.example.posko24.ui.provider.onboarding.DEFAULT_GEOPOINT
 import com.example.posko24.ui.provider.onboarding.ProviderOnboardingUiState
 import com.example.posko24.ui.provider.onboarding.ProviderServiceForm
 import com.example.posko24.util.APP_TIME_ZONE
