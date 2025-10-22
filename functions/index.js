@@ -1074,15 +1074,11 @@ exports.upgradeToProvider = onCall(async (request) => {
       if (!Number.isFinite(price) || price <= 0) {
         throw new HttpsError('invalid-argument', `Harga layanan ke-${index + 1} tidak valid.`);
       }
-      const priceUnit = readOptionalString(service.priceUnit);
-      if (!priceUnit) {
-        throw new HttpsError('invalid-argument', `Satuan harga layanan ke-${index + 1} wajib diisi.`);
-      }
       normalizedServices.push({
         name,
         description,
         price,
-        priceUnit,
+        priceUnit: 'per_service',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -1098,15 +1094,43 @@ exports.upgradeToProvider = onCall(async (request) => {
         )
       : [];
 
-    const normalizedCertifications = Array.isArray(payload.certifications)
-      ? Array.from(
-          new Set(
-            payload.certifications
-              .map((cert) => readOptionalString(cert))
-              .filter((value) => typeof value === 'string' && value.length > 0),
-          ),
-        )
-      : [];
+   const rawCertifications = Array.isArray(payload.certifications) ? payload.certifications : [];
+       const normalizedCertifications = [];
+       rawCertifications.forEach((rawCert, index) => {
+         const cert = rawCert || {};
+         const title = readOptionalString(cert.title);
+         const issuer = readOptionalString(cert.issuer) || '';
+         const credentialUrl = readOptionalString(cert.credentialUrl) || '';
+         const rawDateIssued = readOptionalString(cert.dateIssued);
+
+         if (!title && !issuer && !credentialUrl && !rawDateIssued) {
+           return;
+         }
+
+         if (!title) {
+           throw new HttpsError('invalid-argument', `Judul sertifikasi ke-${index + 1} wajib diisi.`);
+         }
+
+         let dateIssued = null;
+         if (rawDateIssued) {
+           const parsedDate = new Date(rawDateIssued);
+           if (Number.isNaN(parsedDate.getTime())) {
+             throw new HttpsError(
+               'invalid-argument',
+               `Tanggal terbit sertifikasi ke-${index + 1} harus berformat yyyy-MM-dd.`,
+             );
+           }
+           dateIssued = admin.firestore.Timestamp.fromDate(parsedDate);
+         }
+
+         normalizedCertifications.push({
+           title,
+           issuer,
+           credentialUrl,
+           dateIssued,
+           createdAt: admin.firestore.FieldValue.serverTimestamp(),
+         });
+       });
 
     const availableDates = sanitizeDateList(payload.availableDates);
 
@@ -1203,11 +1227,11 @@ exports.upgradeToProvider = onCall(async (request) => {
     normalizedCertifications.forEach((cert) => {
       const docRef = certificationsCollection.doc();
       batch.set(docRef, {
-        title: cert,
-        issuer: '',
-        credentialUrl: '',
-        dateIssued: null,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        title: cert.title,
+                issuer: cert.issuer,
+                credentialUrl: cert.credentialUrl,
+                dateIssued: cert.dateIssued,
+                createdAt: cert.createdAt || admin.firestore.FieldValue.serverTimestamp(),
       });
     });
 

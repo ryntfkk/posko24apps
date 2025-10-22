@@ -15,7 +15,7 @@ data class ProviderOnboardingPayload(
     val district: String,
     val services: List<ProviderServicePayload>,
     val skills: List<String>,
-    val certifications: List<String>,
+    val certifications: List<ProviderCertificationPayload>,
     val availableDates: List<String>
 )
 
@@ -26,5 +26,14 @@ data class ProviderServicePayload(
     val name: String,
     val description: String,
     val price: Double,
-    val priceUnit: String
+)
+
+/**
+ * Representasi data sertifikasi yang dikirim ketika onboarding provider.
+ */
+data class ProviderCertificationPayload(
+    val title: String,
+    val issuer: String,
+    val credentialUrl: String?,
+    val dateIssued: String?,
 )

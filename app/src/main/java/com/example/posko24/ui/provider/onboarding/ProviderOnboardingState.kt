@@ -1,5 +1,6 @@
 package com.example.posko24.ui.provider.onboarding
 
+import com.example.posko24.data.model.BasicService
 import com.example.posko24.data.model.ServiceCategory
 import com.example.posko24.data.model.Wilayah
 import com.google.android.gms.maps.model.CameraPosition
@@ -31,9 +32,8 @@ data class ProviderOnboardingUiState(
     val cameraPosition: CameraPosition = DEFAULT_CAMERA_POSITION,
     val existingAddressId: String? = null,
     val services: List<ProviderServiceForm> = listOf(ProviderServiceForm()),
-    val skillsInput: String = "",
-    val certificationsInput: String = "",
-    val availableDatesInput: String = "",
+    val availableBasicServices: List<BasicService> = emptyList(),
+    val certifications: List<CertificationForm> = emptyList(),
     val errorMessage: String? = null,
     val submissionInProgress: Boolean = false,
     val submissionSuccess: Boolean = false
@@ -43,10 +43,19 @@ data class ProviderOnboardingUiState(
  * Representasi satu entri layanan di form onboarding.
  */
 data class ProviderServiceForm(
-    val name: String = "",
+    val selectedService: BasicService? = null,
     val description: String = "",
-    val price: String = "",
-    val priceUnit: String = ""
+    val price: String = ""
+)
+
+/**
+ * Representasi satu entri sertifikasi yang dapat ditambahkan pada form onboarding.
+ */
+data class CertificationForm(
+    val title: String = "",
+    val issuer: String = "",
+    val credentialUrl: String = "",
+    val dateIssued: String = ""
 )
 
 private val DEFAULT_LAT_LNG = LatLng(-6.9926, 110.4283)

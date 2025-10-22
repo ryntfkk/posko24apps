@@ -41,8 +41,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -64,6 +62,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.posko24.R
+import com.example.posko24.data.model.BasicService
 import com.example.posko24.ui.components.AddressDropdown
 import com.example.posko24.ui.components.MapSelection
 import com.example.posko24.ui.main.MainScreenStateHolder
@@ -270,26 +269,6 @@ fun ProviderOnboardingScreen(
                             if (state.isUploadingBanner) {
                                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                             }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Terima pesanan basic secara otomatis",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Switch(
-                                    checked = state.acceptsBasicOrders,
-                                    onCheckedChange = viewModel::updateAcceptsBasicOrders,
-                                    enabled = !state.submissionInProgress,
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                        checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.54f)
-                                    )
-                                )
-                            }
                         }
                     }
 
@@ -313,11 +292,11 @@ fun ProviderOnboardingScreen(
                         ServiceFormCard(
                             index = index,
                             form = service,
+                            availableServices = state.availableBasicServices,
                             enabled = !state.submissionInProgress,
-                            onNameChange = { viewModel.updateServiceName(index, it) },
+                            onServiceSelected = { viewModel.updateServiceSelection(index, it) },
                             onDescriptionChange = { viewModel.updateServiceDescription(index, it) },
                             onPriceChange = { viewModel.updateServicePrice(index, it) },
-                            onPriceUnitChange = { viewModel.updateServicePriceUnit(index, it) },
                             onRemove = { viewModel.removeServiceEntry(index) }
                         )
                     }
@@ -325,7 +304,7 @@ fun ProviderOnboardingScreen(
                     item {
                         TextButton(
                             onClick = viewModel::addServiceEntry,
-                            enabled = !state.submissionInProgress
+                            enabled = !state.submissionInProgress && state.availableBasicServices.isNotEmpty()
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
@@ -334,45 +313,35 @@ fun ProviderOnboardingScreen(
                     }
 
                     item {
-                        SectionTitle("Keahlian & Sertifikasi")
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            OutlinedTextField(
-                                value = state.skillsInput,
-                                onValueChange = viewModel::updateSkillsInput,
-                                label = { Text("Keahlian (pisahkan dengan koma)") },
-                                placeholder = { Text("Instalasi AC, Servis berkala") },
-                                enabled = !state.submissionInProgress,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            OutlinedTextField(
-                                value = state.certificationsInput,
-                                onValueChange = viewModel::updateCertificationsInput,
-                                label = { Text("Sertifikasi (opsional)") },
-                                placeholder = { Text("Sertifikasi BNSP, ...") },
-                                enabled = !state.submissionInProgress,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
+                        SectionTitle("Sertifikasi")
+                        Text(
+                            text = "Tambahkan sertifikasi profesional jika tersedia.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    itemsIndexed(state.certifications) { index, certification ->
+                        CertificationFormCard(
+                            index = index,
+                            form = certification,
+                            enabled = !state.submissionInProgress,
+                            onTitleChange = { viewModel.updateCertificationTitle(index, it) },
+                            onIssuerChange = { viewModel.updateCertificationIssuer(index, it) },
+                            onCredentialUrlChange = { viewModel.updateCertificationCredentialUrl(index, it) },
+                            onDateIssuedChange = { viewModel.updateCertificationDateIssued(index, it) },
+                            onRemove = { viewModel.removeCertificationEntry(index) }
+                        )
                     }
 
                     item {
-                        SectionTitle("Jadwal Awal")
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            OutlinedTextField(
-                                value = state.availableDatesInput,
-                                onValueChange = viewModel::updateAvailableDatesInput,
-                                label = { Text("Tanggal Tersedia (yyyy-MM-dd)") },
-                                placeholder = { Text("2024-05-12, 2024-05-13, ...") },
-                                enabled = !state.submissionInProgress,
-                                modifier = Modifier.fillMaxWidth(),
-                                minLines = 2,
-                                maxLines = 4
-                            )
-                            Text(
-                                text = "Anda dapat mengubah jadwal lebih lanjut di menu pengelolaan ketersediaan setelah onboarding.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        TextButton(
+                            onClick = viewModel::addCertificationEntry,
+                            enabled = !state.submissionInProgress
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Tambah Sertifikasi")
                         }
                     }
 
@@ -462,11 +431,11 @@ private fun SectionTitle(text: String) {
 private fun ServiceFormCard(
     index: Int,
     form: ProviderServiceForm,
+    availableServices: List<BasicService>,
     enabled: Boolean,
-    onNameChange: (String) -> Unit,
+    onServiceSelected: (BasicService) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onPriceChange: (String) -> Unit,
-    onPriceUnitChange: (String) -> Unit,
     onRemove: () -> Unit,
 ) {
     Card(
@@ -494,13 +463,47 @@ private fun ServiceFormCard(
                     Icon(Icons.Default.Delete, contentDescription = null)
                 }
             }
-            OutlinedTextField(
-                value = form.name,
-                onValueChange = onNameChange,
-                label = { Text("Nama Layanan") },
-                enabled = enabled,
+            val expanded = remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(
+                expanded = expanded.value,
+                onExpandedChange = {
+                    if (enabled && availableServices.isNotEmpty()) {
+                        expanded.value = it
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
-            )
+            ) {
+                OutlinedTextField(
+                    value = form.selectedService?.serviceName.orEmpty(),
+                    onValueChange = {},
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth(),
+                    readOnly = true,
+                    enabled = enabled && availableServices.isNotEmpty(),
+                    label = { Text("Layanan") },
+                    placeholder = { Text(if (availableServices.isEmpty()) "Layanan belum tersedia" else "Pilih layanan") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded.value)
+                    }
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded.value,
+                    onDismissRequest = { expanded.value = false },
+                ) {
+                    availableServices.forEach { service ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(service.serviceName)
+                            },
+                            onClick = {
+                                onServiceSelected(service)
+                                expanded.value = false
+                            }
+                        )
+                    }
+                }
+            }
             OutlinedTextField(
                 value = form.description,
                 onValueChange = onDescriptionChange,
@@ -514,20 +517,77 @@ private fun ServiceFormCard(
                 OutlinedTextField(
                     value = form.price,
                     onValueChange = onPriceChange,
-                    label = { Text("Harga") },
+                    label = { Text("Harga per layanan") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     enabled = enabled,
                     modifier = Modifier.weight(1f)
                 )
-                OutlinedTextField(
-                    value = form.priceUnit,
-                    onValueChange = onPriceUnitChange,
-                    label = { Text("Satuan") },
-                    placeholder = { Text("per jam / per unit") },
-                    enabled = enabled,
-                    modifier = Modifier.weight(1f)
-                )
             }
+        }
+    }
+}
+
+@Composable
+private fun CertificationFormCard(
+    index: Int,
+    form: CertificationForm,
+    enabled: Boolean,
+    onTitleChange: (String) -> Unit,
+    onIssuerChange: (String) -> Unit,
+    onCredentialUrlChange: (String) -> Unit,
+    onDateIssuedChange: (String) -> Unit,
+    onRemove: () -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Sertifikasi ${index + 1}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                IconButton(onClick = onRemove, enabled = enabled) {
+                    Icon(Icons.Default.Delete, contentDescription = null)
+                }
+            }
+            OutlinedTextField(
+                value = form.title,
+                onValueChange = onTitleChange,
+                label = { Text("Judul") },
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = form.issuer,
+                onValueChange = onIssuerChange,
+                label = { Text("Penerbit") },
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = form.credentialUrl,
+                onValueChange = onCredentialUrlChange,
+                label = { Text("Credential URL") },
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = form.dateIssued,
+                onValueChange = onDateIssuedChange,
+                label = { Text("Tanggal Terbit (yyyy-MM-dd)") },
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

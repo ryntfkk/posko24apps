@@ -3,6 +3,8 @@ package com.example.posko24.ui.profile
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.posko24.data.model.BasicService
+import com.example.posko24.data.model.ProviderCertificationPayload
 import com.example.posko24.data.model.ProviderOnboardingPayload
 import com.example.posko24.data.model.ProviderProfile
 import com.example.posko24.data.model.ProviderServicePayload
@@ -17,6 +19,7 @@ import com.example.posko24.data.repository.UserRepository
 import com.example.posko24.ui.main.MainScreenStateHolder
 import com.example.posko24.ui.provider.onboarding.DEFAULT_CAMERA_POSITION
 import com.example.posko24.ui.provider.onboarding.DEFAULT_GEOPOINT
+import com.example.posko24.ui.provider.onboarding.CertificationForm
 import com.example.posko24.ui.provider.onboarding.ProviderOnboardingUiState
 import com.example.posko24.ui.provider.onboarding.ProviderServiceForm
 import com.example.posko24.util.APP_TIME_ZONE
@@ -34,11 +37,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
-import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.tasks.await
+import java.math.BigDecimal
 import javax.inject.Inject
 
 @HiltViewModel
@@ -145,14 +147,12 @@ class ProfileViewModel @Inject constructor(
 
     fun initializeOnboarding() {
         if (_onboardingState.value.hasInitialized) return
-        val defaultDates = defaultAvailabilityPrefill()
         _onboardingState.update { state ->
             state.copy(
                 hasInitialized = true,
                 isLoading = true,
                 errorMessage = null,
                 services = if (state.services.isEmpty()) listOf(ProviderServiceForm()) else state.services,
-                availableDatesInput = if (state.availableDatesInput.isBlank()) defaultDates else state.availableDatesInput,
             )
         }
         viewModelScope.launch {
@@ -234,15 +234,15 @@ class ProfileViewModel @Inject constructor(
                 val resolvedCategoryId = state.selectedCategoryId?.takeIf { id ->
                     categories.any { it.id == id }
                 }
-                val resolvedCategoryName = resolvedCategoryId?.let { id ->
-                    categories.firstOrNull { it.id == id }?.name
-                } ?: state.selectedCategoryName
-
+                val resolvedCategory = resolvedCategoryId?.let { id ->
+                    categories.firstOrNull { it.id == id }
+                }
 
                 state.copy(
                     categories = categories,
                     selectedCategoryId = resolvedCategoryId,
-                    selectedCategoryName = resolvedCategoryName,
+                    selectedCategoryName = resolvedCategory?.name ?: state.selectedCategoryName,
+                    availableBasicServices = resolvedCategory?.basicOrderServices.orEmpty(),
                     provinces = provinces,
                     cities = if (cities.isNotEmpty()) cities.toList() else state.cities,
                     districts = if (districts.isNotEmpty()) districts.toList() else state.districts,
@@ -262,10 +262,23 @@ class ProfileViewModel @Inject constructor(
 
     fun updateSelectedCategory(categoryId: String) {
         _onboardingState.update { state ->
-            val categoryName = state.categories.firstOrNull { it.id == categoryId }?.name.orEmpty()
+            val category = state.categories.firstOrNull { it.id == categoryId }
+            val availableServices = category?.basicOrderServices.orEmpty()
+            val sanitizedServices = state.services
+                .map { form ->
+                    if (availableServices.any { it.serviceName == form.selectedService?.serviceName }) {
+                        form
+                    } else {
+                        ProviderServiceForm()
+                    }
+                }
+                .ifEmpty { listOf(ProviderServiceForm()) }
+
             state.copy(
                 selectedCategoryId = categoryId,
-                selectedCategoryName = categoryName,
+                selectedCategoryName = category?.name.orEmpty(),
+                availableBasicServices = availableServices,
+                services = sanitizedServices,
             )
         }
     }
@@ -277,26 +290,15 @@ class ProfileViewModel @Inject constructor(
         _onboardingState.update { it.copy(bannerUrl = url) }
     }
 
-    fun updateAcceptsBasicOrders(value: Boolean) {
-        _onboardingState.update { it.copy(acceptsBasicOrders = value) }
+    fun updateServiceSelection(index: Int, service: BasicService) {
+        updateServiceForm(index) { form ->
+            val formattedPrice = formatPrice(service.flatPrice)
+            form.copy(
+                selectedService = service,
+                price = if (form.price.isBlank() && formattedPrice.isNotBlank()) formattedPrice else form.price
+            )
+        }
     }
-
-    fun updateSkillsInput(value: String) {
-        _onboardingState.update { it.copy(skillsInput = value) }
-    }
-
-    fun updateCertificationsInput(value: String) {
-        _onboardingState.update { it.copy(certificationsInput = value) }
-    }
-
-    fun updateAvailableDatesInput(value: String) {
-        _onboardingState.update { it.copy(availableDatesInput = value) }
-    }
-
-    fun updateServiceName(index: Int, value: String) {
-        updateServiceForm(index) { it.copy(name = value) }
-    }
-
     fun updateServiceDescription(index: Int, value: String) {
         updateServiceForm(index) { it.copy(description = value) }
     }
@@ -305,13 +307,13 @@ class ProfileViewModel @Inject constructor(
         updateServiceForm(index) { it.copy(price = value) }
     }
 
-    fun updateServicePriceUnit(index: Int, value: String) {
-        updateServiceForm(index) { it.copy(priceUnit = value) }
-    }
-
     fun addServiceEntry() {
         _onboardingState.update { state ->
-            state.copy(services = state.services + ProviderServiceForm())
+            if (state.availableBasicServices.isEmpty()) {
+                state
+            } else {
+                state.copy(services = state.services + ProviderServiceForm())
+            }
         }
     }
 
@@ -324,6 +326,39 @@ class ProfileViewModel @Inject constructor(
             }
         }
     }
+
+    fun addCertificationEntry() {
+        _onboardingState.update { state ->
+            state.copy(certifications = state.certifications + CertificationForm())
+        }
+    }
+
+    fun removeCertificationEntry(index: Int) {
+        _onboardingState.update { state ->
+            if (index !in state.certifications.indices) {
+                state
+            } else {
+                state.copy(certifications = state.certifications.filterIndexed { i, _ -> i != index })
+            }
+        }
+    }
+
+    fun updateCertificationTitle(index: Int, value: String) {
+        updateCertificationForm(index) { it.copy(title = value) }
+    }
+
+    fun updateCertificationIssuer(index: Int, value: String) {
+        updateCertificationForm(index) { it.copy(issuer = value) }
+    }
+
+    fun updateCertificationCredentialUrl(index: Int, value: String) {
+        updateCertificationForm(index) { it.copy(credentialUrl = value) }
+    }
+
+    fun updateCertificationDateIssued(index: Int, value: String) {
+        updateCertificationForm(index) { it.copy(dateIssued = value) }
+    }
+
     fun updateSelectedProvince(province: Wilayah) {
         _onboardingState.update { state ->
             state.copy(
@@ -501,12 +536,22 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    private fun parseDelimitedInput(raw: String): List<String> {
-        if (raw.isBlank()) return emptyList()
-        return raw.split(',', '\n', ';')
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .distinct()
+    private fun updateCertificationForm(index: Int, transform: (CertificationForm) -> CertificationForm) {
+        _onboardingState.update { state ->
+            if (index !in state.certifications.indices) {
+                state
+            } else {
+                val updatedCertifications = state.certifications.mapIndexed { i, certification ->
+                    if (i == index) transform(certification) else certification
+                }
+                state.copy(certifications = updatedCertifications)
+            }
+        }
+    }
+
+    private fun formatPrice(value: Double): String {
+        if (value <= 0.0) return ""
+        return BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
     }
 
     private suspend fun uploadImage(path: String, uri: Uri): Result<String> {
@@ -562,10 +607,8 @@ class ProfileViewModel @Inject constructor(
 
         val servicesPayload = mutableListOf<ProviderServicePayload>()
         state.services.forEachIndexed { index, form ->
-            val name = form.name.trim()
-            if (name.isEmpty()) {
-                return Result.failure(IllegalArgumentException("Nama layanan ke-${index + 1} wajib diisi."))
-            }
+            val selectedService = form.selectedService
+                ?: return Result.failure(IllegalArgumentException("Pilih layanan pada entri ke-${index + 1}."))
             val description = form.description.trim()
             if (description.isEmpty()) {
                 return Result.failure(IllegalArgumentException("Deskripsi layanan ke-${index + 1} wajib diisi."))
@@ -575,15 +618,10 @@ class ProfileViewModel @Inject constructor(
             if (priceValue <= 0) {
                 return Result.failure(IllegalArgumentException("Harga layanan ke-${index + 1} harus lebih dari 0."))
             }
-            val priceUnit = form.priceUnit.trim()
-            if (priceUnit.isEmpty()) {
-                return Result.failure(IllegalArgumentException("Satuan harga layanan ke-${index + 1} wajib diisi."))
-            }
             servicesPayload += ProviderServicePayload(
-                name = name,
+                name = selectedService.serviceName,
                 description = description,
                 price = priceValue,
-                priceUnit = priceUnit,
             )
         }
 
@@ -591,15 +629,35 @@ class ProfileViewModel @Inject constructor(
             return Result.failure(IllegalArgumentException("Tambahkan minimal satu layanan."))
         }
 
-        val skills = parseDelimitedInput(state.skillsInput)
-        val certifications = parseDelimitedInput(state.certificationsInput)
-        val availableDatesInput = parseDelimitedInput(state.availableDatesInput)
-        val availableDates = mutableListOf<String>()
-        availableDatesInput.forEachIndexed { index, rawDate ->
-            val parsedDate = runCatching { LocalDate.parse(rawDate) }.getOrElse {
-                return Result.failure(IllegalArgumentException("Tanggal tersedia ke-${index + 1} harus berformat yyyy-MM-dd."))
+        val certificationPayloads = mutableListOf<ProviderCertificationPayload>()
+        state.certifications.forEachIndexed { index, form ->
+            val title = form.title.trim()
+            val issuer = form.issuer.trim()
+            val credentialUrl = form.credentialUrl.trim()
+            val rawDate = form.dateIssued.trim()
+
+            if (title.isEmpty() && issuer.isEmpty() && credentialUrl.isEmpty() && rawDate.isEmpty()) {
+                return@forEachIndexed
             }
-            availableDates += parsedDate.toString()
+
+            if (title.isEmpty()) {
+                return Result.failure(IllegalArgumentException("Judul sertifikasi ke-${index + 1} wajib diisi."))
+            }
+
+            val normalizedDate = if (rawDate.isNotEmpty()) {
+                runCatching { LocalDate.parse(rawDate) }.getOrElse {
+                    return Result.failure(IllegalArgumentException("Tanggal terbit sertifikasi ke-${index + 1} harus berformat yyyy-MM-dd."))
+                }.toString()
+            } else {
+                null
+            }
+
+            certificationPayloads += ProviderCertificationPayload(
+                title = title,
+                issuer = issuer,
+                credentialUrl = credentialUrl.ifBlank { null },
+                dateIssued = normalizedDate,
+            )
         }
 
         return Result.success(
@@ -613,22 +671,15 @@ class ProfileViewModel @Inject constructor(
                     location = location,
                     district = district.name,
                     services = servicesPayload,
-                    skills = skills,
-                    certifications = certifications,
-                    availableDates = availableDates.distinct(),
+                    skills = emptyList(),
+                    certifications = certificationPayloads,
+                    availableDates = emptyList(),
                 ),
                 address = address
             )
         )
     }
 
-    private fun defaultAvailabilityPrefill(): String {
-        val today = Clock.System.now().toLocalDateTime(APP_TIME_ZONE).date
-        val dates = (1..3).map { offset ->
-            today.plus(DatePeriod(days = offset)).toString()
-        }
-        return dates.joinToString(", ")
-    }
 
     private data class OnboardingSubmission(
         val payload: ProviderOnboardingPayload,

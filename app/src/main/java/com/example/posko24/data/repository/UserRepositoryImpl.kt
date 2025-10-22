@@ -43,7 +43,6 @@ class UserRepositoryImpl @Inject constructor(
         requestPayload["availableDates"] = payload.availableDates
         requestPayload["district"] = payload.district
         requestPayload["skills"] = payload.skills
-        requestPayload["certifications"] = payload.certifications
         requestPayload["profileBannerUrl"] = payload.profileBannerUrl
         payload.location?.let { location ->
             requestPayload["location"] = mapOf(
@@ -56,10 +55,16 @@ class UserRepositoryImpl @Inject constructor(
                 "name" to service.name,
                 "description" to service.description,
                 "price" to service.price,
-                "priceUnit" to service.priceUnit
             )
         }
-
+        requestPayload["certifications"] = payload.certifications.map { certification ->
+            mapOf(
+                "title" to certification.title,
+                "issuer" to certification.issuer,
+                "credentialUrl" to certification.credentialUrl,
+                "dateIssued" to certification.dateIssued,
+            )
+        }
         upgradeToProvider.call(requestPayload).await()
         emit(Result.success(true))
     }.catch {
