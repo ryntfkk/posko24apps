@@ -63,9 +63,17 @@ class AddressRepositoryImpl @Inject constructor(
         emit(Result.failure(it))
     }
     override fun getDefaultAddress(userId: String): Flow<Result<UserAddress?>> = flow {
-        val snapshot = firestore.collection("users").document(userId)
-            .collection("addresses").limit(1).get().await()
-        val address = snapshot.documents.firstOrNull()?.let { doc ->
+        val addressesCollection = firestore.collection("users").document(userId)
+            .collection("addresses")
+        val defaultSnapshot = addressesCollection.whereEqualTo("isDefault", true)
+            .limit(1)
+            .get()
+            .await()
+        val selectedDocument = when {
+            defaultSnapshot.isEmpty -> addressesCollection.limit(1).get().await().documents.firstOrNull()
+            else -> defaultSnapshot.documents.firstOrNull()
+        }
+        val address = selectedDocument?.let { doc ->
             UserAddress(
                 id = doc.id,
                 province = doc.getString("province") ?: "",
@@ -81,9 +89,17 @@ class AddressRepositoryImpl @Inject constructor(
     }
     override suspend fun getUserAddress(userId: String): Result<UserAddress?> {
         return try {
-            val snapshot = firestore.collection("users").document(userId)
-                .collection("addresses").limit(1).get().await()
-            val address = snapshot.documents.firstOrNull()?.let { doc ->
+            val addressesCollection = firestore.collection("users").document(userId)
+                .collection("addresses")
+            val defaultSnapshot = addressesCollection.whereEqualTo("isDefault", true)
+                .limit(1)
+                .get()
+                .await()
+            val selectedDocument = when {
+                defaultSnapshot.isEmpty -> addressesCollection.limit(1).get().await().documents.firstOrNull()
+                else -> defaultSnapshot.documents.firstOrNull()
+            }
+            val address = selectedDocument?.let { doc ->
                 UserAddress(
                     id = doc.id,
                     province = doc.getString("province") ?: "",
