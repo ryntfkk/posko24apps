@@ -38,6 +38,21 @@ class HomeViewModel @Inject constructor(
     private val addressRepository: AddressRepository
 ) : ViewModel() {
 
+    companion object {
+        internal val ACTIVE_ORDER_STATUSES = listOf(
+            OrderStatus.AWAITING_PAYMENT,
+            OrderStatus.PENDING,
+            OrderStatus.SEARCHING_PROVIDER,
+            OrderStatus.AWAITING_PROVIDER_CONFIRMATION,
+            OrderStatus.ACCEPTED,
+            OrderStatus.ONGOING,
+            OrderStatus.AWAITING_CONFIRMATION,
+        )
+
+        internal val ACTIVE_ORDER_STATUS_VALUES: List<String> =
+            ACTIVE_ORDER_STATUSES.map { it.value }
+    }
+
     private val _categoriesState = MutableStateFlow<CategoriesState>(CategoriesState.Loading)
     val categoriesState = _categoriesState.asStateFlow()
 
@@ -120,19 +135,9 @@ class HomeViewModel @Inject constructor(
             return
         }
 
-        val activeStatuses = listOf(
-            "awaiting_payment",
-            "pending",
-            "searching_provider",
-            "awaiting_provider_confirmation",
-            "accepted",
-            "on_the_way",
-            "in_progress"
-        )
-
         firestore.collection("orders")
             .whereEqualTo("customerId", uid)
-            .whereIn("status", activeStatuses)
+            .whereIn("status", ACTIVE_ORDER_STATUS_VALUES)
             .limit(1)
             .get()
             .addOnSuccessListener { snapshot ->

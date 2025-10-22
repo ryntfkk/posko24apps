@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Payment
+import com.example.posko24.data.model.OrderStatus
 import com.example.posko24.data.model.formattedScheduledDate
 import com.example.posko24.data.model.serviceItems
 import com.example.posko24.ui.home.ActiveOrderDetails
@@ -42,13 +43,15 @@ fun ActiveOrderBanner(
             // ==========================================================
             // LOGIKA PEMILIHAN IKON BERDASARKAN STATUS
             // ==========================================================
+            val status = OrderStatus.from(order.status)
             Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
-                when (order.status) {
-                    "searching_provider", "awaiting_provider_confirmation" -> {
+                when (iconTypeForStatus(status)) {
+                    ActiveOrderIconType.SIGNAL -> {
                         // Ikon sinyal untuk pencarian provider
                         AnimatedSignalIcon(modifier = Modifier.fillMaxSize())
                     }
-                    "awaiting_payment" -> {
+
+                    ActiveOrderIconType.PAYMENT -> {
                         // Ikon pembayaran untuk menunggu pembayaran
                         Icon(
                             imageVector = Icons.Default.Payment,
@@ -56,7 +59,8 @@ fun ActiveOrderBanner(
                             modifier = Modifier.fillMaxSize()
                         )
                     }
-                    "pending", "accepted", "on_the_way", "in_progress" -> {
+
+                    ActiveOrderIconType.GEAR -> {
                         // Ikon gear untuk status pesanan aktif lainnya
                         AnimatedGearIcon(modifier = Modifier.fillMaxSize())
                     }
@@ -88,15 +92,24 @@ fun ActiveOrderBanner(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                when (order.status) {
-                    "awaiting_payment" -> {
-                        Text(
-                            text = "Menunggu Pembayaran",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
+                if (status == OrderStatus.AWAITING_PAYMENT) {
+                    Text(
+                        text = "Menunggu Pembayaran",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
         }
     }
+}
+
+internal enum class ActiveOrderIconType { SIGNAL, PAYMENT, GEAR }
+
+internal fun iconTypeForStatus(status: OrderStatus?): ActiveOrderIconType = when (status) {
+    OrderStatus.SEARCHING_PROVIDER,
+    OrderStatus.AWAITING_PROVIDER_CONFIRMATION -> ActiveOrderIconType.SIGNAL
+
+    OrderStatus.AWAITING_PAYMENT -> ActiveOrderIconType.PAYMENT
+
+    else -> ActiveOrderIconType.GEAR
 }
