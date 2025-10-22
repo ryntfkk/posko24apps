@@ -26,7 +26,10 @@ data class ProviderServicePayload(
     val name: String,
     val description: String,
     val price: Double,
-)
+    val priceUnit: String = DEFAULT_PRICE_UNIT,
+    )
+
+const val DEFAULT_PRICE_UNIT = "per_service"
 
 /**
  * Representasi data sertifikasi yang dikirim ketika onboarding provider.

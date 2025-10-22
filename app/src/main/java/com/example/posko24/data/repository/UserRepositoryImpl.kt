@@ -55,7 +55,8 @@ class UserRepositoryImpl @Inject constructor(
                 "name" to service.name,
                 "description" to service.description,
                 "price" to service.price,
-            )
+                "priceUnit" to service.priceUnit,
+                )
         }
         requestPayload["certifications"] = payload.certifications.map { certification ->
             mapOf(
