@@ -1,6 +1,7 @@
 package com.example.posko24.ui.order_creation
 
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -41,6 +42,16 @@ sealed class OrderCreationState {
     object Loading : OrderCreationState()
     data class PaymentTokenReceived(val token: String) : OrderCreationState()
     data class Error(val message: String) : OrderCreationState()
+}
+
+@VisibleForTesting
+internal fun resolveProviderCategoryName(
+    provider: ProviderProfile,
+    category: ServiceCategory?
+): String {
+    return category?.name
+        ?: provider.serviceCategory.takeIf { it.isNotBlank() }
+        ?: provider.primaryCategoryId
 }
 
 data class BasicOrderUiState(
@@ -321,9 +332,7 @@ class BasicOrderViewModel @Inject constructor(
                             currentState.category?.id ?: ""
                         }.ifBlank { null }
                         categoryId?.let { put("categoryId", it) }
-                        val categoryName = currentState.category?.name
-                            ?: provider.primaryCategoryId
-                        put("categoryName", categoryName)
+                        put("categoryName", resolveProviderCategoryName(provider, currentState.category))
                         put("items", items)
                         put("providerName", provider.fullName)
                     }

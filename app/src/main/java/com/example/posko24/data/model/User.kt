@@ -1,10 +1,13 @@
 package com.example.posko24.data.model
 
+import com.example.posko24.data.model.UserAddress
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.IgnoreExtraProperties
 
 /**
  * Data class ini merepresentasikan struktur dokumen di dalam koleksi 'users' di Firestore.
  */
+@IgnoreExtraProperties
 data class User(
     val uid: String = "", // UID dari Firebase Auth
     val fullName: String = "",
@@ -15,12 +18,17 @@ data class User(
     val balance: Double = 0.0,
     val roles: List<String> = listOf("customer"),
     val activeRole: String = "customer",
-    val createdAt: Timestamp = Timestamp.now()
+    val createdAt: Timestamp = Timestamp.now(),
+    val defaultAddressId: String? = null,
+    val defaultAddress: UserAddress? = null,
+    val validForPayment: Boolean? = null,
 ) {
     fun isValidForPayment(): Boolean {
-        return fullName.isNotBlank() &&
+        return validForPayment ?: (
+                fullName.isNotBlank() &&
                 email.isNotBlank() &&
                 phoneNumber.isNotBlank()
+                )
     }
 
     fun normalizedPhone(): String {
